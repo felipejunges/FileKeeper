@@ -1,0 +1,175 @@
+﻿using FileKeeper.Core.Interfaces;
+using FileKeeper.Core.Models;
+using FileKeeper.Core.Services;
+using FileKeeper.Core.Services.Abstraction;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Spectre.Console;
+
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((context, services) =>
+    {
+        services.AddSingleton<IFileSystem, FileSystem>();
+        services.AddSingleton<IHashingService, HashingService>();
+        services.AddSingleton<IConfigurationService, ConfigurationService>();
+        services.AddSingleton<ICompressionService, CompressionService>();
+        services.AddSingleton<BackupService>();
+        services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
+        
+        services.AddSingleton<Configuration>(o =>
+        {
+            var configService = o.GetRequiredService<IConfigurationService>();
+            return configService.Load();
+        });
+    })
+    .Build();
+
+var configurationService = host.Services.GetRequiredService<IConfigurationService>();
+var backupService = host.Services.GetRequiredService<BackupService>();
+
+while (true)
+{
+    AnsiConsole.Clear();
+    AnsiConsole.Write(
+        new FigletText("FileKeeper")
+            .LeftJustified()
+            .Color(Color.Teal));
+
+    var choice = AnsiConsole.Prompt(
+        new SelectionPrompt<string>()
+            .Title("What do you want to do?")
+            .PageSize(10)
+            .AddChoices(new[]
+            {
+                "Backup Now",
+                "Restore",
+                "Configuration",
+                "Exit"
+            }));
+
+    switch (choice)
+    {
+        case "Backup Now":
+            PerformBackupUI(backupService);
+            break;
+        case "Restore":
+            //PerformRestoreUI(config);
+            break;
+        case "Configuration":
+            ConfigureUI(configurationService);
+            break;
+        case "Exit":
+            return;
+    }
+}
+
+static void PerformBackupUI(BackupService backupService)
+{
+    AnsiConsole.Status()
+        .Start("Running Backup...", ctx => { backupService.CreateBackup(); });
+
+    AnsiConsole.MarkupLine("Press any key to return...");
+    Console.ReadKey();
+}
+
+static void ConfigureUI(IConfigurationService configurationService)
+{
+    var configuration = configurationService.Load();
+    
+    while (true)
+    {
+        AnsiConsole.Clear();
+        AnsiConsole.MarkupLine($"[bold]Destination:[/] {configuration.DestinationDirectory ?? "Not Set"}");
+        AnsiConsole.MarkupLine(
+            $"[bold]Keep Max Backups:[/] {(configuration.KeepMaxBackups == 0 ? "Infinite" : configuration.KeepMaxBackups.ToString())}");
+        AnsiConsole.MarkupLine(
+            $"[bold]Use Compression:[/] {(configuration.UseCompression ? "[green]Yes[/]" : "[grey]No[/]")}");
+        AnsiConsole.MarkupLine("[bold]Sources:[/]");
+        foreach (var src in configuration.SourceDirectories)
+        {
+            AnsiConsole.MarkupLine($"  - {src}");
+        }
+
+        AnsiConsole.WriteLine();
+
+        var choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Configuration Menu")
+                .AddChoices(new[]
+                {
+                    "Set Destination",
+                    "Set Retention Policy",
+                    "Toggle Compression",
+                    "Add Source",
+                    "Remove Source",
+                    "Back"
+                }));
+
+        if (choice == "Back") break;
+
+        switch (choice)
+        {
+            case "Set Destination":
+                var dest = AnsiConsole.Ask<string>("Enter destination path:");
+                if (Directory.Exists(dest))
+                {
+                    configuration.DestinationDirectory = dest;
+                    configurationService.Save(configuration);
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[red]Directory does not exist. Create it first.[/]");
+                    Console.ReadKey();
+                }
+
+                break;
+            case "Set Retention Policy":
+                var count = AnsiConsole.Ask<int>("Enter max backups to keep (0 = Infinite):");
+                if (count >= 0)
+                {
+                    configuration.KeepMaxBackups = count;
+                    configurationService.Save(configuration);
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[red]Invalid number.[/]");
+                    Console.ReadKey();
+                }
+
+                break;
+            case "Add Source":
+                var src = AnsiConsole.Ask<string>("Enter source path to backup:");
+                if (Directory.Exists(src))
+                {
+                    if (!configuration.SourceDirectories.Contains(src))
+                    {
+                        configuration.SourceDirectories.Add(src);
+                        configurationService.Save(configuration);
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[red]Directory does not exist.[/]");
+                    Console.ReadKey();
+                }
+
+                break;
+            case "Remove Source":
+                if (configuration.SourceDirectories.Count > 0)
+                {
+                    var toRemove = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("Select source to remove")
+                            .AddChoices(configuration.SourceDirectories));
+                    configuration.SourceDirectories.Remove(toRemove);
+                    configurationService.Save(configuration);
+                }
+
+                break;
+            case "Toggle Compression":
+                configuration.UseCompression = !configuration.UseCompression;
+                configurationService.Save(configuration);
+                break;
+        }
+    }
+}
