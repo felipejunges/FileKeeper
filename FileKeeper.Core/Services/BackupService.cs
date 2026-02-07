@@ -1,3 +1,4 @@
+using ErrorOr;
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Models;
 using Spectre.Console;
@@ -27,51 +28,52 @@ public class BackupService
         _compressionService = compressionService;
     }
 
-    public void CreateBackup()
+    public async Task<ErrorOr<Success>> CreateBackupAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(_configuration.DestinationDirectory) || _configuration.SourceDirectories.Count == 0)
         {
             _console.MarkupLine("[red]Configuration incomplete. Please set source and destination first.[/]");
-            return;
+            return Error.Failure(description: "Configuration incomplete. Please set source and destination first.");
         }
-        
+
         _console.MarkupLine("[bold yellow]Starting Backup...[/]");
-        
+
+        var backupPath = Path.Combine(_configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
         var backupName = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var backupPath = Path.Combine(_configuration.DestinationDirectory, backupName);
-        var tempDir = Path.Combine(backupPath, "temp_files");
+        var tempDir = Path.Combine(_configuration.DestinationDirectory, "temp_files");
 
-        // 1. Get Previous Backup Index
-        var lastBackup = GetLastBackup(_configuration.DestinationDirectory);
-        FileIndex? lastIndex = null;
-        if (lastBackup != null)
-        {
-            var lastIndexPath = Path.Combine(lastBackup, "index.json");
-            if (File.Exists(lastIndexPath))
-            {
-                var json = File.ReadAllText(lastIndexPath);
-                lastIndex = JsonSerializer.Deserialize<FileIndex>(json);
-            }
-        }
+        // 1. Get The Backup Index and Previous File Index
+        var backupIndexContent = await _compressionService.ReadFileContentAsync(backupPath, "index.json", cancellationToken);
+        var backupIndex = backupIndexContent != null
+            ? JsonSerializer.Deserialize<BackupIndex>(backupIndexContent)
+            : new BackupIndex();
 
-        // 2. Scan All Sources
-        var newIndex = new FileIndex()
+        var lastBackupMetadata = backupIndex?.Backups.OrderByDescending(b => b.CreatedAtUtc).FirstOrDefault();
+        
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // 2. Create the new Index Structure
+        var newBackupMetadata = new BackupMetadata()
         {
             BackupName = backupName,
-            CreatedAtUtc = DateTime.UtcNow,
-            Files = new List<FileMetadata>()
+            CreatedAtUtc = DateTime.UtcNow
         };
 
+        backupIndex?.Backups.Add(newBackupMetadata);
+
+        // 3. Scan All Sources
         var filesToZip = new List<(string FullPath, string StoredPath)>();
 
         _fileSystem.CreateDirectory(tempDir);
 
         foreach (var sourceDir in _configuration.SourceDirectories)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            
             var currentFiles = ScanSource(sourceDir);
             foreach (var file in currentFiles)
             {
-                var existing = lastIndex?.Files.FirstOrDefault(f => f.StoredPath == file.StoredPath);
+                var existing = lastBackupMetadata?.Files.FirstOrDefault(f => f.StoredPath == file.StoredPath);
 
                 bool isNew = true;
                 if (existing != null)
@@ -95,36 +97,35 @@ public class BackupService
                     filesToZip.Add((Path.Combine(sourceDir, file.RelativePath), file.StoredPath));
                 }
 
-                newIndex.Files.Add(file);
+                newBackupMetadata.AddFile(file);
             }
         }
+        
+        cancellationToken.ThrowIfCancellationRequested();
 
-        // 3. Create Zip
+        // 4. Create Zip
         if (filesToZip.Any())
         {
-            _compressionService.CompressFiles(filesToZip, backupPath, "files");
+            await _compressionService.CompressFilesAsync(filesToZip, backupPath, backupName, cancellationToken);
             _console.MarkupLine($"[green]Compressed all {filesToZip.Count} files![/]");
         }
 
-        // 4. Save Index
-        var indexJson = JsonSerializer.Serialize(newIndex, new JsonSerializerOptions { WriteIndented = true });
-        _fileSystem.WriteAllText(Path.Combine(backupPath, "index.json"), indexJson);
+        cancellationToken.ThrowIfCancellationRequested();
+        
+        // 5. Save the File Index
+        var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
+        await _compressionService.WriteFileContentAsync(backupPath, "index.json", indexJson, cancellationToken);
 
         // Cleanup
         if (_fileSystem.DirectoryExists(tempDir))
             _fileSystem.DeleteDirectory(tempDir, true);
 
-        // 5. Trigger Recycle
-        // TODO: _recycleService.RecycleBackups(config.TargetDirectory, config.MaxBackupsToKeep);
-    }
-
-    private string? GetLastBackup(string targetDir)
-    {
-        if (!_fileSystem.DirectoryExists(targetDir)) return null;
-        var dirs = _fileSystem.GetDirectories(targetDir)
-            .OrderByDescending(d => _fileSystem.GetDirectoryCreationTimeUtc(d)).ToList();
+        cancellationToken.ThrowIfCancellationRequested();
         
-        return dirs.FirstOrDefault();
+        // 6. Trigger Recycle
+        // TODO: _recycleService.RecycleBackups(config.TargetDirectory, config.MaxBackupsToKeep);
+
+        return Result.Success;
     }
 
     private List<FileMetadata> ScanSource(string sourceDir)
@@ -142,7 +143,7 @@ public class BackupService
             {
                 RelativePath = relPath,
                 StoredPath = Path.Combine(sourceName, relPath),
-                Size = info.Length,
+                Size = info.Length, // TODO: esse cara dá problema em debug
                 LastWriteTimeUtc = info.LastWriteTimeUtc
             });
         }

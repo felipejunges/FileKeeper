@@ -29,12 +29,19 @@ var backupService = host.Services.GetRequiredService<BackupService>();
 
 while (true)
 {
-    AnsiConsole.Clear();
-    AnsiConsole.Write(
-        new FigletText("FileKeeper")
-            .LeftJustified()
-            .Color(Color.Teal));
+    var title = new FigletText("FileKeeper")
+        .LeftJustified()
+        .Color(Color.Teal);
+    
+    var grid = new Grid();
+    grid.AddColumn(); // expande
+    grid.AddColumn(new GridColumn().RightAligned());
 
+    grid.AddRow(title, new Markup("[grey]v1.0[/]"));
+    
+    AnsiConsole.Clear();
+    AnsiConsole.Write(grid);
+    
     var choice = AnsiConsole.Prompt(
         new SelectionPrompt<string>()
             .Title("What do you want to do?")
@@ -65,8 +72,26 @@ while (true)
 
 static void PerformBackupUI(BackupService backupService)
 {
+    var cancellationToken = new CancellationTokenSource().Token;
+    
     AnsiConsole.Status()
-        .Start("Running Backup...", ctx => { backupService.CreateBackup(); });
+        .StartAsync("Running Backup...", async ctx =>
+        {
+            try
+            {
+                await backupService.CreateBackupAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                AnsiConsole.MarkupLine("[yellow]Backup canceled by user.[/]");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Backup failed: {ex.Message}[/]");
+            }
+        })
+        .GetAwaiter()
+        .GetResult();
 
     AnsiConsole.MarkupLine("Press any key to return...");
     Console.ReadKey();

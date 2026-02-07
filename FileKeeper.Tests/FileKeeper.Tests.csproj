@@ -19,4 +19,8 @@
         <Using Include="Xunit"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\FileKeeper.Core\FileKeeper.Core.csproj" />
+    </ItemGroup>
+
 </Project>
