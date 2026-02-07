@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FileKeeper.Core/FileKeeper.Core.csproj" />
+  <Project Path="FileKeeper.Tests/FileKeeper.Tests.csproj" />
+</Solution>
