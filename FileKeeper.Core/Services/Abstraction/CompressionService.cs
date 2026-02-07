@@ -7,34 +7,61 @@ namespace FileKeeper.Core.Services.Abstraction;
 public class CompressionService : ICompressionService
 {
     private readonly IAnsiConsole _console;
+    private readonly IFileSystem _fileSystem;
     
-    public CompressionService(IAnsiConsole console)
+    public CompressionService(IAnsiConsole console, IFileSystem fileSystem)
     {
         _console = console;
+        _fileSystem = fileSystem;
     }
     
-    public void CompressFiles(IList<(string FullPath, string StoredPath)> files, string backupPath, string fileNameWithoutExtension)
+    public async Task CompressFilesAsync(IList<(string FullPath, string StoredPath)> files, string backupPath, string backupName, CancellationToken cancellationToken)
     {
-        var zipPath = Path.Combine(backupPath, $"{fileNameWithoutExtension}.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
         {
             foreach (var fileInfo in files)
             {
-                archive.CreateEntryFromFile(fileInfo.FullPath, fileInfo.StoredPath);
+                await archive.CreateEntryFromFileAsync(
+                    fileInfo.FullPath,
+                    Path.Combine(backupName, fileInfo.StoredPath),
+                    cancellationToken);
+                
+                _console.MarkupLine($"[green]Compressed:[/] {fileInfo.FullPath}");
             }
         }
+    }
+    
+    public async Task<string?> ReadFileContentAsync(string backupPath, string storedPath, CancellationToken cancellationToken)
+    {
+        if (!_fileSystem.FileExists(backupPath))
+            return null;
         
-        using (var archive = ZipFile.OpenRead(zipPath))
+        using (var archive = await ZipFile.OpenReadAsync(backupPath, cancellationToken))
         {
-            foreach (var entry in archive.Entries)
+            var entry = archive.GetEntry(storedPath);
+            
+            if (entry == null)
+                return null;
+            
+            using (var reader = new StreamReader(await entry.OpenAsync(cancellationToken)))
             {
-                var storedPath = files.FirstOrDefault(x => x.StoredPath == entry.FullName).StoredPath;
-                var entryName = entry.FullName;
-                long entrySize = entry.Length;
-                long compressedSize = entry.CompressedLength;
-                var lastWrite = entry.LastWriteTime.DateTime;
-
-                _console.MarkupLine($"[green]Compressed:[/] {storedPath}  [grey](Entry: {entryName}, Size: {entrySize} bytes, Compressed: {compressedSize} bytes, Modified: {lastWrite:O})[/]");
+                return await reader.ReadToEndAsync(cancellationToken);
+            }
+        }
+    }
+    
+    public async Task WriteFileContentAsync(string backupPath, string storedPath, string content, CancellationToken cancellationToken)
+    {
+        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        {
+            var existing = archive.GetEntry(storedPath);
+            existing?.Delete();
+            
+            var entry = archive.CreateEntry(storedPath);
+            
+            using (var writer = new StreamWriter(await entry.OpenAsync(cancellationToken)))
+            {
+                await writer.WriteAsync(content.AsMemory(), cancellationToken);
             }
         }
     }
