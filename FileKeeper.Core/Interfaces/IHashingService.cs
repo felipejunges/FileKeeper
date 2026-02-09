@@ -2,5 +2,5 @@ namespace FileKeeper.Core.Interfaces;
 
 public interface IHashingService
 {
-    string ComputeHash(string filePath);
+    Task<string> ComputeHashAsync(string filePath, CancellationToken cancellationToken);
 }

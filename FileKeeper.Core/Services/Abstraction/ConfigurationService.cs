@@ -1,6 +1,6 @@
-using System.Text.Json;
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Models;
+using System.Text.Json;
 
 namespace FileKeeper.Core.Services.Abstraction;
 
@@ -13,29 +13,28 @@ public class ConfigurationService : IConfigurationService
         _filePath = Path.Combine(AppContext.BaseDirectory, "config.json");
     }
 
-    public Configuration Load()
+    public async Task<Configuration> LoadAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(_filePath))
         {
-            // Retorna configuração padrão caso não exista
             return new Configuration
             {
                 DestinationDirectory = string.Empty,
-                SourceDirectories = new System.Collections.Generic.List<string>()
+                SourceDirectories = new List<string>()
             };
         }
 
-        var json = File.ReadAllText(_filePath);
+        var json = await File.ReadAllTextAsync(_filePath, cancellationToken);
         return JsonSerializer.Deserialize<Configuration>(json) ?? new Configuration
         {
             DestinationDirectory = string.Empty,
-            SourceDirectories = new System.Collections.Generic.List<string>()
+            SourceDirectories = new List<string>()
         };
     }
 
-    public void Save(Configuration configuration)
+    public async Task SaveAsync(Configuration configuration, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_filePath, json);
+        await File.WriteAllTextAsync(_filePath, json, cancellationToken);
     }
 }

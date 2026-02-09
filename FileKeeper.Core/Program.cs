@@ -19,7 +19,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<Configuration>(o =>
         {
             var configService = o.GetRequiredService<IConfigurationService>();
-            return configService.Load();
+            return configService.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
         });
     })
     .Build();
@@ -97,9 +97,11 @@ static void PerformBackupUI(BackupService backupService)
     Console.ReadKey();
 }
 
-static void ConfigureUI(IConfigurationService configurationService)
+static async Task ConfigureUI(IConfigurationService configurationService)
 {
-    var configuration = configurationService.Load();
+    var cancellationToken = new CancellationTokenSource().Token;
+    
+    var configuration = await configurationService.LoadAsync(cancellationToken);
     
     while (true)
     {
@@ -139,7 +141,7 @@ static void ConfigureUI(IConfigurationService configurationService)
                 if (Directory.Exists(dest))
                 {
                     configuration.DestinationDirectory = dest;
-                    configurationService.Save(configuration);
+                    await configurationService.SaveAsync(configuration, cancellationToken);
                 }
                 else
                 {
@@ -153,7 +155,7 @@ static void ConfigureUI(IConfigurationService configurationService)
                 if (count >= 0)
                 {
                     configuration.KeepMaxBackups = count;
-                    configurationService.Save(configuration);
+                    await configurationService.SaveAsync(configuration, cancellationToken);
                 }
                 else
                 {
@@ -169,7 +171,7 @@ static void ConfigureUI(IConfigurationService configurationService)
                     if (!configuration.SourceDirectories.Contains(src))
                     {
                         configuration.SourceDirectories.Add(src);
-                        configurationService.Save(configuration);
+                        await configurationService.SaveAsync(configuration, cancellationToken);
                     }
                 }
                 else
@@ -187,13 +189,13 @@ static void ConfigureUI(IConfigurationService configurationService)
                             .Title("Select source to remove")
                             .AddChoices(configuration.SourceDirectories));
                     configuration.SourceDirectories.Remove(toRemove);
-                    configurationService.Save(configuration);
+                    await configurationService.SaveAsync(configuration, cancellationToken);
                 }
 
                 break;
             case "Toggle Compression":
                 configuration.UseCompression = !configuration.UseCompression;
-                configurationService.Save(configuration);
+                await configurationService.SaveAsync(configuration, cancellationToken);
                 break;
         }
     }
