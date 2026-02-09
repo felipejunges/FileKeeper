@@ -78,7 +78,7 @@ public class BackupService
                 bool isNew = true;
                 if (existing != null)
                 {
-                    file.Hash = _hashingService.ComputeHash(Path.Combine(sourceDir, file.RelativePath));
+                    file.Hash = await _hashingService.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
 
                     if (existing.Hash == file.Hash)
                     {
@@ -88,7 +88,7 @@ public class BackupService
                 }
                 else
                 {
-                    file.Hash = _hashingService.ComputeHash(Path.Combine(sourceDir, file.RelativePath));
+                    file.Hash = await _hashingService.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
                 }
 
                 if (isNew)

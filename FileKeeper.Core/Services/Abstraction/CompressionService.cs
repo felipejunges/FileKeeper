@@ -1,6 +1,6 @@
-using System.IO.Compression;
 using FileKeeper.Core.Interfaces;
 using Spectre.Console;
+using System.IO.Compression;
 
 namespace FileKeeper.Core.Services.Abstraction;
 

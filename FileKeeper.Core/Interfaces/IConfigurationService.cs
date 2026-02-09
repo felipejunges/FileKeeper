@@ -4,6 +4,6 @@ namespace FileKeeper.Core.Interfaces;
 
 public interface IConfigurationService
 {
-    Configuration Load();
-    void Save(Configuration configuration);
+    Task<Configuration> LoadAsync(CancellationToken cancellationToken);
+    Task SaveAsync(Configuration configuration, CancellationToken cancellationToken);
 }
