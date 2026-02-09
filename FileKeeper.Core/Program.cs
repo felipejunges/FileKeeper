@@ -7,12 +7,12 @@ using Microsoft.Extensions.Hosting;
 using Spectre.Console;
 
 var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((context, services) =>
+    .ConfigureServices((_, services) =>
     {
         services.AddSingleton<IFileSystem, FileSystem>();
         services.AddSingleton<IHashingService, HashingService>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
-        services.AddSingleton<ICompressionService, CompressionService>();
+        services.AddSingleton<ICompressionService, CompressionZipService>();
         services.AddSingleton<BackupService>();
         services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
         
@@ -63,7 +63,7 @@ while (true)
             //PerformRestoreUI(config);
             break;
         case "Configuration":
-            ConfigureUI(configurationService);
+            ConfigureUI(configurationService).GetAwaiter().GetResult();
             break;
         case "Exit":
             return;
@@ -75,23 +75,23 @@ static void PerformBackupUI(BackupService backupService)
     var cancellationToken = new CancellationTokenSource().Token;
     
     AnsiConsole.Status()
-        .StartAsync("Running Backup...", async ctx =>
-        {
-            try
-            {
-                await backupService.CreateBackupAsync(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                AnsiConsole.MarkupLine("[yellow]Backup canceled by user.[/]");
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Backup failed: {ex.Message}[/]");
-            }
-        })
-        .GetAwaiter()
-        .GetResult();
+        .StartAsync("Running Backup...", async _ =>
+         {
+             try
+             {
+                 await backupService.CreateBackupAsync(cancellationToken);
+             }
+             catch (OperationCanceledException)
+             {
+                 AnsiConsole.MarkupLine("[yellow]Backup canceled by user.[/]");
+             }
+             catch (Exception ex)
+             {
+                 AnsiConsole.MarkupLine($"[red]Backup failed: {ex.Message}[/]");
+             }
+         })
+         .GetAwaiter()
+         .GetResult();
 
     AnsiConsole.MarkupLine("Press any key to return...");
     Console.ReadKey();
@@ -109,8 +109,7 @@ static async Task ConfigureUI(IConfigurationService configurationService)
         AnsiConsole.MarkupLine($"[bold]Destination:[/] {configuration.DestinationDirectory ?? "Not Set"}");
         AnsiConsole.MarkupLine(
             $"[bold]Keep Max Backups:[/] {(configuration.KeepMaxBackups == 0 ? "Infinite" : configuration.KeepMaxBackups.ToString())}");
-        AnsiConsole.MarkupLine(
-            $"[bold]Use Compression:[/] {(configuration.UseCompression ? "[green]Yes[/]" : "[grey]No[/]")}");
+        AnsiConsole.MarkupLine($"[bold]Compression Type:[/] {configuration.CompressionType}");
         AnsiConsole.MarkupLine("[bold]Sources:[/]");
         foreach (var src in configuration.SourceDirectories)
         {
@@ -126,7 +125,7 @@ static async Task ConfigureUI(IConfigurationService configurationService)
                 {
                     "Set Destination",
                     "Set Retention Policy",
-                    "Toggle Compression",
+                    "Set Compression Type",
                     "Add Source",
                     "Remove Source",
                     "Back"
@@ -193,8 +192,13 @@ static async Task ConfigureUI(IConfigurationService configurationService)
                 }
 
                 break;
-            case "Toggle Compression":
-                configuration.UseCompression = !configuration.UseCompression;
+            case "Set Compression Type":
+                var typeChoice = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title("Select compression type")
+                        .AddChoices(Enum.GetNames(typeof(CompressionTypeConfiguration))));
+
+                configuration.CompressionType = Enum.Parse<CompressionTypeConfiguration>(typeChoice);
                 await configurationService.SaveAsync(configuration, cancellationToken);
                 break;
         }

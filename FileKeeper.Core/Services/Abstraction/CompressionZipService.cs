@@ -4,12 +4,12 @@ using System.IO.Compression;
 
 namespace FileKeeper.Core.Services.Abstraction;
 
-public class CompressionService : ICompressionService
+public class CompressionZipService : ICompressionService
 {
     private readonly IAnsiConsole _console;
     private readonly IFileSystem _fileSystem;
     
-    public CompressionService(IAnsiConsole console, IFileSystem fileSystem)
+    public CompressionZipService(IAnsiConsole console, IFileSystem fileSystem)
     {
         _console = console;
         _fileSystem = fileSystem;
