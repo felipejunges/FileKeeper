@@ -61,11 +61,17 @@ public class RecycleService : IRecycleService
             {
                 // Se o arquivo não se encontra no backup a ser removido, não precisa fazer nada
                 if (nextBackupFile.FoundInBackup != firstBackup.BackupName)
-                {
                     continue;
-                }
+                
+                var firstBackupFile = firstBackup.Files.FirstOrDefault(f => f.StoredPath == nextBackupFile.StoredPath);
+                if (firstBackupFile == null)
+                    continue;
 
-                await _compressionService.MoveFileAsync(cancellationToken);
+                await _compressionService.MoveFileAsync(
+                    backupPath,
+                    firstBackupFile.StoredPath,
+                    nextBackupFile.StoredPath,
+                    cancellationToken);
                 
                 nextBackupFile.FoundInBackup = nextBackup.BackupName;
             }

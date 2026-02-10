@@ -67,9 +67,53 @@ public class CompressionZipService : ICompressionService
         }
     }
 
-    public Task MoveFileAsync(CancellationToken cancellationToken)
+    public async Task MoveFileAsync(string backupPath, string originStoredPath, string destinationStoredPath, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        if (!_fileSystem.FileExists(backupPath))
+        {
+            _console.MarkupLine($"[yellow]Backup not found:[/] {backupPath}");
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        {
+            var originEntry = archive.GetEntry(originStoredPath);
+            if (originEntry == null)
+            {
+                _console.MarkupLine($"[yellow]Move skipped, entry not found:[/] {originStoredPath}");
+                return;
+            }
+
+            // If destination exists, delete it first
+            var existing = archive.GetEntry(destinationStoredPath);
+            existing?.Delete();
+
+            // Create destination entry and copy the content from origin
+            var destinationEntry = archive.CreateEntry(destinationStoredPath, CompressionLevel.Optimal);
+
+            using (var sourceStream = await originEntry.OpenAsync(cancellationToken))
+            using (var destStream = await destinationEntry.OpenAsync(cancellationToken))
+            {
+                await sourceStream.CopyToAsync(destStream, 81920, cancellationToken);
+            }
+
+            // Try to preserve last write time
+            try
+            {
+                destinationEntry.LastWriteTime = originEntry.LastWriteTime;
+            }
+            catch
+            {
+                // ignore if not supported
+            }
+
+            // Remove the original entry
+            originEntry.Delete();
+
+            _console.MarkupLine($"[green]Moved:[/] {originStoredPath} -> {destinationStoredPath}");
+        }
     }
 
     public Task RemoveFolderAsync(string backupPath, string firstBackupBackupName, CancellationToken cancellationToken)
