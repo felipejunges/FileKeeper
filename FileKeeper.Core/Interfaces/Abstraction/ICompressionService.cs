@@ -1,6 +1,4 @@
-using FileKeeper.Core.Models;
-
-namespace FileKeeper.Core.Interfaces;
+namespace FileKeeper.Core.Interfaces.Abstraction;
 
 public interface ICompressionService
 {
@@ -9,4 +7,8 @@ public interface ICompressionService
     Task<string?> ReadFileContentAsync(string backupPath, string storedPath, CancellationToken cancellationToken);
     
     Task WriteFileContentAsync(string backupPath, string storedPath, string content, CancellationToken cancellationToken);
+
+    Task MoveFileAsync(CancellationToken cancellationToken);
+    
+    Task RemoveFolderAsync(string backupPath, string firstBackupBackupName, CancellationToken cancellationToken);
 }

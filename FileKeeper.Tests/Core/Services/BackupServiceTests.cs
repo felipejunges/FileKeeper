@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces;
+using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
 using Moq;
@@ -14,6 +15,7 @@ public class BackupServiceTests
     private readonly Mock<IFileSystem> _fileSystemMock;
     private readonly Mock<ICompressionService> _compressionServiceMock;
     private readonly Mock<IHashingService> _hashingServiceMock;
+    private readonly Mock<IRecycleService> _recycleServiceMock;
     
     public BackupServiceTests()
     {
@@ -21,6 +23,7 @@ public class BackupServiceTests
         _fileSystemMock = new Mock<IFileSystem>();
         _hashingServiceMock = new Mock<IHashingService>();
         _compressionServiceMock = new Mock<ICompressionService>();
+        _recycleServiceMock = new  Mock<IRecycleService>();
         
         var configuration = new Configuration()
         {
@@ -33,7 +36,8 @@ public class BackupServiceTests
             configuration,
             _fileSystemMock.Object,
             _hashingServiceMock.Object,
-            _compressionServiceMock.Object);
+            _compressionServiceMock.Object,
+            _recycleServiceMock.Object);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 ﻿using FileKeeper.Core.Interfaces;
+using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
 using FileKeeper.Core.Services.Abstraction;
@@ -14,6 +15,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<ICompressionService, CompressionZipService>();
         services.AddSingleton<BackupService>();
+        services.AddSingleton<IRecycleService, RecycleService>();
         services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
         
         services.AddSingleton<Configuration>(o =>

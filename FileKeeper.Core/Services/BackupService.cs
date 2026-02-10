@@ -1,5 +1,6 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces;
+using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Models;
 using Spectre.Console;
 using System.Text.Json;
@@ -13,19 +14,22 @@ public class BackupService
     private readonly IFileSystem _fileSystem;
     private readonly IHashingService _hashingService;
     private readonly ICompressionService _compressionService;
+    private readonly IRecycleService _recycleService;
 
     public BackupService(
         IAnsiConsole console,
         Configuration configuration,
         IFileSystem fileSystem,
         IHashingService hashingService,
-        ICompressionService compressionService)
+        ICompressionService compressionService,
+        IRecycleService recycleService)
     {
         _console = console;
         _configuration = configuration;
         _fileSystem = fileSystem;
         _hashingService = hashingService;
         _compressionService = compressionService;
+        _recycleService = recycleService;
     }
 
     public async Task<ErrorOr<Success>> CreateBackupAsync(CancellationToken cancellationToken)
@@ -40,6 +44,8 @@ public class BackupService
 
         var backupPath = Path.Combine(_configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
         var backupName = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        
+        // TODO: validar se o temp_dir é necessário ainda...
         var tempDir = Path.Combine(_configuration.DestinationDirectory, "temp_files");
 
         // 1. Get The Backup Index and Previous File Index
@@ -123,7 +129,7 @@ public class BackupService
         cancellationToken.ThrowIfCancellationRequested();
         
         // 6. Trigger Recycle
-        // TODO: _recycleService.RecycleBackups(config.TargetDirectory, config.MaxBackupsToKeep);
+        await _recycleService.RecycleBackupsAsync(cancellationToken);
 
         return Result.Success;
     }
@@ -142,7 +148,7 @@ public class BackupService
             result.Add(new FileMetadata
             {
                 RelativePath = relPath,
-                StoredPath = Path.Combine(sourceName, relPath),
+                StoredPath = Path.Combine(sourceName, relPath), // TODO: transformar em um serviço para garantir que cada S.O. retorne isso corretamente, pois esse campo é chave para comparação
                 Size = info.Length, // TODO: esse cara dá problema em debug
                 LastWriteTimeUtc = info.LastWriteTimeUtc
             });
