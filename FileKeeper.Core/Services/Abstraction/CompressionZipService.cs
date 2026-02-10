@@ -116,8 +116,52 @@ public class CompressionZipService : ICompressionService
         }
     }
 
-    public Task RemoveFolderAsync(string backupPath, string firstBackupBackupName, CancellationToken cancellationToken)
+    public async Task RemoveFolderAsync(string backupPath, string firstBackupBackupName, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        if (!_fileSystem.FileExists(backupPath))
+        {
+            _console.MarkupLine($"[yellow]Backup not found:[/] {backupPath}");
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        {
+            // Normalize prefix to use forward slash which ZipArchive uses in FullName
+            var prefix = firstBackupBackupName.TrimEnd('/', '\\') + "/";
+
+            // Collect matching entries first to avoid modifying the collection while enumerating
+            var toDelete = archive.Entries
+                .Where(e => e.FullName.Replace('\\', '/').StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (!toDelete.Any())
+            {
+                _console.MarkupLine($"[grey]No entries found for folder:[/] {firstBackupBackupName}");
+                return;
+            }
+
+            foreach (var entry in toDelete)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    entry.Delete();
+                    _console.MarkupLine($"[green]Deleted entry:[/] {entry.FullName}");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _console.MarkupLine($"[red]Failed to delete entry:[/] {entry.FullName} - {ex.Message}");
+                }
+            }
+
+            _console.MarkupLine($"[green]Removed folder:[/] {firstBackupBackupName}");
+        }
     }
 }
