@@ -32,13 +32,15 @@ public class ConfigurationService : IConfigurationService
                 SourceDirectories = new List<string>()
             };
         }
-
-        // senão, cria uma nova configuração, seta no cache e retorna
-        _configuration = new Configuration
+        else
         {
-            DestinationDirectory = string.Empty,
-            SourceDirectories = new List<string>()
-        };
+            // senão, cria uma nova configuração, seta no cache e retorna
+            _configuration = new Configuration
+            {
+                DestinationDirectory = string.Empty,
+                SourceDirectories = new List<string>()
+            };
+        }
 
         return _configuration;
     }
