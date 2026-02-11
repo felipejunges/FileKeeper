@@ -16,6 +16,7 @@ public class BackupServiceTests
     private readonly Mock<ICompressionService> _compressionServiceMock;
     private readonly Mock<IHashingService> _hashingServiceMock;
     private readonly Mock<IRecycleService> _recycleServiceMock;
+    private readonly Mock<IConfigurationService> _configurationServiceMock;
     
     public BackupServiceTests()
     {
@@ -24,16 +25,11 @@ public class BackupServiceTests
         _hashingServiceMock = new Mock<IHashingService>();
         _compressionServiceMock = new Mock<ICompressionService>();
         _recycleServiceMock = new  Mock<IRecycleService>();
-        
-        var configuration = new Configuration()
-        {
-            DestinationDirectory = "/home/felipe/backups",
-            SourceDirectories = new List<string>() { "/var/www/html" }
-        };
+        _configurationServiceMock = new Mock<IConfigurationService>();
         
         _sut = new BackupService(
             _consoleMock.Object,
-            configuration,
+            _configurationServiceMock.Object,
             _fileSystemMock.Object,
             _hashingServiceMock.Object,
             _compressionServiceMock.Object,
@@ -44,6 +40,16 @@ public class BackupServiceTests
     public async Task DeveGerarUmNovoBackupComSucesso()
     {
         // Arrange
+        var configuration = new Configuration()
+        {
+            DestinationDirectory = "/home/felipe/backups",
+            SourceDirectories = new List<string>() { "/var/www/html" }
+        };
+        
+        _configurationServiceMock
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(configuration);
+        
         _compressionServiceMock
             .Setup(s => s.ReadFileContentAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);

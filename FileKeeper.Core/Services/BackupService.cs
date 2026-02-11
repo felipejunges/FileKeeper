@@ -10,7 +10,7 @@ namespace FileKeeper.Core.Services;
 public class BackupService
 {
     private readonly IAnsiConsole _console;
-    private readonly Configuration _configuration;
+    private readonly IConfigurationService _configurationService;
     private readonly IFileSystem _fileSystem;
     private readonly IHashingService _hashingService;
     private readonly ICompressionService _compressionService;
@@ -18,14 +18,14 @@ public class BackupService
 
     public BackupService(
         IAnsiConsole console,
-        Configuration configuration,
+        IConfigurationService configurationService,
         IFileSystem fileSystem,
         IHashingService hashingService,
         ICompressionService compressionService,
         IRecycleService recycleService)
     {
         _console = console;
-        _configuration = configuration;
+        _configurationService = configurationService;
         _fileSystem = fileSystem;
         _hashingService = hashingService;
         _compressionService = compressionService;
@@ -34,7 +34,9 @@ public class BackupService
 
     public async Task<ErrorOr<Success>> CreateBackupAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(_configuration.DestinationDirectory) || _configuration.SourceDirectories.Count == 0)
+        var configuration = await _configurationService.LoadAsync(cancellationToken);
+        
+        if (string.IsNullOrEmpty(configuration.DestinationDirectory) || configuration.SourceDirectories.Count == 0)
         {
             _console.MarkupLine("[red]Configuration incomplete. Please set source and destination first.[/]");
             return Error.Failure(description: "Configuration incomplete. Please set source and destination first.");
@@ -42,11 +44,11 @@ public class BackupService
 
         _console.MarkupLine("[bold yellow]Starting Backup...[/]");
 
-        var backupPath = Path.Combine(_configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
+        var backupPath = Path.Combine(configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
         var backupName = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
         
         // TODO: validar se o temp_dir é necessário ainda...
-        var tempDir = Path.Combine(_configuration.DestinationDirectory, "temp_files");
+        var tempDir = Path.Combine(configuration.DestinationDirectory, "temp_files");
 
         // 1. Get The Backup Index and Previous File Index
         var backupIndexContent = await _compressionService.ReadFileContentAsync(backupPath, "index.json", cancellationToken);
@@ -72,7 +74,7 @@ public class BackupService
 
         _fileSystem.CreateDirectory(tempDir);
 
-        foreach (var sourceDir in _configuration.SourceDirectories)
+        foreach (var sourceDir in configuration.SourceDirectories)
         {
             cancellationToken.ThrowIfCancellationRequested();
             
