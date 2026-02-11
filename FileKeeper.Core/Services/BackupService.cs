@@ -81,7 +81,7 @@ public class BackupService
             var currentFiles = ScanSource(sourceDir);
             foreach (var file in currentFiles)
             {
-                var existing = lastBackupMetadata?.Files.FirstOrDefault(f => f.StoredPath == file.StoredPath);
+                var existing = lastBackupMetadata?.Files.FirstOrDefault(f => f.IsSameFile(file));
 
                 bool isNew = true;
                 if (existing != null)

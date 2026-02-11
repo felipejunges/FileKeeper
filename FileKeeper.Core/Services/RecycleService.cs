@@ -63,7 +63,7 @@ public class RecycleService : IRecycleService
                 if (nextBackupFile.FoundInBackup != firstBackup.BackupName)
                     continue;
                 
-                var firstBackupFile = firstBackup.Files.FirstOrDefault(f => f.StoredPath == nextBackupFile.StoredPath);
+                var firstBackupFile = firstBackup.Files.FirstOrDefault(f => f.IsSameFile(nextBackupFile));
                 if (firstBackupFile == null)
                     continue;
 
