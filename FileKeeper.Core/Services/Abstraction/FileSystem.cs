@@ -1,4 +1,3 @@
-using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
 
 namespace FileKeeper.Core.Services.Abstraction;
@@ -20,12 +19,5 @@ public class FileSystem : IFileSystem
     public string ReadAllText(string path) => File.ReadAllText(path);
     public void WriteAllText(string path, string contents) => File.WriteAllText(path, contents);
 
-    public long GetFileLength(string path) => new FileInfo(path).Length;
-    public DateTime GetFileLastWriteTimeUtc(string path) => new FileInfo(path).LastWriteTimeUtc;
-
-    public DateTime GetDirectoryCreationTimeUtc(string path) => new DirectoryInfo(path).CreationTimeUtc;
-    public string GetDirectoryName(string path) => new DirectoryInfo(path).Name;
-
     public void DeleteFile(string path) => File.Delete(path);
-    public DateTime GetFileCreationTimeUtc(string path) => new FileInfo(path).CreationTimeUtc;
 }

@@ -1,7 +1,9 @@
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
+using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
+using FileKeeper.Tests.Core.Mocks;
 using Moq;
 using Spectre.Console;
 
@@ -17,6 +19,7 @@ public class BackupServiceTests
     private readonly Mock<IHashingService> _hashingServiceMock;
     private readonly Mock<IRecycleService> _recycleServiceMock;
     private readonly Mock<IConfigurationService> _configurationServiceMock;
+    private readonly Mock<IFileInfoBuilder> _fileInfoBuilderMock;
     
     public BackupServiceTests()
     {
@@ -26,6 +29,7 @@ public class BackupServiceTests
         _compressionServiceMock = new Mock<ICompressionService>();
         _recycleServiceMock = new  Mock<IRecycleService>();
         _configurationServiceMock = new Mock<IConfigurationService>();
+        _fileInfoBuilderMock = new Mock<IFileInfoBuilder>();
         
         _sut = new BackupService(
             _consoleMock.Object,
@@ -33,7 +37,8 @@ public class BackupServiceTests
             _fileSystemMock.Object,
             _hashingServiceMock.Object,
             _compressionServiceMock.Object,
-            _recycleServiceMock.Object);
+            _recycleServiceMock.Object,
+            _fileInfoBuilderMock.Object);
     }
 
     [Fact]
@@ -45,6 +50,17 @@ public class BackupServiceTests
             DestinationDirectory = "/home/felipe/backups",
             SourceDirectories = new List<string>() { "/var/www/html" }
         };
+
+        var mockFileInfo = new MockFileInfo(
+            "mockfile.txt",
+            "/var/www/html/mockfile.txt",
+            1000,
+            new DateTime(2020, 01, 01),
+            new DateTime(2020, 01, 02));
+        
+        _fileInfoBuilderMock
+            .Setup(b => b.Build(It.IsAny<string>()))
+            .Returns(mockFileInfo);
         
         _configurationServiceMock
             .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
