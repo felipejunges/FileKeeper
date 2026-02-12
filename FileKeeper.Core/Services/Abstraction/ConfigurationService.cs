@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces;
+using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Models;
 using System.Text.Json;
 
@@ -8,6 +9,8 @@ public class ConfigurationService : IConfigurationService
 {
     private readonly string _filePath;
 
+    private Configuration? _configuration;
+    
     public ConfigurationService()
     {
         _filePath = Path.Combine(AppContext.BaseDirectory, "config.json");
@@ -15,26 +18,38 @@ public class ConfigurationService : IConfigurationService
 
     public async Task<Configuration> LoadAsync(CancellationToken cancellationToken)
     {
-        if (!File.Exists(_filePath))
+        // se já está em cache...
+        if (_configuration != null)
+            return _configuration;
+
+        // se o arquivo existe em disco, lê o arquivo seta no cache e retorna
+        if (File.Exists(_filePath))
         {
-            return new Configuration
+            var json = await File.ReadAllTextAsync(_filePath, cancellationToken);
+            _configuration = JsonSerializer.Deserialize<Configuration>(json) ?? new Configuration
+            {
+                DestinationDirectory = string.Empty,
+                SourceDirectories = new List<string>()
+            };
+        }
+        else
+        {
+            // senão, cria uma nova configuração, seta no cache e retorna
+            _configuration = new Configuration
             {
                 DestinationDirectory = string.Empty,
                 SourceDirectories = new List<string>()
             };
         }
 
-        var json = await File.ReadAllTextAsync(_filePath, cancellationToken);
-        return JsonSerializer.Deserialize<Configuration>(json) ?? new Configuration
-        {
-            DestinationDirectory = string.Empty,
-            SourceDirectories = new List<string>()
-        };
+        return _configuration;
     }
 
     public async Task SaveAsync(Configuration configuration, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(_filePath, json, cancellationToken);
+
+        _configuration = configuration;
     }
 }

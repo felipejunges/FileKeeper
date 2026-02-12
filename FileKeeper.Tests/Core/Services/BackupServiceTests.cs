@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces;
+using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
 using Moq;
@@ -14,6 +15,8 @@ public class BackupServiceTests
     private readonly Mock<IFileSystem> _fileSystemMock;
     private readonly Mock<ICompressionService> _compressionServiceMock;
     private readonly Mock<IHashingService> _hashingServiceMock;
+    private readonly Mock<IRecycleService> _recycleServiceMock;
+    private readonly Mock<IConfigurationService> _configurationServiceMock;
     
     public BackupServiceTests()
     {
@@ -21,25 +24,32 @@ public class BackupServiceTests
         _fileSystemMock = new Mock<IFileSystem>();
         _hashingServiceMock = new Mock<IHashingService>();
         _compressionServiceMock = new Mock<ICompressionService>();
-        
-        var configuration = new Configuration()
-        {
-            DestinationDirectory = "/home/felipe/backups",
-            SourceDirectories = new List<string>() { "/var/www/html" }
-        };
+        _recycleServiceMock = new  Mock<IRecycleService>();
+        _configurationServiceMock = new Mock<IConfigurationService>();
         
         _sut = new BackupService(
             _consoleMock.Object,
-            configuration,
+            _configurationServiceMock.Object,
             _fileSystemMock.Object,
             _hashingServiceMock.Object,
-            _compressionServiceMock.Object);
+            _compressionServiceMock.Object,
+            _recycleServiceMock.Object);
     }
 
     [Fact]
     public async Task DeveGerarUmNovoBackupComSucesso()
     {
         // Arrange
+        var configuration = new Configuration()
+        {
+            DestinationDirectory = "/home/felipe/backups",
+            SourceDirectories = new List<string>() { "/var/www/html" }
+        };
+        
+        _configurationServiceMock
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(configuration);
+        
         _compressionServiceMock
             .Setup(s => s.ReadFileContentAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);

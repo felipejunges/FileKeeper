@@ -47,4 +47,10 @@ public class FileMetadata
     public long Size { get; set; }
     public DateTime LastWriteTimeUtc { get; set; }
     public string FoundInBackup { get; set; } = string.Empty;
+
+    public bool IsSameFile(FileMetadata file)
+    {
+        // Here is where the magic lives, to compare two files and determine if they are the same or not, based on their relative path (ignoring case)
+        return StoredPath.Equals(file.StoredPath, StringComparison.OrdinalIgnoreCase);
+    }
 }
