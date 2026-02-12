@@ -82,7 +82,7 @@ public class BackupService
         {
             cancellationToken.ThrowIfCancellationRequested();
             
-            var currentFiles = ScanSource(sourceDir);
+            var currentFiles = await ScanSourceAsync(sourceDir, cancellationToken);
             foreach (var file in currentFiles)
             {
                 var existing = lastBackupMetadata?.Files.FirstOrDefault(f => f.IsSameFile(file));
@@ -141,23 +141,23 @@ public class BackupService
         return Result.Success;
     }
 
-    private List<FileMetadata> ScanSource(string sourceDir)
+    private async Task<List<FileMetadata>> ScanSourceAsync(string sourceDir, CancellationToken cancellationToken)
     {
         var result = new List<FileMetadata>();
-        //var sourceName = Path.GetFileName(sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+        var sourceDirHash = await _hashingService.ComputeHashFromStringAsync(sourceDir, cancellationToken);
+        var sourceName = Path.GetFileName(sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         var files = _fileSystem.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
 
         foreach (var f in files)
         {
-            // TODO: talvez repetir a mesma estrutura de diretórios, mas com um diretório inicial que é um guid ou algo assim...
             var info = _fileInfoBuilder.Build(f);
-            var relativePath = Path.GetDirectoryName(f)!.Replace(Path.AltDirectorySeparatorChar, '_');
-            var storedPath = Path.Combine(relativePath, info.Name);
             var relPath = Path.GetRelativePath(sourceDir, f);
+            
             result.Add(new FileMetadata
             {
                 RelativePath = relPath,
-                StoredPath = storedPath, //Path.Combine(sourceName, relPath), // TODO: transformar em um serviço para garantir que cada S.O. retorne isso corretamente, pois esse campo é chave para comparação
+                StoredPath = Path.Combine(sourceDirHash, sourceName, relPath),
                 Size = info.Length,
                 LastWriteTimeUtc = info.LastWriteTimeUtc
             });
