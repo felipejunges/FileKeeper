@@ -51,9 +51,6 @@ public class BackupService
         var backupPath = Path.Combine(configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
         var backupName = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
         
-        // TODO: validar se o temp_dir é necessário ainda...
-        var tempDir = Path.Combine(configuration.DestinationDirectory, "temp_files");
-
         // 1. Get The Backup Index and Previous File Index
         var backupIndexContent = await _compressionService.ReadFileContentAsync(backupPath, "index.json", cancellationToken);
         var backupIndex = backupIndexContent != null
@@ -75,8 +72,6 @@ public class BackupService
 
         // 3. Scan All Sources
         var filesToZip = new List<(string FullPath, string StoredPath)>();
-
-        _fileSystem.CreateDirectory(tempDir);
 
         foreach (var sourceDir in configuration.SourceDirectories)
         {
@@ -127,10 +122,6 @@ public class BackupService
         // 5. Save the File Index
         var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
         await _compressionService.WriteFileContentAsync(backupPath, "index.json", indexJson, cancellationToken);
-
-        // Cleanup
-        if (_fileSystem.DirectoryExists(tempDir))
-            _fileSystem.DeleteDirectory(tempDir, true);
 
         cancellationToken.ThrowIfCancellationRequested();
         
