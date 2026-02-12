@@ -1,8 +1,10 @@
 ﻿using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
+using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
 using FileKeeper.Core.Services.Abstraction;
+using FileKeeper.Core.Services.Abstraction.Info;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Spectre.Console;
@@ -16,6 +18,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<ICompressionService, CompressionZipService>();
         services.AddSingleton<BackupService>();
         services.AddSingleton<IRecycleService, RecycleService>();
+        services.AddSingleton<IFileInfoBuilder, FileInfoBuilder>();
         services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
         
         services.AddSingleton<Configuration>(o =>

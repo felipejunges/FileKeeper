@@ -1,6 +1,7 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
+using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
 using Spectre.Console;
 using System.Text.Json;
@@ -15,6 +16,7 @@ public class BackupService
     private readonly IHashingService _hashingService;
     private readonly ICompressionService _compressionService;
     private readonly IRecycleService _recycleService;
+    private readonly IFileInfoBuilder _fileInfoBuilder;
 
     public BackupService(
         IAnsiConsole console,
@@ -22,7 +24,8 @@ public class BackupService
         IFileSystem fileSystem,
         IHashingService hashingService,
         ICompressionService compressionService,
-        IRecycleService recycleService)
+        IRecycleService recycleService,
+        IFileInfoBuilder fileInfoBuilder)
     {
         _console = console;
         _configurationService = configurationService;
@@ -30,6 +33,7 @@ public class BackupService
         _hashingService = hashingService;
         _compressionService = compressionService;
         _recycleService = recycleService;
+        _fileInfoBuilder = fileInfoBuilder;
     }
 
     public async Task<ErrorOr<Success>> CreateBackupAsync(CancellationToken cancellationToken)
@@ -140,19 +144,21 @@ public class BackupService
     private List<FileMetadata> ScanSource(string sourceDir)
     {
         var result = new List<FileMetadata>();
-        var sourceName =
-            Path.GetFileName(sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        //var sourceName = Path.GetFileName(sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         var files = _fileSystem.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
 
         foreach (var f in files)
         {
-            var info = new FileInfo(f);
+            // TODO: talvez repetir a mesma estrutura de diretórios, mas com um diretório inicial que é um guid ou algo assim...
+            var info = _fileInfoBuilder.Build(f);
+            var relativePath = Path.GetDirectoryName(f)!.Replace(Path.AltDirectorySeparatorChar, '_');
+            var storedPath = Path.Combine(relativePath, info.Name);
             var relPath = Path.GetRelativePath(sourceDir, f);
             result.Add(new FileMetadata
             {
                 RelativePath = relPath,
-                StoredPath = Path.Combine(sourceName, relPath), // TODO: transformar em um serviço para garantir que cada S.O. retorne isso corretamente, pois esse campo é chave para comparação
-                Size = info.Length, // TODO: esse cara dá problema em debug
+                StoredPath = storedPath, //Path.Combine(sourceName, relPath), // TODO: transformar em um serviço para garantir que cada S.O. retorne isso corretamente, pois esse campo é chave para comparação
+                Size = info.Length,
                 LastWriteTimeUtc = info.LastWriteTimeUtc
             });
         }

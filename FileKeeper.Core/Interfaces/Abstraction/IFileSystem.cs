@@ -14,12 +14,5 @@ public interface IFileSystem
     string ReadAllText(string path);
     void WriteAllText(string path, string contents);
 
-    long GetFileLength(string path);
-    DateTime GetFileLastWriteTimeUtc(string path);
-
-    DateTime GetDirectoryCreationTimeUtc(string path);
-    string GetDirectoryName(string path);
-
     void DeleteFile(string path);
-    DateTime GetFileCreationTimeUtc(string path);
 }
