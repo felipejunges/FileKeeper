@@ -17,7 +17,9 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<ICompressionService, CompressionZipService>();
         services.AddSingleton<BackupService>();
+        services.AddSingleton<RestoreService>();
         services.AddSingleton<IRecycleService, RecycleService>();
+        services.AddSingleton<IIndexService, IndexService>();
         services.AddSingleton<IFileInfoBuilder, FileInfoBuilder>();
         services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
         
@@ -31,6 +33,7 @@ var host = Host.CreateDefaultBuilder(args)
 
 var configurationService = host.Services.GetRequiredService<IConfigurationService>();
 var backupService = host.Services.GetRequiredService<BackupService>();
+var restoreService = host.Services.GetRequiredService<RestoreService>();
 
 while (true)
 {
@@ -65,7 +68,7 @@ while (true)
             PerformBackupUI(backupService);
             break;
         case "Restore":
-            //PerformRestoreUI(config);
+            PerformRestoreUI(restoreService).GetAwaiter().GetResult();
             break;
         case "Configuration":
             ConfigureUI(configurationService).GetAwaiter().GetResult();
@@ -98,6 +101,48 @@ static void PerformBackupUI(BackupService backupService)
          .GetAwaiter()
          .GetResult();
 
+    AnsiConsole.MarkupLine("Press any key to return...");
+    Console.ReadKey();
+}
+
+static async Task PerformRestoreUI(RestoreService restoreService)
+{
+    var cancellationToken = new CancellationTokenSource().Token;
+    
+    var backups = await restoreService.GetListOfBackupsAsync(cancellationToken);
+    backups.Add(new ValueTuple<string, DateTime>("Voltar", DateTime.MinValue));
+    
+    var selectedBackup = AnsiConsole.Prompt(
+        new SelectionPrompt<(string Id, DateTime Date)>()
+            .Title("Select a backup to restore point:")
+            .PageSize(10)
+            .UseConverter(x => x.Id == "Voltar" ? "Voltar" : $"{x.Date:yyyy-MM-dd HH:mm} ({x.Id})")
+            .AddChoices(backups));
+
+    if (selectedBackup.Item1 == "Voltar")
+    {
+        return;
+    }
+    
+    AnsiConsole.Status()
+        .StartAsync("Running Backup...", async _ =>
+        {
+            try
+            {
+                await restoreService.RestoreBackupAsync(selectedBackup.Item1, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                AnsiConsole.MarkupLine("[yellow]Backup canceled by user.[/]");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Backup failed: {ex.Message}[/]");
+            }
+        })
+        .GetAwaiter()
+        .GetResult();
+    
     AnsiConsole.MarkupLine("Press any key to return...");
     Console.ReadKey();
 }

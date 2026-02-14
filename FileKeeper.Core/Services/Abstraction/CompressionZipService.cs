@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces.Abstraction;
+using FileKeeper.Core.Models;
 using Spectre.Console;
 using System.IO.Compression;
 
@@ -28,6 +29,27 @@ public class CompressionZipService : ICompressionService
                     cancellationToken);
 
                 _console.MarkupLine($"[green]Compressed:[/] {fileInfo.FullPath}");
+            }
+        }
+    }
+
+    public async Task DecompressFilesAsync(IList<FileMetadata> files, string backupPath, string backupName, string destinationPath, CancellationToken cancellationToken)
+    {
+        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        {
+            foreach (var fileInfo in files)
+            {
+                var entry = archive.GetEntry(Path.Combine(backupName, fileInfo.StoredPath));
+                if (entry == null)
+                {
+                    _console.MarkupLine($"[yellow]Entry not found in archive:[/] {fileInfo.StoredPath}");
+                    continue;
+                }
+
+                var destinationFileName = Path.Combine(destinationPath, fileInfo.RelativePath);
+                await entry.ExtractToFileAsync(destinationFileName, cancellationToken);
+
+                _console.MarkupLine($"[green]Decompressed:[/] {fileInfo.RelativePath}");
             }
         }
     }

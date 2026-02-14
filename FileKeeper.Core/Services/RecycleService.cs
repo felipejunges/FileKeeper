@@ -11,15 +11,18 @@ public class RecycleService : IRecycleService
     private readonly IAnsiConsole _console;
     private readonly IConfigurationService _configurationService;
     private readonly ICompressionService _compressionService;
+    private readonly IIndexService _indexService;
     
     public RecycleService(
         IAnsiConsole console,
         IConfigurationService configurationService,
-        ICompressionService compressionService)
+        ICompressionService compressionService,
+        IIndexService indexService)
     {
         _console = console;
         _configurationService = configurationService;
         _compressionService = compressionService;
+        _indexService = indexService;
     }
 
     public async Task RecycleBackupsAsync(CancellationToken cancellationToken)
@@ -35,12 +38,7 @@ public class RecycleService : IRecycleService
         cancellationToken.ThrowIfCancellationRequested();
         
         // 1. Get The Backup Index
-        // TODO: repetido do BackupService (unificar num service?)
-        var backupPath = Path.Combine(configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
-        var backupIndexContent = await _compressionService.ReadFileContentAsync(backupPath, "index.json", cancellationToken);
-        var backupIndex = backupIndexContent != null
-            ? JsonSerializer.Deserialize<BackupIndex>(backupIndexContent)
-            : new BackupIndex();
+        var (backupIndex, backupPath) = await _indexService.GetBackupIndexAsync(cancellationToken);
         
         // 2. Check how many backups needs to be merged
         var removeCount = backupIndex!.Backups.Count - configuration.KeepMaxBackups;
