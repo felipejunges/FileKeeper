@@ -34,7 +34,7 @@ public class CompressionZipService : ICompressionService
         }
     }
 
-    public async Task DecompressFilesAsync(IList<(string BackupName, string StoredPath, string RelativePath)> files, string backupPath, string destinationPath, CancellationToken cancellationToken)
+    public async Task DecompressFilesAsync(IList<(string BackupName, string StoredPath)> files, string backupPath, string destinationPath, CancellationToken cancellationToken)
     {
         if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
         {
@@ -44,8 +44,8 @@ public class CompressionZipService : ICompressionService
 
         if (!_fileSystem.DirectoryExists(destinationPath))
         {
-            _console.MarkupLine($"[yellow]Destination directory not found, creating:[/] {destinationPath}");
-            _fileSystem.CreateDirectory(destinationPath);
+            _console.MarkupLine($"[read]Destination directory does not exists. Create it first:[/] {destinationPath}");
+            return;
         }
 
         using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
@@ -61,11 +61,23 @@ public class CompressionZipService : ICompressionService
                     continue;
                 }
 
-                var destinationFileName = Path.Combine(destinationPath, fileInfo.RelativePath);
-                await entry.ExtractToFileAsync(destinationFileName, cancellationToken);
+                var destinationFileName = Path.Combine(destinationPath, fileInfo.StoredPath);
+                
+                CreateEntryDirectoryIfNotExists(destinationFileName);
 
-                _console.MarkupLine($"[green]Decompressed:[/] {fileInfo.RelativePath}");
+                _console.MarkupLine($"[green]Decompressing:[/] {fileInfo.StoredPath}");
+                await entry.ExtractToFileAsync(destinationFileName, cancellationToken);
             }
+        }
+    }
+
+    private void CreateEntryDirectoryIfNotExists(string destinationFileName)
+    {
+        var entryDirectory = Path.GetDirectoryName(destinationFileName)!;
+        if (!_fileSystem.DirectoryExists(entryDirectory))
+        {
+            _console.MarkupLine("[grey]Creating directory:[/] " + entryDirectory);
+            _fileSystem.CreateDirectory(entryDirectory);
         }
     }
 

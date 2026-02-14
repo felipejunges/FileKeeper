@@ -48,13 +48,13 @@ public class RestoreService
         
          _console.MarkupLine($"[green]Restoring backup:[/] {backupMetadata.BackupName}");
          
-         var files = new List<(string BackupName, string StoredPath, string RelativePath)>();
+         var files = new List<(string BackupName, string StoredPath)>();
 
          foreach (var file in backupMetadata.Files)
          {
              if (file.FoundInBackup == backupMetadata.BackupName)
              {
-                 files.Add((backupMetadata.BackupName, file.StoredPath, file.RelativePath));
+                 files.Add((backupMetadata.BackupName, file.StoredPath));
              }
              else
              {
@@ -64,7 +64,7 @@ public class RestoreService
                      ?.Files.FirstOrDefault(f => f.StoredPath == file.StoredPath);
                  
                  if (foundFile is not null)
-                     files.Add((file.FoundInBackup, foundFile.StoredPath, foundFile.RelativePath));
+                     files.Add((file.FoundInBackup, foundFile.StoredPath));
              }
          }
 
