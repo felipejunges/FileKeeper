@@ -1,6 +1,5 @@
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
-using FileKeeper.Core.Models;
 using Spectre.Console;
 using System.Text.Json;
 
@@ -38,7 +37,7 @@ public class RecycleService : IRecycleService
         cancellationToken.ThrowIfCancellationRequested();
         
         // 1. Get The Backup Index
-        var (backupIndex, backupPath) = await _indexService.GetBackupIndexAsync(cancellationToken);
+        var backupIndex = await _indexService.GetBackupIndexAsync(cancellationToken);
         
         // 2. Check how many backups needs to be merged
         var removeCount = backupIndex!.Backups.Count - configuration.KeepMaxBackups;
@@ -66,7 +65,7 @@ public class RecycleService : IRecycleService
                     continue;
 
                 await _compressionService.MoveFileAsync(
-                    backupPath,
+                    configuration.DestinationDirectory,
                     firstBackupFile.StoredPath,
                     nextBackupFile.StoredPath,
                     cancellationToken);
@@ -75,11 +74,11 @@ public class RecycleService : IRecycleService
             }
             
             // 3.2. Delete old folder
-            await _compressionService.RemoveFolderAsync(backupPath, firstBackup.BackupName, cancellationToken);
+            await _compressionService.RemoveFolderAsync(configuration.DestinationDirectory, firstBackup.BackupName, cancellationToken);
         }
         
         // 4. Save the File Index
         var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
-        await _compressionService.WriteFileContentAsync(backupPath, "index.json", indexJson, cancellationToken);
+        await _compressionService.WriteFileContentAsync(configuration.DestinationDirectory, "index.json", indexJson, cancellationToken);
     }
 }

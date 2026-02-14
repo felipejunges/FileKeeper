@@ -54,7 +54,7 @@ public class BackupService
         var backupName = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
         
         // 1. Get The Backup Index and Previous File Index
-        var (backupIndex, backupPath) = await _indexService.GetBackupIndexAsync(cancellationToken);
+        var backupIndex = await _indexService.GetBackupIndexAsync(cancellationToken);
 
         var lastBackupMetadata = backupIndex.Backups.OrderByDescending(b => b.CreatedAtUtc).FirstOrDefault();
         
@@ -112,7 +112,7 @@ public class BackupService
         // 4. Create Zip
         if (filesToZip.Any())
         {
-            await _compressionService.CompressFilesAsync(filesToZip, backupPath, backupName, cancellationToken);
+            await _compressionService.CompressFilesAsync(filesToZip, configuration.DestinationDirectory, backupName, cancellationToken);
             _console.MarkupLine($"[green]Compressed all {filesToZip.Count} files![/]");
         }
 
@@ -120,7 +120,7 @@ public class BackupService
         
         // 5. Save the File Index
         var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
-        await _compressionService.WriteFileContentAsync(backupPath, "index.json", indexJson, cancellationToken);
+        await _compressionService.WriteFileContentAsync(configuration.DestinationDirectory, "index.json", indexJson, cancellationToken);
 
         cancellationToken.ThrowIfCancellationRequested();
         

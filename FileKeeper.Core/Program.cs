@@ -123,13 +123,20 @@ static async Task PerformRestoreUI(RestoreService restoreService)
     {
         return;
     }
+
+    var destination = AnsiConsole.Prompt(
+        new TextPrompt<string>("[bold yellow]Dear beloved user,[/] what is the destination directory for your backups?")
+            .DefaultValue("/media/felipe/Backups/BackupsLinux/RESTORE") // TODO: get the user profile folder
+            .Validate(path => string.IsNullOrWhiteSpace(path)
+                ? ValidationResult.Error("[red]Path can't be empty[/]")
+                : ValidationResult.Success()));
     
     AnsiConsole.Status()
         .StartAsync("Running Backup...", async _ =>
         {
             try
             {
-                await restoreService.RestoreBackupAsync(selectedBackup.Item1, cancellationToken);
+                await restoreService.RestoreBackupAsync(selectedBackup.Item1, destination, cancellationToken);
             }
             catch (OperationCanceledException)
             {

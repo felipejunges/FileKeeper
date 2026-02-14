@@ -18,16 +18,19 @@ public class IndexService : IIndexService
         _compressionService = compressionService;
     }
 
-    public async Task<(BackupIndex, string)> GetBackupIndexAsync(CancellationToken cancellationToken)
+    public async Task<BackupIndex> GetBackupIndexAsync(CancellationToken cancellationToken)
     {
         var configuration = await _configurationService.LoadAsync(cancellationToken);
         
-        var backupPath = Path.Combine(configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
-        var backupIndexContent = await _compressionService.ReadFileContentAsync(backupPath, "index.json", cancellationToken);
+        var backupIndexContent = await _compressionService.ReadFileContentAsync(
+            configuration.DestinationDirectory,
+            "index.json",
+            cancellationToken);
+        
         var backupIndex = backupIndexContent != null
             ? JsonSerializer.Deserialize<BackupIndex>(backupIndexContent) ?? new BackupIndex()
             : new BackupIndex();
 
-        return (backupIndex, backupPath);
+        return backupIndex;
     }
 }

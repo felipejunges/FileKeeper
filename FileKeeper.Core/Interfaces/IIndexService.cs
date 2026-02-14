@@ -4,5 +4,5 @@ namespace FileKeeper.Core.Interfaces;
 
 public interface IIndexService
 {
-    Task<(BackupIndex, string)> GetBackupIndexAsync(CancellationToken cancellationToken);
+    Task<BackupIndex> GetBackupIndexAsync(CancellationToken cancellationToken);
 }
