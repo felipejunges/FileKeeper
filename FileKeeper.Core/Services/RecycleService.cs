@@ -1,6 +1,5 @@
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
-using FileKeeper.Core.Models;
 using Spectre.Console;
 using System.Text.Json;
 
@@ -11,15 +10,18 @@ public class RecycleService : IRecycleService
     private readonly IAnsiConsole _console;
     private readonly IConfigurationService _configurationService;
     private readonly ICompressionService _compressionService;
+    private readonly IIndexService _indexService;
     
     public RecycleService(
         IAnsiConsole console,
         IConfigurationService configurationService,
-        ICompressionService compressionService)
+        ICompressionService compressionService,
+        IIndexService indexService)
     {
         _console = console;
         _configurationService = configurationService;
         _compressionService = compressionService;
+        _indexService = indexService;
     }
 
     public async Task RecycleBackupsAsync(CancellationToken cancellationToken)
@@ -35,12 +37,7 @@ public class RecycleService : IRecycleService
         cancellationToken.ThrowIfCancellationRequested();
         
         // 1. Get The Backup Index
-        // TODO: repetido do BackupService (unificar num service?)
-        var backupPath = Path.Combine(configuration.DestinationDirectory, "backup.zip"); // TODO: think about the file extension (maybe just the file 'name' (without the extension))
-        var backupIndexContent = await _compressionService.ReadFileContentAsync(backupPath, "index.json", cancellationToken);
-        var backupIndex = backupIndexContent != null
-            ? JsonSerializer.Deserialize<BackupIndex>(backupIndexContent)
-            : new BackupIndex();
+        var backupIndex = await _indexService.GetBackupIndexAsync(cancellationToken);
         
         // 2. Check how many backups needs to be merged
         var removeCount = backupIndex!.Backups.Count - configuration.KeepMaxBackups;
@@ -68,7 +65,7 @@ public class RecycleService : IRecycleService
                     continue;
 
                 await _compressionService.MoveFileAsync(
-                    backupPath,
+                    configuration.DestinationDirectory,
                     firstBackupFile.StoredPath,
                     nextBackupFile.StoredPath,
                     cancellationToken);
@@ -77,11 +74,11 @@ public class RecycleService : IRecycleService
             }
             
             // 3.2. Delete old folder
-            await _compressionService.RemoveFolderAsync(backupPath, firstBackup.BackupName, cancellationToken);
+            await _compressionService.RemoveFolderAsync(configuration.DestinationDirectory, firstBackup.BackupName, cancellationToken);
         }
         
         // 4. Save the File Index
         var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
-        await _compressionService.WriteFileContentAsync(backupPath, "index.json", indexJson, cancellationToken);
+        await _compressionService.WriteFileContentAsync(configuration.DestinationDirectory, "index.json", indexJson, cancellationToken);
     }
 }

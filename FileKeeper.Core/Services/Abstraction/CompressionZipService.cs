@@ -9,6 +9,8 @@ public class CompressionZipService : ICompressionService
     private readonly IAnsiConsole _console;
     private readonly IFileSystem _fileSystem;
 
+    private string BackupZipPath(string backupPath) => Path.Combine(backupPath, "backup.zip");
+    
     public CompressionZipService(IAnsiConsole console, IFileSystem fileSystem)
     {
         _console = console;
@@ -18,7 +20,7 @@ public class CompressionZipService : ICompressionService
     public async Task CompressFilesAsync(IList<(string FullPath, string StoredPath)> files, string backupPath, string backupName,
         CancellationToken cancellationToken)
     {
-        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
         {
             foreach (var fileInfo in files)
             {
@@ -32,12 +34,59 @@ public class CompressionZipService : ICompressionService
         }
     }
 
+    public async Task DecompressFilesAsync(IList<(string BackupName, string StoredPath)> files, string backupPath, string destinationPath, CancellationToken cancellationToken)
+    {
+        if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
+        {
+            _console.MarkupLine($"[red]Backup not found:[/] {BackupZipPath(backupPath)}");
+            return;
+        }
+
+        if (!_fileSystem.DirectoryExists(destinationPath))
+        {
+            _console.MarkupLine($"[read]Destination directory does not exists. Create it first:[/] {destinationPath}");
+            return;
+        }
+
+        using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
+        {
+            foreach (var fileInfo in files)
+            {
+                var entryPath = Path.Combine(fileInfo.BackupName, fileInfo.StoredPath);
+                
+                var entry = archive.GetEntry(entryPath);
+                if (entry == null)
+                {
+                    _console.MarkupLine($"[yellow]Entry not found in archive:[/] {entryPath}");
+                    continue;
+                }
+
+                var destinationFileName = Path.Combine(destinationPath, fileInfo.StoredPath);
+                
+                CreateEntryDirectoryIfNotExists(destinationFileName);
+
+                _console.MarkupLine($"[green]Decompressing:[/] {fileInfo.StoredPath}");
+                await entry.ExtractToFileAsync(destinationFileName, cancellationToken);
+            }
+        }
+    }
+
+    private void CreateEntryDirectoryIfNotExists(string destinationFileName)
+    {
+        var entryDirectory = Path.GetDirectoryName(destinationFileName)!;
+        if (!_fileSystem.DirectoryExists(entryDirectory))
+        {
+            _console.MarkupLine("[grey]Creating directory:[/] " + entryDirectory);
+            _fileSystem.CreateDirectory(entryDirectory);
+        }
+    }
+
     public async Task<string?> ReadFileContentAsync(string backupPath, string storedPath, CancellationToken cancellationToken)
     {
-        if (!_fileSystem.FileExists(backupPath))
+        if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
             return null;
 
-        using (var archive = await ZipFile.OpenReadAsync(backupPath, cancellationToken))
+        using (var archive = await ZipFile.OpenReadAsync(BackupZipPath(backupPath), cancellationToken))
         {
             var entry = archive.GetEntry(storedPath);
 
@@ -53,7 +102,7 @@ public class CompressionZipService : ICompressionService
 
     public async Task WriteFileContentAsync(string backupPath, string storedPath, string content, CancellationToken cancellationToken)
     {
-        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
         {
             var existing = archive.GetEntry(storedPath);
             existing?.Delete();
@@ -69,15 +118,15 @@ public class CompressionZipService : ICompressionService
 
     public async Task MoveFileAsync(string backupPath, string originStoredPath, string destinationStoredPath, CancellationToken cancellationToken)
     {
-        if (!_fileSystem.FileExists(backupPath))
+        if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
         {
-            _console.MarkupLine($"[yellow]Backup not found:[/] {backupPath}");
+            _console.MarkupLine($"[red]Backup not found:[/] {BackupZipPath(backupPath)}");
             return;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
         {
             var originEntry = archive.GetEntry(originStoredPath);
             if (originEntry == null)
@@ -118,15 +167,15 @@ public class CompressionZipService : ICompressionService
 
     public async Task RemoveFolderAsync(string backupPath, string firstBackupBackupName, CancellationToken cancellationToken)
     {
-        if (!_fileSystem.FileExists(backupPath))
+        if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
         {
-            _console.MarkupLine($"[yellow]Backup not found:[/] {backupPath}");
+            _console.MarkupLine($"[red]Backup not found:[/] {BackupZipPath(backupPath)}");
             return;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        using (var archive = await ZipFile.OpenAsync(backupPath, ZipArchiveMode.Update, cancellationToken))
+        using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
         {
             // Normalize prefix to use forward slash which ZipArchive uses in FullName
             var prefix = firstBackupBackupName.TrimEnd('/', '\\') + "/";

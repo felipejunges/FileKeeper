@@ -20,6 +20,7 @@ public class BackupServiceTests
     private readonly Mock<IRecycleService> _recycleServiceMock;
     private readonly Mock<IConfigurationService> _configurationServiceMock;
     private readonly Mock<IFileInfoBuilder> _fileInfoBuilderMock;
+    private readonly Mock<IIndexService> _indexServiceMock;
     
     public BackupServiceTests()
     {
@@ -30,6 +31,7 @@ public class BackupServiceTests
         _recycleServiceMock = new  Mock<IRecycleService>();
         _configurationServiceMock = new Mock<IConfigurationService>();
         _fileInfoBuilderMock = new Mock<IFileInfoBuilder>();
+        _indexServiceMock = new  Mock<IIndexService>();
         
         _sut = new BackupService(
             _consoleMock.Object,
@@ -38,7 +40,8 @@ public class BackupServiceTests
             _hashingServiceMock.Object,
             _compressionServiceMock.Object,
             _recycleServiceMock.Object,
-            _fileInfoBuilderMock.Object);
+            _fileInfoBuilderMock.Object,
+            _indexServiceMock.Object);
     }
 
     [Fact]
