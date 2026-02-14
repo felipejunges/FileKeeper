@@ -1,5 +1,3 @@
-using FileKeeper.Core.Models;
-
 namespace FileKeeper.Core.Interfaces.Abstraction;
 
 public interface ICompressionService
