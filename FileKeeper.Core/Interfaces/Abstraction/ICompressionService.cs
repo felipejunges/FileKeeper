@@ -12,7 +12,7 @@ public interface ICompressionService
     
     Task WriteFileContentAsync(string backupPath, string storedPath, string content, CancellationToken cancellationToken);
 
-    Task MoveFileAsync(string backupPath, string originStoredPath, string destinationStoredPath, CancellationToken cancellationToken);
+    Task MoveFileAsync(string backupPath, string originBackupName, string originStoredPath, string destinatioBackupName, string destinationStoredPath, CancellationToken cancellationToken);
     
     Task RemoveFolderAsync(string backupPath, string firstBackupBackupName, CancellationToken cancellationToken);
 }

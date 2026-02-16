@@ -125,7 +125,7 @@ public class BackupService
         cancellationToken.ThrowIfCancellationRequested();
         
         // 6. Trigger Recycle
-        //(For now, let's keep ip disabled! =D)
+        // Keep it disabled, for now
         //await _recycleService.RecycleBackupsAsync(cancellationToken);
 
         return Result.Success;

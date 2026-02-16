@@ -40,14 +40,14 @@ public class RecycleService : IRecycleService
         var backupIndex = await _indexService.GetBackupIndexAsync(cancellationToken);
         
         // 2. Check how many backups needs to be merged
-        var removeCount = backupIndex!.Backups.Count - configuration.KeepMaxBackups;
+        var removeCount = backupIndex.Backups.Count - configuration.KeepMaxBackups;
 
         var orderedBackups = backupIndex.Backups.OrderBy(b => b.CreatedAtUtc).ToList();
         
         // 3. Merge the backup files
         for (int i = 0; i < removeCount; i++)
         {
-            // TODO: pensar: não executar nada definitivo dentro do loop, para possibilitar o cancelamento do processo
+            // TODO: pensar: não executar nada definitivo dentro do loop, para possibilitar o cancelamento do processo*
             cancellationToken.ThrowIfCancellationRequested();
             
             var firstBackup = orderedBackups[i];
@@ -64,9 +64,12 @@ public class RecycleService : IRecycleService
                 if (firstBackupFile == null)
                     continue;
 
+                // TODO: * continuando, talvez nao chamar arquivo por arquivo, mas uma lista de arquivos
                 await _compressionService.MoveFileAsync(
                     configuration.DestinationDirectory,
+                    firstBackup.BackupName,
                     firstBackupFile.StoredPath,
+                    nextBackup.BackupName,
                     nextBackupFile.StoredPath,
                     cancellationToken);
                 
@@ -75,6 +78,9 @@ public class RecycleService : IRecycleService
             
             // 3.2. Delete old folder
             await _compressionService.RemoveFolderAsync(configuration.DestinationDirectory, firstBackup.BackupName, cancellationToken);
+            
+            // 3.3. Remove the backup metadata from the index
+            backupIndex.Backups.Remove(firstBackup); // TODO: will this change 'orderedBackups' ?
         }
         
         // 4. Save the File Index
