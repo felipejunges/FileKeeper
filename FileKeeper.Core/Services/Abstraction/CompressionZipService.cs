@@ -11,7 +11,7 @@ public class CompressionZipService : ICompressionService
     private readonly IAnsiConsole _console;
     private readonly IFileSystem _fileSystem;
 
-    private string BackupZipPath(string backupPath) => Path.Combine(backupPath, "backup.zip");
+    private string BackupZipPath(string backupPath) => Path.Combine(backupPath, "backup_new.zip");
     
     public CompressionZipService(IAnsiConsole console, IFileSystem fileSystem)
     {

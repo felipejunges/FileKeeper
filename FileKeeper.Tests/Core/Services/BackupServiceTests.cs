@@ -6,6 +6,7 @@ using FileKeeper.Core.Services;
 using FileKeeper.Tests.Builders;
 using FileKeeper.Tests.Core.Mocks;
 using FileKeeper.Tests.Core.Mocks.Models;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Spectre.Console;
 
@@ -20,22 +21,22 @@ public class BackupServiceTests
     private readonly IFileSystem _fileSystem;
     private readonly IFileInfoBuilder _fileInfoBuilder;
 
-    private readonly Mock<IAnsiConsole> _consoleMock;
     private readonly Mock<ICompressionService> _compressionServiceMock;
     private readonly Mock<IRecycleService> _recycleServiceMock;
     private readonly Mock<IConfigurationService> _configurationServiceMock;
     private readonly Mock<IIndexService> _indexServiceMock;
-
+    private readonly Mock<ILogger<BackupService>> _loggerMock;
+    
     public BackupServiceTests()
     {
         _fileSystem = new MockedFileSystem(_mockedFiles);
         _fileInfoBuilder = new MockedFileInfoBuilder(_mockedFiles);
 
-        _consoleMock = new Mock<IAnsiConsole>();
         _compressionServiceMock = new Mock<ICompressionService>();
         _recycleServiceMock = new Mock<IRecycleService>();
         _configurationServiceMock = new Mock<IConfigurationService>();
         _indexServiceMock = new Mock<IIndexService>();
+        _loggerMock = new Mock<ILogger<BackupService>>();
 
         var defaultConfiguration = new Configuration()
         {
@@ -48,13 +49,13 @@ public class BackupServiceTests
             .ReturnsAsync(defaultConfiguration);
 
         _sut = new BackupService(
-            _consoleMock.Object,
             _configurationServiceMock.Object,
             _fileSystem,
             _compressionServiceMock.Object,
             _recycleServiceMock.Object,
             _fileInfoBuilder,
-            _indexServiceMock.Object);
+            _indexServiceMock.Object,
+            _loggerMock.Object);
     }
 
     [Fact]

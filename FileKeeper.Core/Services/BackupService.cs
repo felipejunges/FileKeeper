@@ -4,37 +4,37 @@ using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Utils;
+using Microsoft.Extensions.Logging;
 using Spectre.Console;
-using System.Text.Json;
 
 namespace FileKeeper.Core.Services;
 
 public class BackupService
 {
-    private readonly IAnsiConsole _console;
     private readonly IConfigurationService _configurationService;
     private readonly IFileSystem _fileSystem;
     private readonly ICompressionService _compressionService;
     private readonly IRecycleService _recycleService;
     private readonly IFileInfoBuilder _fileInfoBuilder;
     private readonly IIndexService _indexService;
+    private readonly ILogger<BackupService> _logger;
 
     public BackupService(
-        IAnsiConsole console,
         IConfigurationService configurationService,
         IFileSystem fileSystem,
         ICompressionService compressionService,
         IRecycleService recycleService,
         IFileInfoBuilder fileInfoBuilder,
-        IIndexService indexService)
+        IIndexService indexService,
+        ILogger<BackupService> logger)
     {
-        _console = console;
         _configurationService = configurationService;
         _fileSystem = fileSystem;
         _compressionService = compressionService;
         _recycleService = recycleService;
         _fileInfoBuilder = fileInfoBuilder;
         _indexService = indexService;
+        _logger = logger;
     }
 
     public async Task<ErrorOr<Success>> CreateBackupAsync(CancellationToken cancellationToken)
@@ -43,11 +43,11 @@ public class BackupService
         
         if (string.IsNullOrEmpty(configuration.DestinationDirectory) || configuration.SourceDirectories.Count == 0)
         {
-            _console.MarkupLine("[red]Configuration incomplete. Please set source and destination first.[/]");
+            _logger.LogError("Configuration incomplete. Please set source and destination first.");
             return Error.Failure(description: "Configuration incomplete. Please set source and destination first.");
         }
 
-        _console.MarkupLine("[bold yellow]Starting Backup...[/]");
+        _logger.LogInformation("Starting Backup...");
 
         var backupName = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
         
@@ -113,7 +113,7 @@ public class BackupService
         if (filesToZip.Any())
         {
             await _compressionService.CompressFilesAsync(filesToZip, configuration.DestinationDirectory, backupName, cancellationToken);
-            _console.MarkupLine($"[green]Compressed all {filesToZip.Count} files![/]");
+            _logger.LogInformation("Compressed all {Count} files!", filesToZip.Count);
         }
         else
         {

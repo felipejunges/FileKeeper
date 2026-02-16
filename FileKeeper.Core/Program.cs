@@ -5,11 +5,33 @@ using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
 using FileKeeper.Core.Services.Abstraction;
 using FileKeeper.Core.Services.Abstraction.Info;
+using FileKeeper.Core.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
 var host = Host.CreateDefaultBuilder(args)
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddConsole();
+        logging.SetMinimumLevel(LogLevel.Information);
+
+        // Add AnsiConsole provider with custom options (example)
+        var ansiOptions = new AnsiConsoleLoggerOptions
+        {
+            MinimumLevel = LogLevel.Debug,
+            Format = "[{time} {level}] {category}: {message}",
+            EscapeMessage = true,
+            CategoryMinimums = new Dictionary<string, LogLevel>
+            {
+                { "FileKeeper.Core.Tests", LogLevel.Trace }
+            }
+        };
+
+        logging.AddProvider(new AnsiConsoleLoggerProvider(ansiOptions));
+    })
     .ConfigureServices((_, services) =>
     {
         services.AddSingleton<IFileSystem, FileSystem>();
