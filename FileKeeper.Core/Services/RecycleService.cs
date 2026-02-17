@@ -1,7 +1,6 @@
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
 using Spectre.Console;
-using System.Text.Json;
 
 namespace FileKeeper.Core.Services;
 
@@ -97,7 +96,6 @@ public class RecycleService : IRecycleService
         }
         
         // 4. Save the File Index
-        var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
-        await _compressionService.WriteFileContentAsync(configuration.DestinationDirectory, "index.json", indexJson, cancellationToken);
+        await _indexService.SaveBackupIndexAsync(backupIndex, cancellationToken);
     }
 }

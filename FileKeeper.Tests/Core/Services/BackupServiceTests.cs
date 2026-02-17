@@ -3,6 +3,7 @@ using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
+using FileKeeper.Tests.Builders;
 using FileKeeper.Tests.Core.Mocks;
 using FileKeeper.Tests.Core.Mocks.Models;
 using Moq;
@@ -121,28 +122,17 @@ public class BackupServiceTests
 
         var currentIndex = new BackupIndex()
         {
-            Backups = new List<BackupMetadata>()
-            {
-                new BackupMetadata()
-                {
-                    BackupName = currentBackupName,
-                    CreatedAtUtc = DateTime.UtcNow.AddHours(-2),
-                    FileCount = 1,
-                    TotalSize = 1000,
-                    FilesSerialization = new List<FileMetadata>()
-                    {
-                        new FileMetadata()
-                        {
-                            RelativePath = "file1.txt",
-                            StoredPath = "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
-                            Hash = "Hash_File1_V1",
-                            Size = 1000,
-                            LastWriteTimeUtc = new DateTime(2024, 1, 1, 11, 0, 0),
-                            FoundInBackup = currentBackupName
-                        }
-                    }
-                }
-            }
+            Backups = BackupMetadataBuilder
+                .New()
+                .AddBackup(DateTime.UtcNow.AddMinutes(-3))
+                .AddFile(
+                    "file1.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    1000,
+                    "Hash_File1_V1",
+                    DateTime.UtcNow,
+                    currentBackupName)
+                .Build()
         };
 
         BackupIndex? capturedIndex = null;
@@ -213,61 +203,37 @@ public class BackupServiceTests
     public async Task BackupCom2Arquivos_NaPasta1Novo1Modificado1Igual_ResultadoDeveConterOsTresMasDoisModificados()
     {
         // Arrange
-        var oldBackupName = DateTime.UtcNow.AddMinutes(-4).ToString("yyyyMMdd_HHmmss");
-        var currentBackupName = DateTime.UtcNow.AddMinutes(-3).ToString("yyyyMMdd_HHmmss");
+        var oldBackupName = DateTime.UtcNow.AddMinutes(-3).ToString("yyyyMMdd_HHmmss");
+        var currentBackupName = DateTime.UtcNow.AddMinutes(-2).ToString("yyyyMMdd_HHmmss");
 
         var currentIndex = new BackupIndex()
         {
-            Backups = new List<BackupMetadata>()
-            {
-                new BackupMetadata()
-                {
-                    BackupName = oldBackupName,
-                    CreatedAtUtc = DateTime.UtcNow.AddHours(-3),
-                    FileCount = 1,
-                    TotalSize = 1000,
-                    FilesSerialization = new List<FileMetadata>()
-                    {
-                        new FileMetadata()
-                        {
-                            RelativePath = "file1.txt",
-                            StoredPath = "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
-                            Hash = "Hash_File1_V1",
-                            Size = 1000,
-                            LastWriteTimeUtc = new DateTime(2024, 1, 1, 11, 0, 0),
-                            FoundInBackup = oldBackupName
-                        }
-                    }
-                },
-                new BackupMetadata()
-                {
-                    BackupName = currentBackupName,
-                    CreatedAtUtc = DateTime.UtcNow.AddHours(-2),
-                    FileCount = 1,
-                    TotalSize = 1000,
-                    FilesSerialization = new List<FileMetadata>()
-                    {
-                        new FileMetadata()
-                        {
-                            RelativePath = "file1.txt",
-                            StoredPath = "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
-                            Hash = "Hash_File1_V1",
-                            Size = 1000,
-                            LastWriteTimeUtc = new DateTime(2024, 1, 1, 11, 0, 0),
-                            FoundInBackup = oldBackupName
-                        },
-                        new FileMetadata()
-                        {
-                            RelativePath = "file2.txt",
-                            StoredPath = "a8512aa711f757608fdac530f82cd972616f8c6d/html/file2.txt",
-                            Hash = "Hash_File2_V1",
-                            Size = 2000,
-                            LastWriteTimeUtc = new DateTime(2024, 1, 1, 11, 0, 0),
-                            FoundInBackup = currentBackupName
-                        }
-                    }
-                }
-            }
+            Backups = BackupMetadataBuilder
+                .New()
+                .AddBackup(DateTime.UtcNow.AddMinutes(-3))
+                .AddFile(
+                    "file1.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    1000,
+                    "Hash_File1_V1",
+                    DateTime.UtcNow,
+                    oldBackupName)
+                .AddBackup(DateTime.UtcNow.AddMinutes(-2))
+                .AddFile(
+                    "file1.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    1000,
+                    "Hash_File1_V1",
+                    DateTime.UtcNow,
+                    oldBackupName)
+                .AddFile(
+                    "file2.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file2.txt",
+                    1000,
+                    "Hash_File2_V1",
+                    DateTime.UtcNow,
+                    currentBackupName)
+                .Build()
         };
 
         BackupIndex? capturedIndex = null;
