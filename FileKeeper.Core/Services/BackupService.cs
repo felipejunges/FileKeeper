@@ -121,8 +121,7 @@ public class BackupService
         cancellationToken.ThrowIfCancellationRequested();
         
         // 5. Save the File Index
-        var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
-        await _compressionService.WriteFileContentAsync(configuration.DestinationDirectory, "index.json", indexJson, cancellationToken);
+        await _indexService.SaveBackupIndexAsync(backupIndex, cancellationToken);
 
         cancellationToken.ThrowIfCancellationRequested();
         

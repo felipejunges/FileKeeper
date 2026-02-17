@@ -33,4 +33,12 @@ public class IndexService : IIndexService
 
         return backupIndex;
     }
+
+    public async Task SaveBackupIndexAsync(BackupIndex backupIndex, CancellationToken cancellationToken)
+    {
+        var configuration = await _configurationService.LoadAsync(cancellationToken);
+        
+        var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
+        await _compressionService.WriteFileContentAsync(configuration.DestinationDirectory, "index.json", indexJson, cancellationToken);
+    }
 }
