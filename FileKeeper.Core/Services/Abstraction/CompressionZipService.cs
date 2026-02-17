@@ -1,6 +1,8 @@
 using FileKeeper.Core.Interfaces.Abstraction;
+using FileKeeper.Core.Models;
 using Spectre.Console;
 using System.IO.Compression;
+using System.Text.Json;
 
 namespace FileKeeper.Core.Services.Abstraction;
 

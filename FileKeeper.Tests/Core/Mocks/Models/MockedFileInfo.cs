@@ -1,10 +1,10 @@
 using FileKeeper.Core.Interfaces.Abstraction.Info;
 
-namespace FileKeeper.Tests.Core.Mocks;
+namespace FileKeeper.Tests.Core.Mocks.Models;
 
-public class MockFileInfo : IFileInfo
+public class MockedFileInfo : IFileInfo
 {
-    public MockFileInfo(
+    public MockedFileInfo(
         string name,
         string fullName,
         long length,
@@ -16,6 +16,15 @@ public class MockFileInfo : IFileInfo
         Length = length;
         LastWriteTimeUtc = lastWriteTimeUtc;
         CreationTimeUtc = creationTimeUtc;
+    }
+
+    public MockedFileInfo(MockedFile mockedFile)
+    {
+        Name = mockedFile.Name;
+        FullName = mockedFile.FullName;
+        Length = mockedFile.Length;
+        LastWriteTimeUtc = DateTime.UtcNow;
+        CreationTimeUtc = DateTime.UtcNow;
     }
 
     public string Name { get; private set; }

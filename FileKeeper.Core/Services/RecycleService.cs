@@ -59,14 +59,12 @@ public class RecycleService : IRecycleService
             var firstBackup = orderedBackups[i];
             var nextBackup = orderedBackups[i + 1];
 
+            var filesToMove = nextBackup.Files.Where(f => f.FoundInBackup == firstBackup.BackupName).ToList();
+
             // 3.1. Merge the files from the backup to be removed to the next backup
-            foreach (var nextBackupFile in nextBackup.Files)
+            foreach (var fileToMove in filesToMove)
             {
-                // Se o arquivo não se encontra no backup a ser removido, não precisa fazer nada
-                if (nextBackupFile.FoundInBackup != firstBackup.BackupName)
-                    continue;
-                
-                var firstBackupFile = firstBackup.Files.FirstOrDefault(f => f.IsSameFile(nextBackupFile));
+                var firstBackupFile = firstBackup.Files.FirstOrDefault(f => f.IsSameFile(fileToMove));
                 if (firstBackupFile == null)
                     continue;
 
@@ -76,17 +74,19 @@ public class RecycleService : IRecycleService
                     firstBackup.BackupName,
                     firstBackupFile.StoredPath,
                     nextBackup.BackupName,
-                    nextBackupFile.StoredPath,
+                    fileToMove.StoredPath,
                     cancellationToken);
                 
                 // 3.2. Update the file metadata in the index to point to the new backup
-                var allBackupsWithFile = orderedBackups
-                    .Where(b => b.CreatedAtUtc > firstBackup.CreatedAtUtc)
-                    .SelectMany(b => b.Files)
-                    .Where(f => f.IsSameFile(nextBackupFile))
-                    .ToList();
+                // var allBackupsWithFile = orderedBackups
+                //     .Where(b => b.CreatedAtUtc > firstBackup.CreatedAtUtc)
+                //     .SelectMany(b => b.Files)
+                //     .Where(f => f.IsSameFile(fileToMove))
+                //     .ToList();
+                // allBackupsWithFile.ForEach(f => f.FoundInBackup = nextBackup.BackupName);
                 
-                allBackupsWithFile.ForEach(f => f.FoundInBackup = nextBackup.BackupName);
+                // 3.2. Update only the next backup file metadata in the index to point to the new backup
+                fileToMove.FoundInBackup = nextBackup.BackupName;
             }
             
             // 3.3. Delete old folder
