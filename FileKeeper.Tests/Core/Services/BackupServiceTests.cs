@@ -33,6 +33,16 @@ public class BackupServiceTests
         _fileInfoBuilderMock = new Mock<IFileInfoBuilder>();
         _indexServiceMock = new  Mock<IIndexService>();
         
+        var defaultConfiguration = new Configuration()
+        {
+            DestinationDirectory = "/home/felipe/backups",
+            SourceDirectories = new List<string>() { "/var/www/html" }
+        };
+        
+        _configurationServiceMock
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(defaultConfiguration);
+        
         _sut = new BackupService(
             _consoleMock.Object,
             _configurationServiceMock.Object,
@@ -45,35 +55,33 @@ public class BackupServiceTests
     }
 
     [Fact]
-    public async Task DeveGerarUmNovoBackupComSucesso()
+    public async Task SeNaoExisteBackup_E1NovoArquivo_DeveGerarBackup()
     {
         // Arrange
-        var configuration = new Configuration()
-        {
-            DestinationDirectory = "/home/felipe/backups",
-            SourceDirectories = new List<string>() { "/var/www/html" }
-        };
-
         var mockFileInfo = new MockFileInfo(
             "mockfile.txt",
             "/var/www/html/mockfile.txt",
             1000,
             new DateTime(2020, 01, 01),
             new DateTime(2020, 01, 02));
+
+        _hashingServiceMock
+            .Setup(s => s.ComputeHashFromStringAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Guid.NewGuid().ToString());
+        
+        _indexServiceMock
+            .Setup(s => s.GetBackupIndexAsync(CancellationToken.None))
+            .ReturnsAsync(new BackupIndex());
         
         _fileInfoBuilderMock
             .Setup(b => b.Build(It.IsAny<string>()))
             .Returns(mockFileInfo);
         
-        _configurationServiceMock
-            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(configuration);
-        
         _compressionServiceMock
             .Setup(s => s.ReadFileContentAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);
 
-        var listaArquivos = new[] { "/var/www/html/index.html", "/var/www/html/style.css", "/var/www/html/index.js" };
+        var listaArquivos = new[] { "/var/www/html/file1.txt" };
         
         _fileSystemMock
             .Setup(s => s.GetFiles("/var/www/html", It.IsAny<string>(), It.IsAny<SearchOption>()))

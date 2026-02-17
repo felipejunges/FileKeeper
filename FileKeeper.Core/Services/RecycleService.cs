@@ -41,6 +41,12 @@ public class RecycleService : IRecycleService
         
         // 2. Check how many backups needs to be merged
         var removeCount = backupIndex.Backups.Count - configuration.KeepMaxBackups;
+        
+        if (removeCount <= 0)
+        {
+            _console.MarkupLine($"[grey]Recycling skipped: Current Backups {backupIndex.Backups.Count} is less than or equal to Max Backups {configuration.KeepMaxBackups}[/]");
+            return;
+        }
 
         var orderedBackups = backupIndex.Backups.OrderBy(b => b.CreatedAtUtc).ToList();
         
@@ -73,14 +79,21 @@ public class RecycleService : IRecycleService
                     nextBackupFile.StoredPath,
                     cancellationToken);
                 
-                nextBackupFile.FoundInBackup = nextBackup.BackupName;
+                // 3.2. Update the file metadata in the index to point to the new backup
+                var allBackupsWithFile = orderedBackups
+                    .Where(b => b.CreatedAtUtc > firstBackup.CreatedAtUtc)
+                    .SelectMany(b => b.Files)
+                    .Where(f => f.IsSameFile(nextBackupFile))
+                    .ToList();
+                
+                allBackupsWithFile.ForEach(f => f.FoundInBackup = nextBackup.BackupName);
             }
             
-            // 3.2. Delete old folder
+            // 3.3. Delete old folder
             await _compressionService.RemoveFolderAsync(configuration.DestinationDirectory, firstBackup.BackupName, cancellationToken);
             
-            // 3.3. Remove the backup metadata from the index
-            backupIndex.Backups.Remove(firstBackup); // TODO: will this change 'orderedBackups' ?
+            // 3.4. Remove the backup metadata from the index
+            backupIndex.Backups.Remove(firstBackup);
         }
         
         // 4. Save the File Index

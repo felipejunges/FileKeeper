@@ -67,7 +67,7 @@ public class BackupService
             CreatedAtUtc = DateTime.UtcNow
         };
 
-        backupIndex?.Backups.Add(newBackupMetadata);
+        backupIndex.Backups.Add(newBackupMetadata);
 
         // 3. Scan All Sources
         var filesToZip = new List<(string FullPath, string StoredPath)>();
@@ -81,24 +81,26 @@ public class BackupService
             {
                 var existing = lastBackupMetadata?.Files.FirstOrDefault(f => f.IsSameFile(file));
 
-                bool isNew = true;
                 if (existing != null)
                 {
                     file.Hash = await _hashingService.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
 
                     if (existing.Hash == file.Hash)
                     {
-                        isNew = false;
+                        // CASO: O arquivo já existe, e o hash é o mesmo: então podemos reaproveitar o arquivo do backup anterior
                         file.FoundInBackup = existing.FoundInBackup;
+                    }
+                    else
+                    {
+                        // CASO: O arquivo já existe, mas o hash é diferente: então precisamos atualizar o arquivo do backup
+                        file.FoundInBackup = backupName;
+                        filesToZip.Add((Path.Combine(sourceDir, file.RelativePath), file.StoredPath));
                     }
                 }
                 else
                 {
+                    // CASO: O arquivo é novo: então precisamos adicionar ao backup
                     file.Hash = await _hashingService.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
-                }
-
-                if (isNew)
-                {
                     file.FoundInBackup = backupName;
                     filesToZip.Add((Path.Combine(sourceDir, file.RelativePath), file.StoredPath));
                 }
@@ -125,8 +127,7 @@ public class BackupService
         cancellationToken.ThrowIfCancellationRequested();
         
         // 6. Trigger Recycle
-        // Keep it disabled, for now
-        //await _recycleService.RecycleBackupsAsync(cancellationToken);
+        await _recycleService.RecycleBackupsAsync(cancellationToken);
 
         return Result.Success;
     }
