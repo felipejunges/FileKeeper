@@ -117,6 +117,10 @@ public class BackupService
             await _compressionService.CompressFilesAsync(filesToZip, configuration.DestinationDirectory, backupName, cancellationToken);
             _console.MarkupLine($"[green]Compressed all {filesToZip.Count} files![/]");
         }
+        else
+        {
+            _console.MarkupLine("[yellow]No files to compress![/]");
+        }
 
         cancellationToken.ThrowIfCancellationRequested();
         
