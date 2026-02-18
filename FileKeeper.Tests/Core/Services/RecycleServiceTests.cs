@@ -160,7 +160,7 @@ public class RecycleServiceTests
     }
     
     [Fact]
-    public async Task OneBackupContainingOneFile_NeedsToBeRecycled()
+    public async Task ThreeBackups_OneIsRecycled()
     {
         // Arrange
         var configuration = new Configuration()
@@ -174,9 +174,9 @@ public class RecycleServiceTests
             .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(configuration);
         
-        var firstBackupDate = DateTime.UtcNow.AddMinutes(-3);
-        var secondBackupDate = DateTime.UtcNow.AddMinutes(-2);
-        var thirdBackupDate = DateTime.UtcNow.AddMinutes(-1);
+        var firstBackupDate = new DateTime(2026, 2, 18, 10, 0, 0, DateTimeKind.Utc);
+        var secondBackupDate = new DateTime(2026, 2, 18, 10, 10, 0, DateTimeKind.Utc);
+        var thirdBackupDate = new DateTime(2026, 2, 18, 10, 20, 0, DateTimeKind.Utc);
 
         var currentIndex = new BackupIndex()
         {
@@ -257,7 +257,114 @@ public class RecycleServiceTests
         
         Assert.Equal(firstBackup.BackupName, secondBackup.Files[0].FoundInBackup);
         Assert.Equal(firstBackup.BackupName, secondBackup.Files[1].FoundInBackup);
-        Assert.Equal(secondBackup.BackupName, secondBackup.Files[1].FoundInBackup);
+        Assert.Equal(secondBackup.BackupName, secondBackup.Files[2].FoundInBackup);
+        
+        _indexServiceMock
+            .Verify(v => v.SaveBackupIndexAsync(
+                    It.IsAny<BackupIndex>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+    }
+    
+    [Fact]
+    public async Task ThreeBackups_OneIsRecycled_ButInThirdFile1IsNewer()
+    {
+        // Arrange
+        var configuration = new Configuration()
+        {
+            DestinationDirectory = "/home/felipe/backups",
+            SourceDirectories = new List<string>() { "/var/www/html" },
+            KeepMaxBackups = 2
+        };
+
+        _configurationServiceMock
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(configuration);
+        
+        var firstBackupDate = new DateTime(2026, 2, 18, 10, 0, 0, DateTimeKind.Utc);
+        var secondBackupDate = new DateTime(2026, 2, 18, 10, 10, 0, DateTimeKind.Utc);
+        var thirdBackupDate = new DateTime(2026, 2, 18, 10, 20, 0, DateTimeKind.Utc);
+
+        var currentIndex = new BackupIndex()
+        {
+            Backups = BackupMetadataBuilder
+                .New()
+                .AddBackup(firstBackupDate)
+                .AddFile(
+                    "file1.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    1000,
+                    "Hash_File1_V1",
+                    DateTime.UtcNow,
+                    firstBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddBackup(secondBackupDate)
+                .AddFile(
+                    "file1.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    1000,
+                    "Hash_File1_V1",
+                    DateTime.UtcNow,
+                    firstBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddFile(
+                    "file2.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file2.txt",
+                    2000,
+                    "Hash_File2_V1",
+                    DateTime.UtcNow,
+                    secondBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddBackup(thirdBackupDate)
+                .AddFile(
+                    "file1.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    1000,
+                    "Hash_File1_V2",
+                    DateTime.UtcNow,
+                    thirdBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddFile(
+                    "file2.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file2.txt",
+                    2000,
+                    "Hash_File2_V1",
+                    DateTime.UtcNow,
+                    secondBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddFile(
+                    "file3.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file3.txt",
+                    2000,
+                    "Hash_File3_V1",
+                    DateTime.UtcNow,
+                    thirdBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .Build()
+        };
+        
+        _indexServiceMock
+            .Setup(v => v.GetBackupIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(currentIndex);
+
+        BackupIndex? capturedIndex = null;
+        _indexServiceMock
+            .Setup(s => s.SaveBackupIndexAsync(It.IsAny<BackupIndex>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask)
+            .Callback<BackupIndex, CancellationToken>((index, _) => { capturedIndex = index; });
+        
+        // Act
+        await _sut.RecycleBackupsAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Equal(2, capturedIndex!.Backups.Count);
+        
+        var firstBackup = capturedIndex!.Backups[0];
+        var secondBackup = capturedIndex!.Backups[1];
+        
+        Assert.Equal(2, firstBackup.Files.Count);
+        Assert.Equal(3, secondBackup.Files.Count);
+        
+        Assert.Equal(firstBackup.BackupName, firstBackup.Files[0].FoundInBackup);
+        Assert.Equal(firstBackup.BackupName, firstBackup.Files[1].FoundInBackup);
+        
+        Assert.Equal(secondBackup.BackupName, secondBackup.Files[0].FoundInBackup);
+        Assert.Equal(firstBackup.BackupName, secondBackup.Files[1].FoundInBackup);
+        Assert.Equal(secondBackup.BackupName, secondBackup.Files[2].FoundInBackup);
         
         _indexServiceMock
             .Verify(v => v.SaveBackupIndexAsync(
