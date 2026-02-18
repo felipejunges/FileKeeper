@@ -45,7 +45,7 @@ while (true)
     grid.AddColumn(); // expande
     grid.AddColumn(new GridColumn().RightAligned());
 
-    grid.AddRow(title, new Markup("[grey]v1.0[/]"));
+    grid.AddRow(title, new Markup($"[grey]{FileKeeper.Core.Utils.AppInfo.GetAppVersion()}[/]"));
     
     AnsiConsole.Clear();
     AnsiConsole.Write(grid);
