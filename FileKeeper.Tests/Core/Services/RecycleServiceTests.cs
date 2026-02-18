@@ -428,4 +428,124 @@ public class RecycleServiceTests
                     It.IsAny<CancellationToken>()),
                 Times.Once);
     }
+    
+    [Fact]
+    public async Task ThreeBackups_OneIsRecycled_OneFileShouldBeDeleted()
+    {
+        // Arrange
+        var configuration = new Configuration()
+        {
+            DestinationDirectory = "/home/felipe/backups",
+            SourceDirectories = new List<string>() { "/var/www/html" },
+            KeepMaxBackups = 2
+        };
+
+        _configurationServiceMock
+            .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(configuration);
+        
+        var firstBackupDate = new DateTime(2026, 2, 18, 10, 0, 0, DateTimeKind.Utc);
+        var secondBackupDate = new DateTime(2026, 2, 18, 10, 10, 0, DateTimeKind.Utc);
+        var thirdBackupDate = new DateTime(2026, 2, 18, 10, 20, 0, DateTimeKind.Utc);
+
+        var currentIndex = new BackupIndex()
+        {
+            Backups = BackupMetadataBuilder
+                .New()
+                .AddBackup(firstBackupDate)
+                .AddFile(
+                    "file1.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    1000,
+                    "Hash_File1_V1",
+                    DateTime.UtcNow,
+                    firstBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddBackup(secondBackupDate)
+                .AddFile(
+                    "file2.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file2.txt",
+                    2000,
+                    "Hash_File2_V1",
+                    DateTime.UtcNow,
+                    secondBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddBackup(thirdBackupDate)
+                .AddFile(
+                    "file2.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file2.txt",
+                    2000,
+                    "Hash_File2_V1",
+                    DateTime.UtcNow,
+                    secondBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .AddFile(
+                    "file3.txt",
+                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file3.txt",
+                    2000,
+                    "Hash_File3_V1",
+                    DateTime.UtcNow,
+                    thirdBackupDate.ToString("yyyyMMdd_HHmmss"))
+                .Build()
+        };
+        
+        _indexServiceMock
+            .Setup(v => v.GetBackupIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(currentIndex);
+
+        BackupIndex? capturedIndex = null;
+        _indexServiceMock
+            .Setup(s => s.SaveBackupIndexAsync(It.IsAny<BackupIndex>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask)
+            .Callback<BackupIndex, CancellationToken>((index, _) => { capturedIndex = index; });
+
+        string[]? capturedMovedFiles = null;
+        _compressionServiceMock
+            .Setup(s => s.MoveFileAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<(string OriginStoredPath, string DestinationStoredPath)>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, List<(string OriginStoredPath, string DestinationStoredPath)>, CancellationToken>((_, _, _, files, ct) =>
+            {
+                capturedMovedFiles = files.Select(f => f.OriginStoredPath).ToArray();
+            });
+
+        var capturedRemovedFolders = new List<string>();
+        _compressionServiceMock
+            .Setup(s => s.RemoveFolderAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, CancellationToken>((_, firstBackupBackupName, _) =>
+            {
+                capturedRemovedFolders.Add(firstBackupBackupName);
+            });
+
+        // Act
+        await _sut.RecycleBackupsAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Equal(2, capturedIndex!.Backups.Count);
+        
+        var firstBackup = capturedIndex!.Backups[0];
+        var secondBackup = capturedIndex!.Backups[1];
+        
+        Assert.Single(firstBackup.Files);
+        Assert.Equal(2, secondBackup.Files.Count);
+        
+        Assert.Equal(firstBackup.BackupName, firstBackup.Files[0].FoundInBackup);
+        
+        Assert.Equal(firstBackup.BackupName, secondBackup.Files[0].FoundInBackup);
+        Assert.Equal(secondBackup.BackupName, secondBackup.Files[1].FoundInBackup);
+
+        Assert.NotNull(capturedMovedFiles);
+        Assert.Empty(capturedMovedFiles);
+        Assert.Single(capturedRemovedFolders);
+        Assert.Equal(firstBackupDate.ToString("yyyyMMdd_HHmmss"), capturedRemovedFolders[0]);
+        
+        _indexServiceMock
+            .Verify(v => v.SaveBackupIndexAsync(
+                    It.IsAny<BackupIndex>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+    }
 }
