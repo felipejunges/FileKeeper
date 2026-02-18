@@ -35,6 +35,14 @@ var configurationService = host.Services.GetRequiredService<IConfigurationServic
 var backupService = host.Services.GetRequiredService<BackupService>();
 var restoreService = host.Services.GetRequiredService<RestoreService>();
 
+if (args.Contains("-a"))
+{
+    // run backup immediately and exit
+    var cts = new CancellationTokenSource();
+    backupService.CreateBackupAsync(cts.Token).GetAwaiter().GetResult();
+    return;
+}
+
 while (true)
 {
     var title = new FigletText("FileKeeper")
