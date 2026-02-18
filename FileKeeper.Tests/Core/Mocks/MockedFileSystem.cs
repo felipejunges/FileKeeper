@@ -66,4 +66,10 @@ public class MockedFileSystem : IFileSystem
     {
         throw new NotImplementedException();
     }
+    
+    public Task<string> ComputeHashAsync(string filePath, CancellationToken cancellationToken)
+    {
+        var file = _files.First(f => f.FullName == filePath);
+        return Task.FromResult(file.Hash);
+    }
 }
