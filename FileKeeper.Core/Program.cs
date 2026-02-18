@@ -13,7 +13,6 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((_, services) =>
     {
         services.AddSingleton<IFileSystem, FileSystem>();
-        services.AddSingleton<IHashingService, HashingService>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<ICompressionService, CompressionZipService>();
         services.AddSingleton<BackupService>();

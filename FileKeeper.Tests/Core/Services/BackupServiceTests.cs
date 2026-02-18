@@ -19,7 +19,6 @@ public class BackupServiceTests
 
     private readonly IFileSystem _fileSystem;
     private readonly IFileInfoBuilder _fileInfoBuilder;
-    private readonly IHashingService _hashingService;
 
     private readonly Mock<IAnsiConsole> _consoleMock;
     private readonly Mock<ICompressionService> _compressionServiceMock;
@@ -31,7 +30,6 @@ public class BackupServiceTests
     {
         _fileSystem = new MockedFileSystem(_mockedFiles);
         _fileInfoBuilder = new MockedFileInfoBuilder(_mockedFiles);
-        _hashingService = new MockedHashingService(_mockedFiles);
 
         _consoleMock = new Mock<IAnsiConsole>();
         _compressionServiceMock = new Mock<ICompressionService>();
@@ -53,7 +51,6 @@ public class BackupServiceTests
             _consoleMock.Object,
             _configurationServiceMock.Object,
             _fileSystem,
-            _hashingService,
             _compressionServiceMock.Object,
             _recycleServiceMock.Object,
             _fileInfoBuilder,
@@ -127,7 +124,7 @@ public class BackupServiceTests
                 .AddBackup(DateTime.UtcNow.AddMinutes(-3))
                 .AddFile(
                     "file1.txt",
-                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file1.txt",
                     1000,
                     "Hash_File1_V1",
                     DateTime.UtcNow,
@@ -213,7 +210,7 @@ public class BackupServiceTests
                 .AddBackup(DateTime.UtcNow.AddMinutes(-3))
                 .AddFile(
                     "file1.txt",
-                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file1.txt",
                     1000,
                     "Hash_File1_V1",
                     DateTime.UtcNow,
@@ -221,14 +218,14 @@ public class BackupServiceTests
                 .AddBackup(DateTime.UtcNow.AddMinutes(-2))
                 .AddFile(
                     "file1.txt",
-                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file1.txt",
+                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file1.txt",
                     1000,
                     "Hash_File1_V1",
                     DateTime.UtcNow,
                     oldBackupName)
                 .AddFile(
                     "file2.txt",
-                    "a8512aa711f757608fdac530f82cd972616f8c6d/html/file2.txt",
+                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file2.txt",
                     1000,
                     "Hash_File2_V1",
                     DateTime.UtcNow,

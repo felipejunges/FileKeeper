@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces.Abstraction;
+using FileKeeper.Core.Utils;
 
 namespace FileKeeper.Core.Services.Abstraction;
 
@@ -20,4 +21,12 @@ public class FileSystem : IFileSystem
     public void WriteAllText(string path, string contents) => File.WriteAllText(path, contents);
 
     public void DeleteFile(string path) => File.Delete(path);
+    
+    public async Task<string> ComputeHashAsync(string filePath, CancellationToken cancellationToken)
+    {
+        using (var stream = File.OpenRead(filePath))
+        {
+            return await HashingUtils.ComputeHashFromStreamAsync(stream, cancellationToken);
+        }
+    }
 }

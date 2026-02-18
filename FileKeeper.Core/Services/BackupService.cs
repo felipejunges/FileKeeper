@@ -3,6 +3,7 @@ using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
 using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
+using FileKeeper.Core.Utils;
 using Spectre.Console;
 using System.Text.Json;
 
@@ -13,7 +14,6 @@ public class BackupService
     private readonly IAnsiConsole _console;
     private readonly IConfigurationService _configurationService;
     private readonly IFileSystem _fileSystem;
-    private readonly IHashingService _hashingService;
     private readonly ICompressionService _compressionService;
     private readonly IRecycleService _recycleService;
     private readonly IFileInfoBuilder _fileInfoBuilder;
@@ -23,7 +23,6 @@ public class BackupService
         IAnsiConsole console,
         IConfigurationService configurationService,
         IFileSystem fileSystem,
-        IHashingService hashingService,
         ICompressionService compressionService,
         IRecycleService recycleService,
         IFileInfoBuilder fileInfoBuilder,
@@ -32,7 +31,6 @@ public class BackupService
         _console = console;
         _configurationService = configurationService;
         _fileSystem = fileSystem;
-        _hashingService = hashingService;
         _compressionService = compressionService;
         _recycleService = recycleService;
         _fileInfoBuilder = fileInfoBuilder;
@@ -83,7 +81,7 @@ public class BackupService
 
                 if (existing != null)
                 {
-                    file.Hash = await _hashingService.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
+                    file.Hash = await _fileSystem.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
 
                     if (existing.Hash == file.Hash)
                     {
@@ -100,7 +98,7 @@ public class BackupService
                 else
                 {
                     // CASO: O arquivo é novo: então precisamos adicionar ao backup
-                    file.Hash = await _hashingService.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
+                    file.Hash = await _fileSystem.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), cancellationToken);
                     file.FoundInBackup = backupName;
                     filesToZip.Add((Path.Combine(sourceDir, file.RelativePath), file.StoredPath));
                 }
@@ -139,7 +137,8 @@ public class BackupService
     {
         var result = new List<FileMetadata>();
 
-        var sourceDirHash = await _hashingService.ComputeHashFromStringAsync(sourceDir, cancellationToken);
+        // TODO: aqui, poderia gerar o Base64 do diretório...
+        var sourceDirHash = await HashingUtils.ComputeHashFromStringAsync(sourceDir, cancellationToken);
         var sourceName = Path.GetFileName(sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         var files = _fileSystem.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
 

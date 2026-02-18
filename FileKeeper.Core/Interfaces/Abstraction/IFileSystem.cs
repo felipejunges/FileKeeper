@@ -15,4 +15,6 @@ public interface IFileSystem
     void WriteAllText(string path, string contents);
 
     void DeleteFile(string path);
+    
+    Task<string> ComputeHashAsync(string filePath, CancellationToken cancellationToken);
 }
