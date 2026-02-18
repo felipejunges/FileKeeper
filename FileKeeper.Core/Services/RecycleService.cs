@@ -1,7 +1,6 @@
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
 using Spectre.Console;
-using System.Text.Json;
 
 namespace FileKeeper.Core.Services;
 
@@ -78,15 +77,14 @@ public class RecycleService : IRecycleService
                     cancellationToken);
                 
                 // 3.2. Update the file metadata in the index to point to the new backup
-                // var allBackupsWithFile = orderedBackups
-                //     .Where(b => b.CreatedAtUtc > firstBackup.CreatedAtUtc)
-                //     .SelectMany(b => b.Files)
-                //     .Where(f => f.IsSameFile(fileToMove))
-                //     .ToList();
-                // allBackupsWithFile.ForEach(f => f.FoundInBackup = nextBackup.BackupName);
+                var allBackupsWithFile = orderedBackups
+                    .Where(b => b.CreatedAtUtc > firstBackup.CreatedAtUtc)
+                    .SelectMany(b => b.Files)
+                    .Where(f => f.IsSameFile(fileToMove))
+                    .Where(f => f.FoundInBackup == firstBackup.BackupName)
+                    .ToList();
                 
-                // 3.2. Update only the next backup file metadata in the index to point to the new backup
-                fileToMove.FoundInBackup = nextBackup.BackupName;
+                allBackupsWithFile.ForEach(f => f.FoundInBackup = nextBackup.BackupName);
             }
             
             // 3.3. Delete old folder
@@ -97,7 +95,6 @@ public class RecycleService : IRecycleService
         }
         
         // 4. Save the File Index
-        var indexJson = JsonSerializer.Serialize(backupIndex, new JsonSerializerOptions { WriteIndented = true });
-        await _compressionService.WriteFileContentAsync(configuration.DestinationDirectory, "index.json", indexJson, cancellationToken);
+        await _indexService.SaveBackupIndexAsync(backupIndex, cancellationToken);
     }
 }

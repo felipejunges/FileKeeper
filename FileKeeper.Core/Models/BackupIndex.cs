@@ -24,7 +24,7 @@ public class BackupMetadata
     public List<FileMetadata> FilesSerialization
     {
         get => _files;
-        set
+        private set
         {
             _files.Clear();
             _files.AddRange(value);
