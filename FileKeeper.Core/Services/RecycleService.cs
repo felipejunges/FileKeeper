@@ -49,49 +49,53 @@ public class RecycleService : IRecycleService
 
         var orderedBackups = backupIndex.Backups.OrderBy(b => b.CreatedAtUtc).ToList();
         
-        // 3. Merge the backup files
+        var filesToMove = new List<(string OriginStoredPath, string DestinationStoredPath)>();
+        
+        // 3. Create the list of backup files to move
         for (int i = 0; i < removeCount; i++)
         {
-            // TODO: pensar: não executar nada definitivo dentro do loop, para possibilitar o cancelamento do processo*
             cancellationToken.ThrowIfCancellationRequested();
             
-            var firstBackup = orderedBackups[i];
-            var nextBackup = orderedBackups[i + 1];
+            var backupToDelete = orderedBackups[i];
+            var backupToBeMerged = orderedBackups[i + 1];
 
-            var filesToMove = nextBackup.Files.Where(f => f.FoundInBackup == firstBackup.BackupName).ToList();
+            var filesToCheck = backupToBeMerged.Files.Where(f => f.FoundInBackup == backupToDelete.BackupName).ToList();
 
-            // 3.1. Merge the files from the backup to be removed to the next backup
-            foreach (var fileToMove in filesToMove)
+            // 3.1. Check the files from the backup to be removed to the next backup
+            foreach (var fileToCheck in filesToCheck)
             {
-                var firstBackupFile = firstBackup.Files.FirstOrDefault(f => f.IsSameFile(fileToMove));
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                var firstBackupFile = backupToDelete.Files.FirstOrDefault(f => f.IsSameFile(fileToCheck));
                 if (firstBackupFile == null)
                     continue;
-
-                // TODO: * continuando, talvez nao chamar arquivo por arquivo, mas uma lista de arquivos
-                await _compressionService.MoveFileAsync(
-                    configuration.DestinationDirectory,
-                    firstBackup.BackupName,
-                    firstBackupFile.StoredPath,
-                    nextBackup.BackupName,
-                    fileToMove.StoredPath,
-                    cancellationToken);
                 
+                filesToMove.Add((firstBackupFile.StoredPath, fileToCheck.StoredPath));
+
                 // 3.2. Update the file metadata in the index to point to the new backup
                 var allBackupsWithFile = orderedBackups
-                    .Where(b => b.CreatedAtUtc > firstBackup.CreatedAtUtc)
+                    .Where(b => b.CreatedAtUtc > backupToDelete.CreatedAtUtc)
                     .SelectMany(b => b.Files)
-                    .Where(f => f.IsSameFile(fileToMove))
-                    .Where(f => f.FoundInBackup == firstBackup.BackupName)
+                    .Where(f => f.IsSameFile(fileToCheck))
+                    .Where(f => f.FoundInBackup == backupToDelete.BackupName)
                     .ToList();
                 
-                allBackupsWithFile.ForEach(f => f.FoundInBackup = nextBackup.BackupName);
+                allBackupsWithFile.ForEach(f => f.FoundInBackup = backupToBeMerged.BackupName);
             }
             
-            // 3.3. Delete old folder
-            await _compressionService.RemoveFolderAsync(configuration.DestinationDirectory, firstBackup.BackupName, cancellationToken);
+            // 3.3. Move files in the compressed file
+            await _compressionService.MoveFileAsync(
+                configuration.DestinationDirectory,
+                backupToDelete.BackupName,
+                backupToBeMerged.BackupName,
+                filesToMove,
+                cancellationToken);
             
-            // 3.4. Remove the backup metadata from the index
-            backupIndex.Backups.Remove(firstBackup);
+            // 3.4. Delete old folder
+            await _compressionService.RemoveFolderAsync(configuration.DestinationDirectory, backupToDelete.BackupName, cancellationToken);
+            
+            // 3.5. Remove the backup metadata from the index
+            backupIndex.Backups.Remove(backupToDelete);
         }
         
         // 4. Save the File Index

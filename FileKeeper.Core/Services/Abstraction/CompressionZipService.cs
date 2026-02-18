@@ -72,6 +72,63 @@ public class CompressionZipService : ICompressionService
             }
         }
     }
+    
+    public async Task MoveFileAsync(string backupPath, string originBackupName, string destinatioBackupName,
+        List<(string OriginStoredPath, string DestinationStoredPath)> files, CancellationToken cancellationToken)
+    {
+        if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
+        {
+            _console.MarkupLine($"[red]Backup not found:[/] {BackupZipPath(backupPath)}");
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
+        {
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                var originFullPath = Path.Combine(originBackupName, file.OriginStoredPath);
+                var originEntry = archive.GetEntry(originFullPath);
+                if (originEntry == null)
+                {
+                    _console.MarkupLine($"[yellow]Move skipped, entry not found:[/] {originFullPath}");
+                    return;
+                }
+
+                // If destination exists, delete it first
+                var destinationFullPath = Path.Combine(destinatioBackupName, file.DestinationStoredPath);
+                var existing = archive.GetEntry(destinationFullPath);
+                existing?.Delete();
+
+                // Create destination entry and copy the content from origin
+                var destinationEntry = archive.CreateEntry(destinationFullPath, CompressionLevel.Optimal);
+
+                using (var sourceStream = await originEntry.OpenAsync(cancellationToken))
+                using (var destStream = await destinationEntry.OpenAsync(cancellationToken))
+                {
+                    await sourceStream.CopyToAsync(destStream, 81920, cancellationToken);
+                }
+
+                // Try to preserve last write time
+                try
+                {
+                    destinationEntry.LastWriteTime = originEntry.LastWriteTime;
+                }
+                catch
+                {
+                    // ignore if not supported
+                }
+
+                // Remove the original entry
+                originEntry.Delete();
+
+                _console.MarkupLine($"[green]Moved:[/] {originFullPath} -> {destinationFullPath}");
+            }
+        }
+    }
 
     private void CreateEntryDirectoryIfNotExists(string destinationFileName)
     {
@@ -115,57 +172,6 @@ public class CompressionZipService : ICompressionService
             {
                 await writer.WriteAsync(content.AsMemory(), cancellationToken);
             }
-        }
-    }
-
-    public async Task MoveFileAsync(string backupPath, string originBackupName, string originStoredPath, string destinatioBackupName, string destinationStoredPath, CancellationToken cancellationToken)
-    {
-        if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
-        {
-            _console.MarkupLine($"[red]Backup not found:[/] {BackupZipPath(backupPath)}");
-            return;
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        using (var archive = await ZipFile.OpenAsync(BackupZipPath(backupPath), ZipArchiveMode.Update, cancellationToken))
-        {
-            var originFullPath = Path.Combine(originBackupName, originStoredPath);
-            var originEntry = archive.GetEntry(originFullPath);
-            if (originEntry == null)
-            {
-                _console.MarkupLine($"[yellow]Move skipped, entry not found:[/] {originFullPath}");
-                return;
-            }
-
-            // If destination exists, delete it first
-            var destinationFullPath = Path.Combine(destinatioBackupName, destinationStoredPath);
-            var existing = archive.GetEntry(destinationFullPath);
-            existing?.Delete();
-
-            // Create destination entry and copy the content from origin
-            var destinationEntry = archive.CreateEntry(destinationFullPath, CompressionLevel.Optimal);
-
-            using (var sourceStream = await originEntry.OpenAsync(cancellationToken))
-            using (var destStream = await destinationEntry.OpenAsync(cancellationToken))
-            {
-                await sourceStream.CopyToAsync(destStream, 81920, cancellationToken);
-            }
-
-            // Try to preserve last write time
-            try
-            {
-                destinationEntry.LastWriteTime = originEntry.LastWriteTime;
-            }
-            catch
-            {
-                // ignore if not supported
-            }
-
-            // Remove the original entry
-            originEntry.Delete();
-
-            _console.MarkupLine($"[green]Moved:[/] {originFullPath} -> {destinationFullPath}");
         }
     }
 

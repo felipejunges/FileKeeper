@@ -71,8 +71,7 @@ public class RecycleServiceTests
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
+                    It.IsAny<List<(string OriginStoredPath, string DestinationStoredPath)>>(),
                     It.IsAny<CancellationToken>())
                 , Times.Never);
 
@@ -140,8 +139,7 @@ public class RecycleServiceTests
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
+                    It.IsAny<List<(string OriginStoredPath, string DestinationStoredPath)>>(),
                     It.IsAny<CancellationToken>())
                 , Times.Never);
 
@@ -240,6 +238,30 @@ public class RecycleServiceTests
             .Returns(Task.CompletedTask)
             .Callback<BackupIndex, CancellationToken>((index, _) => { capturedIndex = index; });
         
+        string[]? capturedMovedFiles = null;
+        _compressionServiceMock
+            .Setup(s => s.MoveFileAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<(string OriginStoredPath, string DestinationStoredPath)>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, List<(string OriginStoredPath, string DestinationStoredPath)>, CancellationToken>((_, _, _, files, ct) =>
+            {
+                capturedMovedFiles = files.Select(f => f.OriginStoredPath).ToArray();
+            });
+
+        var capturedRemovedFolders = new List<string>();
+        _compressionServiceMock
+            .Setup(s => s.RemoveFolderAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, CancellationToken>((_, firstBackupBackupName, _) =>
+            {
+                capturedRemovedFolders.Add(firstBackupBackupName);
+            });
+        
         // Act
         await _sut.RecycleBackupsAsync(CancellationToken.None);
 
@@ -258,6 +280,11 @@ public class RecycleServiceTests
         Assert.Equal(firstBackup.BackupName, secondBackup.Files[0].FoundInBackup);
         Assert.Equal(firstBackup.BackupName, secondBackup.Files[1].FoundInBackup);
         Assert.Equal(secondBackup.BackupName, secondBackup.Files[2].FoundInBackup);
+        
+        Assert.NotNull(capturedMovedFiles);
+        Assert.Single(capturedMovedFiles);
+        Assert.Single(capturedRemovedFolders);
+        Assert.Equal(firstBackupDate.ToString("yyyyMMdd_HHmmss"), capturedRemovedFolders[0]);
         
         _indexServiceMock
             .Verify(v => v.SaveBackupIndexAsync(
@@ -346,7 +373,31 @@ public class RecycleServiceTests
             .Setup(s => s.SaveBackupIndexAsync(It.IsAny<BackupIndex>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask)
             .Callback<BackupIndex, CancellationToken>((index, _) => { capturedIndex = index; });
-        
+
+        string[]? capturedMovedFiles = null;
+        _compressionServiceMock
+            .Setup(s => s.MoveFileAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<(string OriginStoredPath, string DestinationStoredPath)>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, List<(string OriginStoredPath, string DestinationStoredPath)>, CancellationToken>((_, _, _, files, ct) =>
+            {
+                capturedMovedFiles = files.Select(f => f.OriginStoredPath).ToArray();
+            });
+
+        var capturedRemovedFolders = new List<string>();
+        _compressionServiceMock
+            .Setup(s => s.RemoveFolderAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, CancellationToken>((_, firstBackupBackupName, _) =>
+            {
+                capturedRemovedFolders.Add(firstBackupBackupName);
+            });
+
         // Act
         await _sut.RecycleBackupsAsync(CancellationToken.None);
 
@@ -365,6 +416,11 @@ public class RecycleServiceTests
         Assert.Equal(secondBackup.BackupName, secondBackup.Files[0].FoundInBackup);
         Assert.Equal(firstBackup.BackupName, secondBackup.Files[1].FoundInBackup);
         Assert.Equal(secondBackup.BackupName, secondBackup.Files[2].FoundInBackup);
+
+        Assert.NotNull(capturedMovedFiles);
+        Assert.Single(capturedMovedFiles);
+        Assert.Single(capturedRemovedFolders);
+        Assert.Equal(firstBackupDate.ToString("yyyyMMdd_HHmmss"), capturedRemovedFolders[0]);
         
         _indexServiceMock
             .Verify(v => v.SaveBackupIndexAsync(
