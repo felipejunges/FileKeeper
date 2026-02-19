@@ -21,7 +21,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IIndexService, IndexService>();
         services.AddSingleton<IFileInfoBuilder, FileInfoBuilder>();
         services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
-        
+
         services.AddSingleton<Configuration>(o =>
         {
             var configService = o.GetRequiredService<IConfigurationService>();
@@ -47,16 +47,16 @@ while (true)
     var title = new FigletText("FileKeeper")
         .LeftJustified()
         .Color(Color.Teal);
-    
+
     var grid = new Grid();
     grid.AddColumn(); // expande
     grid.AddColumn(new GridColumn().RightAligned());
 
     grid.AddRow(title, new Markup($"[grey]{FileKeeper.Core.Utils.AppInfo.GetAppVersion()}[/]"));
-    
+
     AnsiConsole.Clear();
     AnsiConsole.Write(grid);
-    
+
     var choice = AnsiConsole.Prompt(
         new SelectionPrompt<string>()
             .Title("What do you want to do?")
@@ -88,7 +88,7 @@ while (true)
 static void PerformBackupUI(BackupService backupService)
 {
     var cancellationToken = new CancellationTokenSource().Token;
-    
+
     AnsiConsole.Status()
         .StartAsync("Running Backup...", async _ =>
          {
@@ -115,10 +115,10 @@ static void PerformBackupUI(BackupService backupService)
 static async Task PerformRestoreUI(RestoreService restoreService)
 {
     var cancellationToken = new CancellationTokenSource().Token;
-    
+
     var backups = await restoreService.GetListOfBackupsAsync(cancellationToken);
     backups.Add(new ValueTuple<string, DateTime>("Voltar", DateTime.MinValue));
-    
+
     var selectedBackup = AnsiConsole.Prompt(
         new SelectionPrompt<(string Id, DateTime Date)>()
             .Title("Select a backup to restore point:")
@@ -137,7 +137,7 @@ static async Task PerformRestoreUI(RestoreService restoreService)
             .Validate(path => string.IsNullOrWhiteSpace(path)
                 ? ValidationResult.Error("[red]Path can't be empty[/]")
                 : ValidationResult.Success()));
-    
+
     AnsiConsole.Status()
         .StartAsync("Running Backup...", async _ =>
         {
@@ -156,7 +156,7 @@ static async Task PerformRestoreUI(RestoreService restoreService)
         })
         .GetAwaiter()
         .GetResult();
-    
+
     AnsiConsole.MarkupLine("Press any key to return...");
     Console.ReadKey();
 }
@@ -164,9 +164,9 @@ static async Task PerformRestoreUI(RestoreService restoreService)
 static async Task ConfigureUI(IConfigurationService configurationService)
 {
     var cancellationToken = new CancellationTokenSource().Token;
-    
+
     var configuration = await configurationService.LoadAsync(cancellationToken);
-    
+
     while (true)
     {
         AnsiConsole.Clear();
@@ -178,6 +178,18 @@ static async Task ConfigureUI(IConfigurationService configurationService)
         foreach (var src in configuration.SourceDirectories)
         {
             AnsiConsole.MarkupLine($"  - {src}");
+        }
+        AnsiConsole.MarkupLine("[bold]Exclude Patterns:[/]");
+        if (configuration.ExcludePatterns.Count > 0)
+        {
+            foreach (var pattern in configuration.ExcludePatterns)
+            {
+                AnsiConsole.MarkupLine($"  - {pattern}");
+            }
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("  - [grey]None[/]");
         }
 
         AnsiConsole.WriteLine();
@@ -192,6 +204,8 @@ static async Task ConfigureUI(IConfigurationService configurationService)
                     "Set Compression Type",
                     "Add Source",
                     "Remove Source",
+                    "Add Exclude Pattern",
+                    "Remove Exclude Pattern",
                     "Back"
                 }));
 
@@ -264,6 +278,28 @@ static async Task ConfigureUI(IConfigurationService configurationService)
 
                 configuration.CompressionType = Enum.Parse<CompressionTypeConfiguration>(typeChoice);
                 await configurationService.SaveAsync(configuration, cancellationToken);
+                break;
+            case "Add Exclude Pattern":
+                var pattern = AnsiConsole.Ask<string>("Enter pattern to exclude (e.g. 'node_modules', '.tmp'):");
+                if (!string.IsNullOrWhiteSpace(pattern))
+                {
+                    if (!configuration.ExcludePatterns.Contains(pattern))
+                    {
+                        configuration.ExcludePatterns.Add(pattern);
+                        await configurationService.SaveAsync(configuration, cancellationToken);
+                    }
+                }
+                break;
+            case "Remove Exclude Pattern":
+                if (configuration.ExcludePatterns.Count > 0)
+                {
+                    var toRemove = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("Select pattern to remove")
+                            .AddChoices(configuration.ExcludePatterns));
+                    configuration.ExcludePatterns.Remove(toRemove);
+                    await configurationService.SaveAsync(configuration, cancellationToken);
+                }
                 break;
         }
     }
