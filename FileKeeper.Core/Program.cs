@@ -19,6 +19,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<RestoreService>();
         services.AddSingleton<IRecycleService, RecycleService>();
         services.AddSingleton<IIndexService, IndexService>();
+        services.AddSingleton<IIntegrityService, IntegrityService>();
         services.AddSingleton<IFileInfoBuilder, FileInfoBuilder>();
         services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
 
@@ -33,12 +34,21 @@ var host = Host.CreateDefaultBuilder(args)
 var configurationService = host.Services.GetRequiredService<IConfigurationService>();
 var backupService = host.Services.GetRequiredService<BackupService>();
 var restoreService = host.Services.GetRequiredService<RestoreService>();
+var integrityService = host.Services.GetRequiredService<IIntegrityService>();
 
 if (args.Contains("-a"))
 {
     // run backup immediately and exit
     var cts = new CancellationTokenSource();
     backupService.CreateBackupAsync(cts.Token).GetAwaiter().GetResult();
+    return;
+}
+
+if (args.Contains("-v"))
+{
+    // run integrity check and exit
+    var cts = new CancellationTokenSource();
+    integrityService.VerifyIntegrityAsync(cts.Token).GetAwaiter().GetResult();
     return;
 }
 
@@ -65,6 +75,7 @@ while (true)
             {
                 "Backup Now",
                 "Restore",
+                "Check Integrity",
                 "Configuration",
                 "Exit"
             }));
@@ -76,6 +87,9 @@ while (true)
             break;
         case "Restore":
             PerformRestoreUI(restoreService).GetAwaiter().GetResult();
+            break;
+        case "Check Integrity":
+            PerformIntegrityCheckUI(integrityService);
             break;
         case "Configuration":
             ConfigureUI(configurationService).GetAwaiter().GetResult();
@@ -303,4 +317,31 @@ static async Task ConfigureUI(IConfigurationService configurationService)
                 break;
         }
     }
+}
+
+static void PerformIntegrityCheckUI(IIntegrityService integrityService)
+{
+    var cancellationToken = new CancellationTokenSource().Token;
+
+    AnsiConsole.Status()
+        .StartAsync("Verifying Integrity...", async _ =>
+        {
+            try
+            {
+                await integrityService.VerifyIntegrityAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                AnsiConsole.MarkupLine("[yellow]Verification canceled by user.[/]");
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Verification failed: {ex.Message}[/]");
+            }
+        })
+        .GetAwaiter()
+        .GetResult();
+
+    AnsiConsole.MarkupLine("Press any key to return...");
+    Console.ReadKey();
 }

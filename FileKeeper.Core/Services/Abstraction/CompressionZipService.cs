@@ -12,7 +12,7 @@ public class CompressionZipService : ICompressionService
     private readonly IFileSystem _fileSystem;
 
     private string BackupZipPath(string backupPath) => Path.Combine(backupPath, "backup.zip");
-    
+
     public CompressionZipService(IAnsiConsole console, IFileSystem fileSystem)
     {
         _console = console;
@@ -55,7 +55,7 @@ public class CompressionZipService : ICompressionService
             foreach (var fileInfo in files)
             {
                 var entryPath = Path.Combine(fileInfo.BackupName, fileInfo.StoredPath);
-                
+
                 var entry = archive.GetEntry(entryPath);
                 if (entry == null)
                 {
@@ -64,7 +64,7 @@ public class CompressionZipService : ICompressionService
                 }
 
                 var destinationFileName = Path.Combine(destinationPath, fileInfo.StoredPath);
-                
+
                 CreateEntryDirectoryIfNotExists(destinationFileName);
 
                 _console.MarkupLine($"[green]Decompressing:[/] {fileInfo.StoredPath}");
@@ -72,7 +72,7 @@ public class CompressionZipService : ICompressionService
             }
         }
     }
-    
+
     public async Task MoveFileAsync(string backupPath, string originBackupName, string destinatioBackupName,
         List<(string OriginStoredPath, string DestinationStoredPath)> files, CancellationToken cancellationToken)
     {
@@ -89,7 +89,7 @@ public class CompressionZipService : ICompressionService
             foreach (var file in files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 var originFullPath = Path.Combine(originBackupName, file.OriginStoredPath);
                 var originEntry = archive.GetEntry(originFullPath);
                 if (originEntry == null)
@@ -221,6 +221,17 @@ public class CompressionZipService : ICompressionService
             }
 
             _console.MarkupLine($"[green]Removed folder:[/] {firstBackupBackupName}");
+        }
+    }
+
+    public async Task<List<string>> GetEntriesAsync(string backupPath, CancellationToken cancellationToken)
+    {
+        if (!_fileSystem.FileExists(BackupZipPath(backupPath)))
+            return new List<string>();
+
+        using (var archive = await ZipFile.OpenReadAsync(BackupZipPath(backupPath), cancellationToken))
+        {
+            return archive.Entries.Select(e => e.FullName).ToList();
         }
     }
 }

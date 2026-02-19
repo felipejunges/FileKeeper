@@ -11,7 +11,7 @@ public class MockedFileSystem : IFileSystem
     {
         _files = files;
     }
-    
+
     public bool DirectoryExists(string path)
     {
         throw new NotImplementedException();
@@ -39,7 +39,7 @@ public class MockedFileSystem : IFileSystem
 
     public bool FileExists(string path)
     {
-        throw new NotImplementedException();
+        return _files.Any(f => f.FullName == path);
     }
 
     public void CopyFile(string source, string dest)
@@ -66,7 +66,7 @@ public class MockedFileSystem : IFileSystem
     {
         throw new NotImplementedException();
     }
-    
+
     public Task<string> ComputeHashAsync(string filePath, CancellationToken cancellationToken)
     {
         var file = _files.First(f => f.FullName == filePath);
