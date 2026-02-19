@@ -145,8 +145,7 @@ public class BackupService
         // Materialize excludePatterns to avoid multiple enumeration
         var excludeList = excludePatterns.ToList();
 
-        var sourceDirHash = await HashingUtils.ComputeHashFromStringAsync(sourceDir, cancellationToken);
-        var sourceName = Path.GetFileName(sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var sourceDirBase64 = EncodingUtils.ToBase64(sourceDir);
         var files = _fileSystem.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
 
         foreach (var f in files)
@@ -164,7 +163,7 @@ public class BackupService
             result.Add(new FileMetadata
             {
                 RelativePath = relPath,
-                StoredPath = Path.Combine(sourceDirHash, sourceName, relPath),
+                StoredPath = Path.Combine(sourceDirBase64, relPath),
                 Size = info.Length,
                 LastWriteTimeUtc = info.LastWriteTimeUtc
             });
