@@ -73,7 +73,7 @@ public class BackupService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var currentFiles = await ScanSourceAsync(sourceDir, configuration.ExcludePatterns, cancellationToken);
+            var currentFiles = ScanSource(sourceDir, configuration.ExcludePatterns);
 
             await Parallel.ForEachAsync(currentFiles, new ParallelOptions
             {
@@ -138,7 +138,7 @@ public class BackupService
         return Result.Success;
     }
 
-    private async Task<List<FileMetadata>> ScanSourceAsync(string sourceDir, IEnumerable<string> excludePatterns, CancellationToken cancellationToken)
+    private List<FileMetadata> ScanSource(string sourceDir, IEnumerable<string> excludePatterns)
     {
         var result = new List<FileMetadata>();
 
