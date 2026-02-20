@@ -49,7 +49,7 @@ if (args.Contains("-v"))
 {
     // run integrity check and exit
     var cts = new CancellationTokenSource();
-    integrityService.VerifyIntegrityAsync(cts.Token).GetAwaiter().GetResult();
+    integrityService.VerifyCompressedFilesIntegrityAsync(cts.Token).GetAwaiter().GetResult();
     return;
 }
 
@@ -325,11 +325,11 @@ static void PerformIntegrityCheckUI(IIntegrityService integrityService)
     var cancellationToken = new CancellationTokenSource().Token;
 
     AnsiConsole.Status()
-        .StartAsync("Verifying Integrity...", async _ =>
+        .StartAsync("Verifying Integrity from Index and compressed files...", async _ =>
         {
             try
             {
-                await integrityService.VerifyIntegrityAsync(cancellationToken);
+                await integrityService.VerifyCompressedFilesIntegrityAsync(cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -342,6 +342,29 @@ static void PerformIntegrityCheckUI(IIntegrityService integrityService)
         })
         .GetAwaiter()
         .GetResult();
+    
+    var checkDifferences = AnsiConsole.Confirm("Do you want to check for differences between local files and last backup?", false);
+    if (checkDifferences)
+    {
+        AnsiConsole.Status()
+            .StartAsync("Verifying difference between local files and Index...", async _ =>
+            {
+                try
+                {
+                    await integrityService.VerifyLocalFilesDifferencesAsync(cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    AnsiConsole.MarkupLine("[yellow]Verification canceled by user.[/]");
+                }
+                catch (Exception ex)
+                {
+                    AnsiConsole.MarkupLine($"[red]Verification failed: {ex.Message}[/]");
+                }
+            })
+            .GetAwaiter()
+            .GetResult();
+    }
 
     AnsiConsole.MarkupLine("Press any key to return...");
     Console.ReadKey();
