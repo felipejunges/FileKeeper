@@ -1,0 +1,30 @@
+{
+  "id": "org.filekeeper.FileKeeper",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "23.08",
+  "sdk": "org.freedesktop.Sdk",
+  "command": "FileKeeper.Core",
+  "finish-args": [
+    "--share=network",
+    "--filesystem=xdg-download",
+    "--talk-name=org.freedesktop.Flatpak",
+    "--filesystem=home:ro"
+  ],
+  "modules": [
+    {
+      "name": "filekeeper-app",
+      "buildsystem": "simple",
+      "build-commands": [
+        "mkdir -p /app/bin",
+        "cp -r ${PUBLISHED_DIR}/* /app/bin/"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "${PUBLISHED_DIR}"
+        }
+      ]
+    }
+  ]
+}
+

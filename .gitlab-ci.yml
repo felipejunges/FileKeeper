@@ -1,0 +1,100 @@
+# GitLab CI pipeline for building FileKeeper, producing a Flatpak bundle,
+# and optionally opening a PR to Flathub with an updated manifest.
+
+# NOTE: Adjust DOTNET_SDK_IMAGE to the correct .NET SDK version for your project
+variables:
+  DOTNET_SDK_IMAGE: "mcr.microsoft.com/dotnet/sdk:10.0"
+  PUBLISHED_DIR: "artifacts/published"
+  PUBLISHED_TAR: "published.tar.gz"
+  FLATPAK_MANIFEST_DIR: "flatpak"
+  FLATPAK_MANIFEST: "${FLATPAK_MANIFEST_DIR}/manifest.json"
+  FLATPAK_BUILD_DIR: "build-dir"
+  FLATPAK_REPO_DIR: "repo"
+  FLATPAK_BUNDLE_NAME: "org.filekeeper.FileKeeper.flatpak"
+  FLATHUB_TARGET_BRANCH: "master"
+
+stages:
+  - test
+  - publish
+  - flatpak-build
+  - export
+  - pr
+
+cache:
+  key: "nuget-${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .nuget/packages/
+
+before_script:
+  - echo "Running on $(uname -a)"
+  - mkdir -p artifacts
+
+unit_tests:
+  image: ${DOTNET_SDK_IMAGE}
+  stage: test
+  script:
+    - dotnet restore
+    - dotnet test --no-restore --verbosity minimal
+  artifacts:
+    when: always
+    reports:
+      junit: "**/TestResults/*.xml"
+    expire_in: 1 week
+
+publish_dotnet:
+  image: ${DOTNET_SDK_IMAGE}
+  stage: publish
+  script:
+    - dotnet restore
+    - mkdir -p ${PUBLISHED_DIR}
+    # Produce a self-contained publish for linux-x64 so Flatpak can run the bundle without depending on a host dotnet runtime.
+    - dotnet publish FileKeeper.Core/FileKeeper.Core.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=false -o ${PUBLISHED_DIR}
+    - ls -la ${PUBLISHED_DIR}
+  artifacts:
+    paths:
+      - ${PUBLISHED_DIR}
+    expire_in: 1 week
+
+flatpak_build:
+  image: ${DOTNET_SDK_IMAGE}
+  stage: flatpak-build
+  before_script:
+    - chmod +x ci/*.sh || true
+  script:
+    - apt-get update -y && apt-get install -y --no-install-recommends flatpak flatpak-builder git curl jq xz-utils ca-certificates
+    - ./ci/flatpak-build.sh --manifest ${FLATPAK_MANIFEST} --published-dir ${PUBLISHED_DIR} --out artifacts || true
+  dependencies:
+    - publish_dotnet
+  artifacts:
+    paths:
+      - artifacts/${FLATPAK_BUNDLE_NAME}
+    expire_in: 2 weeks
+
+export_bundle:
+  image: ${DOTNET_SDK_IMAGE}
+  stage: export
+  script:
+    - echo "(noop) export step. The flatpak bundle should already be in artifacts from the previous step."
+  dependencies:
+    - flatpak_build
+  artifacts:
+    paths:
+      - artifacts/${FLATPAK_BUNDLE_NAME}
+    expire_in: 2 weeks
+
+create_flathub_pr:
+  image: ${DOTNET_SDK_IMAGE}
+  stage: pr
+  before_script:
+    - chmod +x ci/*.sh || true
+  script:
+    - ./ci/create-flathub-pr.sh
+  rules:
+    # only run this job when the required variables are present
+    - if: '$GITHUB_TOKEN && $FLATHUB_APP_ID && $GITHUB_FORK_OWNER'
+      when: on_success
+    - when: never
+  dependencies:
+    - flatpak_build
+  allow_failure: true
+
