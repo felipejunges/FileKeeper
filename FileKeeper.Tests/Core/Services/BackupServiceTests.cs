@@ -1,11 +1,8 @@
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
-using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Services;
 using FileKeeper.Tests.Builders;
-using FileKeeper.Tests.Core.Mocks;
-using FileKeeper.Tests.Core.Mocks.Models;
 using Moq;
 using Spectre.Console;
 
@@ -15,27 +12,19 @@ public class BackupServiceTests
 {
     private readonly BackupService _sut;
 
-    private List<MockedFile> _mockedFiles = new();
-
-    private readonly IFileSystem _fileSystem;
-    private readonly IFileInfoBuilder _fileInfoBuilder;
-
-    private readonly Mock<IAnsiConsole> _consoleMock;
     private readonly Mock<ICompressionService> _compressionServiceMock;
-    private readonly Mock<IRecycleService> _recycleServiceMock;
-    private readonly Mock<IConfigurationService> _configurationServiceMock;
     private readonly Mock<IIndexService> _indexServiceMock;
+    private readonly Mock<IFileSourceService> _fileSourceServiceMock;
 
     public BackupServiceTests()
     {
-        _fileSystem = new MockedFileSystem(_mockedFiles);
-        _fileInfoBuilder = new MockedFileInfoBuilder(_mockedFiles);
-
-        _consoleMock = new Mock<IAnsiConsole>();
+        var consoleMock = new Mock<IAnsiConsole>();
+        var recycleServiceMock = new Mock<IRecycleService>();
+        var configurationServiceMock = new Mock<IConfigurationService>();
+        
         _compressionServiceMock = new Mock<ICompressionService>();
-        _recycleServiceMock = new Mock<IRecycleService>();
-        _configurationServiceMock = new Mock<IConfigurationService>();
         _indexServiceMock = new Mock<IIndexService>();
+        _fileSourceServiceMock = new Mock<IFileSourceService>();
 
         var defaultConfiguration = new Configuration()
         {
@@ -43,18 +32,17 @@ public class BackupServiceTests
             SourceDirectories = new List<string>() { "/var/www/html" }
         };
 
-        _configurationServiceMock
+        configurationServiceMock
             .Setup(s => s.LoadAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(defaultConfiguration);
 
         _sut = new BackupService(
-            _consoleMock.Object,
-            _configurationServiceMock.Object,
-            _fileSystem,
+            consoleMock.Object,
+            configurationServiceMock.Object,
             _compressionServiceMock.Object,
-            _recycleServiceMock.Object,
-            _fileInfoBuilder,
-            _indexServiceMock.Object);
+            recycleServiceMock.Object,
+            _indexServiceMock.Object,
+            _fileSourceServiceMock.Object);
     }
 
     [Fact]
@@ -64,17 +52,21 @@ public class BackupServiceTests
         BackupIndex? capturedIndex = null;
         string[]? capturedCompressesFiles = null;
 
-        var mockedFiles = new List<MockedFile>
+        var localFiles = new List<FileMetadata>()
         {
-            new MockedFile(
-                "file1.txt",
-                "/var/www/html/file1.txt",
-                1000,
-                "Hash_File1_V1")
+            new FileMetadata
+            {
+                RelativePath = "file1.txt",
+                StoredPath = "L3Zhci93d3cvaHRtbA==/file1.txt",
+                Size = 1000,
+                LastWriteTimeUtc = DateTime.UtcNow.AddHours(-48),
+                Hash = "Hash_File1_V1",
+            }
         };
-
-        _mockedFiles.Clear();
-        _mockedFiles.AddRange(mockedFiles);
+        
+        _fileSourceServiceMock
+            .Setup(s => s.ScanLocalFolderAsync(It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(localFiles);
 
         _indexServiceMock
             .Setup(s => s.GetBackupIndexAsync(It.IsAny<CancellationToken>()))
@@ -92,7 +84,7 @@ public class BackupServiceTests
         _compressionServiceMock
             .Setup(s => s.CompressFilesAsync(It.IsAny<IList<(string FullPath, string StoredPath)>>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<IList<(string FullPath, string StoredPath)>, string, string, CancellationToken>((files, backupPath, backupName, ct) =>
+            .Callback<IList<(string FullPath, string StoredPath)>, string, string, CancellationToken>((files, _, _, _) =>
             {
                 capturedCompressesFiles = files.Select(f => f.FullPath).ToArray();
             });
@@ -135,22 +127,29 @@ public class BackupServiceTests
         BackupIndex? capturedIndex = null;
         string[]? capturedCompressesFiles = null;
 
-        var mockedFiles = new List<MockedFile>
+        var localFiles = new List<FileMetadata>()
         {
-            new MockedFile(
-                "file1.txt",
-                "/var/www/html/file1.txt",
-                1000,
-                "Hash_File1_V1"),
-            new MockedFile(
-                "file2.txt",
-                "/var/www/html/file2.txt",
-                2000,
-                "Hash_File2_V1"),
+            new FileMetadata
+            {
+                RelativePath = "file1.txt",
+                StoredPath = "L3Zhci93d3cvaHRtbA==/file1.txt",
+                Size = 1000,
+                LastWriteTimeUtc = DateTime.UtcNow.AddHours(-48),
+                Hash = "Hash_File1_V1",
+            },
+            new FileMetadata
+            {
+                RelativePath = "file2.txt",
+                StoredPath = "L3Zhci93d3cvaHRtbA==/file2.txt",
+                Size = 2000,
+                LastWriteTimeUtc = DateTime.UtcNow.AddHours(-48),
+                Hash = "Hash_File2_V1",
+            }
         };
-
-        _mockedFiles.Clear();
-        _mockedFiles.AddRange(mockedFiles);
+        
+        _fileSourceServiceMock
+            .Setup(s => s.ScanLocalFolderAsync(It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(localFiles);
 
         _indexServiceMock
             .Setup(s => s.GetBackupIndexAsync(It.IsAny<CancellationToken>()))
@@ -168,7 +167,7 @@ public class BackupServiceTests
         _compressionServiceMock
             .Setup(s => s.CompressFilesAsync(It.IsAny<IList<(string FullPath, string StoredPath)>>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<IList<(string FullPath, string StoredPath)>, string, string, CancellationToken>((files, backupPath, backupName, ct) =>
+            .Callback<IList<(string FullPath, string StoredPath)>, string, string, CancellationToken>((files, _, _, _) =>
             {
                 capturedCompressesFiles = files.Select(f => f.FullPath).ToArray();
             });
@@ -236,27 +235,37 @@ public class BackupServiceTests
         BackupIndex? capturedIndex = null;
         string[]? capturedCompressesFiles = null;
 
-        var mockedFiles = new List<MockedFile>
+        var localFiles = new List<FileMetadata>()
         {
-            new MockedFile(
-                "file1.txt",
-                "/var/www/html/file1.txt",
-                1000,
-                "Hash_File1_V1"),
-            new MockedFile(
-                "file2.txt",
-                "/var/www/html/file2.txt",
-                2000,
-                "Hash_File2_V2"), // V2
-            new MockedFile(
-                "file3.txt",
-                "/var/www/html/file3.txt",
-                3000,
-                "Hash_File3_V1"),
+            new FileMetadata
+            {
+                RelativePath = "file1.txt",
+                StoredPath = "L3Zhci93d3cvaHRtbA==/file1.txt",
+                Size = 1000,
+                LastWriteTimeUtc = DateTime.UtcNow.AddHours(-48),
+                Hash = "Hash_File1_V1",
+            },
+            new FileMetadata
+            {
+                RelativePath = "file2.txt",
+                StoredPath = "L3Zhci93d3cvaHRtbA==/file2.txt",
+                Size = 2000,
+                LastWriteTimeUtc = DateTime.UtcNow.AddHours(-48),
+                Hash = "Hash_File2_V2", // V2
+            },
+            new FileMetadata
+            {
+                RelativePath = "file3.txt",
+                StoredPath = "L3Zhci93d3cvaHRtbA==/file3.txt",
+                Size = 3000,
+                LastWriteTimeUtc = DateTime.UtcNow.AddHours(-48),
+                Hash = "Hash_File3_V1",
+            }
         };
-
-        _mockedFiles.Clear();
-        _mockedFiles.AddRange(mockedFiles);
+        
+        _fileSourceServiceMock
+            .Setup(s => s.ScanLocalFolderAsync(It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(localFiles);
 
         _indexServiceMock
             .Setup(s => s.GetBackupIndexAsync(It.IsAny<CancellationToken>()))
@@ -274,7 +283,7 @@ public class BackupServiceTests
         _compressionServiceMock
             .Setup(s => s.CompressFilesAsync(It.IsAny<IList<(string FullPath, string StoredPath)>>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<IList<(string FullPath, string StoredPath)>, string, string, CancellationToken>((files, backupPath, backupName, ct) =>
+            .Callback<IList<(string FullPath, string StoredPath)>, string, string, CancellationToken>((files, _, _, _) =>
             {
                 capturedCompressesFiles = files.Select(f => f.FullPath).ToArray();
             });
