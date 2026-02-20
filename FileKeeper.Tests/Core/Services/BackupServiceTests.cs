@@ -124,7 +124,7 @@ public class BackupServiceTests
                 .AddBackup(DateTime.UtcNow.AddMinutes(-3))
                 .AddFile(
                     "file1.txt",
-                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file1.txt",
+                    "L3Zhci93d3cvaHRtbA==/file1.txt",
                     1000,
                     "Hash_File1_V1",
                     DateTime.UtcNow,
@@ -210,7 +210,7 @@ public class BackupServiceTests
                 .AddBackup(DateTime.UtcNow.AddMinutes(-3))
                 .AddFile(
                     "file1.txt",
-                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file1.txt",
+                    "L3Zhci93d3cvaHRtbA==/file1.txt",
                     1000,
                     "Hash_File1_V1",
                     DateTime.UtcNow,
@@ -218,14 +218,14 @@ public class BackupServiceTests
                 .AddBackup(DateTime.UtcNow.AddMinutes(-2))
                 .AddFile(
                     "file1.txt",
-                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file1.txt",
+                    "L3Zhci93d3cvaHRtbA==/file1.txt",
                     1000,
                     "Hash_File1_V1",
                     DateTime.UtcNow,
                     oldBackupName)
                 .AddFile(
                     "file2.txt",
-                    "69dd2b02e1f3a65918182048ea4e29979a849d8942e8f53ed20a4bf10e529b36/html/file2.txt",
+                    "L3Zhci93d3cvaHRtbA==/file2.txt",
                     1000,
                     "Hash_File2_V1",
                     DateTime.UtcNow,
