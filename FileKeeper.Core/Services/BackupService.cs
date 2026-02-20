@@ -64,6 +64,8 @@ public class BackupService
         // 3. Scan All Sources
         var filesToZip = new System.Collections.Concurrent.ConcurrentBag<(string FullPath, string StoredPath)>();
 
+        var metadataLock = new object();
+
         foreach (var sourceDir in configuration.SourceDirectories)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -77,7 +79,7 @@ public class BackupService
             }, (file, _) =>
             {
                 var existing = lastBackupMetadata?.Files.FirstOrDefault(f => f.IsSameFile(file));
-                    
+
                 if (existing != null)
                 {
                     if (existing.Hash == file.Hash)
@@ -99,7 +101,10 @@ public class BackupService
                     filesToZip.Add((Path.Combine(sourceDir, file.RelativePath), file.StoredPath));
                 }
 
-                newBackupMetadata.AddFile(file);
+                lock (metadataLock)
+                {
+                    newBackupMetadata.AddFile(file);
+                }
             });
         }
 
