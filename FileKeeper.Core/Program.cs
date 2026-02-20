@@ -21,6 +21,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IIndexService, IndexService>();
         services.AddSingleton<IIntegrityService, IntegrityService>();
         services.AddSingleton<IFileInfoBuilder, FileInfoBuilder>();
+        services.AddSingleton<IFileSourceService, FileSourceService>();
         services.AddSingleton<IAnsiConsole>(_ => AnsiConsole.Console);
 
         services.AddSingleton<Configuration>(o =>

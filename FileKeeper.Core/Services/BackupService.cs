@@ -1,9 +1,7 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces;
 using FileKeeper.Core.Interfaces.Abstraction;
-using FileKeeper.Core.Interfaces.Abstraction.Info;
 using FileKeeper.Core.Models;
-using FileKeeper.Core.Utils;
 using Spectre.Console;
 
 namespace FileKeeper.Core.Services;
@@ -12,28 +10,25 @@ public class BackupService
 {
     private readonly IAnsiConsole _console;
     private readonly IConfigurationService _configurationService;
-    private readonly IFileSystem _fileSystem;
     private readonly ICompressionService _compressionService;
     private readonly IRecycleService _recycleService;
-    private readonly IFileInfoBuilder _fileInfoBuilder;
     private readonly IIndexService _indexService;
+    private readonly IFileSourceService _fileSourceService;
 
     public BackupService(
         IAnsiConsole console,
         IConfigurationService configurationService,
-        IFileSystem fileSystem,
         ICompressionService compressionService,
         IRecycleService recycleService,
-        IFileInfoBuilder fileInfoBuilder,
-        IIndexService indexService)
+        IIndexService indexService,
+        IFileSourceService fileSourceService)
     {
         _console = console;
         _configurationService = configurationService;
-        _fileSystem = fileSystem;
         _compressionService = compressionService;
         _recycleService = recycleService;
-        _fileInfoBuilder = fileInfoBuilder;
         _indexService = indexService;
+        _fileSourceService = fileSourceService;
     }
 
     public async Task<ErrorOr<Success>> CreateBackupAsync(CancellationToken cancellationToken)
@@ -73,20 +68,18 @@ public class BackupService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var currentFiles = ScanSource(sourceDir, configuration.ExcludePatterns);
+            var currentFiles = await _fileSourceService.ScanLocalFolderAsync(sourceDir, configuration.ExcludePatterns, cancellationToken);
 
-            await Parallel.ForEachAsync(currentFiles, new ParallelOptions
+            Parallel.ForEach(currentFiles, new ParallelOptions
             {
                 CancellationToken = cancellationToken,
                 MaxDegreeOfParallelism = Environment.ProcessorCount
-            }, async (file, ct) =>
+            }, (file, _) =>
             {
                 var existing = lastBackupMetadata?.Files.FirstOrDefault(f => f.IsSameFile(file));
-
+                    
                 if (existing != null)
                 {
-                    file.Hash = await _fileSystem.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), ct);
-
                     if (existing.Hash == file.Hash)
                     {
                         // CASO: O arquivo já existe, e o hash é o mesmo: então podemos reaproveitar o arquivo do backup anterior
@@ -102,7 +95,6 @@ public class BackupService
                 else
                 {
                     // CASO: O arquivo é novo: então precisamos adicionar ao backup
-                    file.Hash = await _fileSystem.ComputeHashAsync(Path.Combine(sourceDir, file.RelativePath), ct);
                     file.FoundInBackup = backupName;
                     filesToZip.Add((Path.Combine(sourceDir, file.RelativePath), file.StoredPath));
                 }
@@ -136,39 +128,5 @@ public class BackupService
         await _recycleService.RecycleBackupsAsync(cancellationToken);
 
         return Result.Success;
-    }
-
-    private List<FileMetadata> ScanSource(string sourceDir, IEnumerable<string> excludePatterns)
-    {
-        var result = new List<FileMetadata>();
-
-        // Materialize excludePatterns to avoid multiple enumeration
-        var excludeList = excludePatterns.ToList();
-
-        var sourceDirBase64 = EncodingUtils.ToBase64(sourceDir);
-        var files = _fileSystem.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
-
-        foreach (var f in files)
-        {
-            var relPath = Path.GetRelativePath(sourceDir, f);
-
-            // TODO: create unit test for this
-            if (excludeList.Any(p => relPath.Contains(p, StringComparison.OrdinalIgnoreCase)))
-            {
-                continue;
-            }
-
-            var info = _fileInfoBuilder.Build(f);
-
-            result.Add(new FileMetadata
-            {
-                RelativePath = relPath,
-                StoredPath = Path.Combine(sourceDirBase64, relPath),
-                Size = info.Length,
-                LastWriteTimeUtc = info.LastWriteTimeUtc
-            });
-        }
-
-        return result;
     }
 }
