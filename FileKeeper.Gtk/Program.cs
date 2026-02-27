@@ -1,9 +1,27 @@
-﻿using Gtk;
+﻿using FileKeeper.Core.Interfaces.Persistence;
+using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Persistence;
+using FileKeeper.Core.Services;
+using Gtk;
 using FileKeeper.Gtk;
+using FileKeeper.Gtk.Dialogs;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((_, services) =>
+    {
+        services.AddSingleton<IConfigurationStore, ConfigurationStore>();
+        services.AddSingleton<IConfigurationService, ConfigurationService>();
+    });
+
+var configurationService = host.Build().Services.GetRequiredService<IConfigurationService>();
 
 Application.Init();
 
-var win = new MainWindow();
+var win = new MainWindow(
+    configurationService);
+
 win.ShowAll();
 
 Application.Run();
@@ -22,8 +40,12 @@ public class MainWindow : Window
     private Stack<string> _navigationHistory;
     private string? _selectedFilePath;
 
-    public MainWindow() : base("File Browser with Versions")
+    private readonly IConfigurationService _configurationService;
+    
+    public MainWindow(IConfigurationService configurationService) : base("File Browser with Versions")
     {
+        _configurationService = configurationService;
+        
         SetDefaultSize(1000, 700);
         SetPosition(WindowPosition.Center);
         DeleteEvent += (o, e) => Application.Quit();
@@ -54,7 +76,7 @@ public class MainWindow : Window
 
         // Configuration button
         Button configBtn = new Button("⚙️ Configuration");
-        configBtn.Clicked += (o, e) => ShowConfigurationDialog();
+        configBtn.Clicked += async (_, _) => await ShowConfigurationDialogAsync(CancellationToken.None);
         navBox.PackStart(configBtn, false, false, 0);
 
         // Create Backup button
@@ -365,222 +387,28 @@ public class MainWindow : Window
         }
     }
 
-    private void ShowConfigurationDialog()
+    private async Task ShowConfigurationDialogAsync(CancellationToken token)
     {
+        var configuration = await _configurationService.GetConfigurationAsync(token);
+        
         // Create the configuration dialog
-        Dialog configDialog = new Dialog("Configuration", this, DialogFlags.Modal);
-        configDialog.SetDefaultSize(600, 500);
-
-        Box mainBox = new Box(Orientation.Vertical, 10);
-        mainBox.Margin = 10;
-
-        // Folders Section
-        Label foldersLabel = new Label("<b>Monitored Folders:</b>");
-        foldersLabel.UseMarkup = true;
-        foldersLabel.Xalign = 0;
-        mainBox.PackStart(foldersLabel, false, false, 0);
-
-        // Folders list
-        ListStore foldersConfigStore = new ListStore(typeof(string));
-        TreeView foldersConfigView = new TreeView(foldersConfigStore);
-
-        // Add sample folders
-        foldersConfigStore.AppendValues(Environment.GetEnvironmentVariable("HOME") ?? "/home");
-        foldersConfigStore.AppendValues("/etc");
-        foldersConfigStore.AppendValues("/var/log");
-
-        TreeViewColumn folderCol = new TreeViewColumn();
-        folderCol.Title = "Folder Path";
-        CellRendererText folderCell = new CellRendererText();
-        folderCol.PackStart(folderCell, true);
-        folderCol.AddAttribute(folderCell, "text", 0);
-        foldersConfigView.AppendColumn(folderCol);
-
-        ScrolledWindow foldersScroll = new ScrolledWindow();
-        foldersScroll.ShadowType = ShadowType.In;
-        foldersScroll.HeightRequest = 200;
-        foldersScroll.Add(foldersConfigView);
-        mainBox.PackStart(foldersScroll, true, true, 0);
-
-        // Folder management buttons
-        Box folderBtnBox = new Box(Orientation.Horizontal, 5);
-
-        Button addFolderBtn = new Button("➕ Add Folder");
-        addFolderBtn.Clicked += (o, e) =>
-        {
-            FileChooserDialog folderChooser = new FileChooserDialog(
-                "Select Folder to Monitor",
-                configDialog,
-                FileChooserAction.SelectFolder
-            );
-            folderChooser.AddButton("Cancel", ResponseType.Cancel);
-            folderChooser.AddButton("Select", ResponseType.Accept);
-
-            if (folderChooser.Run() == (int)ResponseType.Accept)
-            {
-                string selectedFolder = folderChooser.Filename;
-                // Check if folder already exists in list
-                bool exists = false;
-                TreeIter iter;
-                if (foldersConfigStore.GetIterFirst(out iter))
-                {
-                    do
-                    {
-                        string existingFolder = (string)foldersConfigStore.GetValue(iter, 0);
-                        if (existingFolder == selectedFolder)
-                        {
-                            exists = true;
-                            break;
-                        }
-                    } while (foldersConfigStore.IterNext(ref iter));
-                }
-
-                if (!exists)
-                {
-                    foldersConfigStore.AppendValues(selectedFolder);
-                }
-                else
-                {
-                    MessageDialog dupDialog = new MessageDialog(
-                        configDialog,
-                        DialogFlags.Modal,
-                        MessageType.Warning,
-                        ButtonsType.Ok,
-                        "Folder already in list"
-                    );
-                    dupDialog.Run();
-                    dupDialog.Destroy();
-                }
-            }
-
-            folderChooser.Destroy();
-        };
-        folderBtnBox.PackStart(addFolderBtn, false, false, 0);
-
-        Button removeFolderBtn = new Button("❌ Remove Folder");
-        removeFolderBtn.Clicked += (o, e) =>
-        {
-            TreeIter iter;
-            if (foldersConfigView.Selection.GetSelected(out iter))
-            {
-                foldersConfigStore.Remove(ref iter);
-            }
-            else
-            {
-                MessageDialog warnDialog = new MessageDialog(
-                    configDialog,
-                    DialogFlags.Modal,
-                    MessageType.Warning,
-                    ButtonsType.Ok,
-                    "Please select a folder to remove"
-                );
-                warnDialog.Run();
-                warnDialog.Destroy();
-            }
-        };
-        folderBtnBox.PackStart(removeFolderBtn, false, false, 0);
-
-        mainBox.PackStart(folderBtnBox, false, false, 0);
-
-        // Separator
-        Separator separator = new Separator(Orientation.Horizontal);
-        mainBox.PackStart(separator, false, false, 0);
-
-        // Version Retention Section
-        Label versionLabel = new Label("<b>Version Retention:</b>");
-        versionLabel.UseMarkup = true;
-        versionLabel.Xalign = 0;
-        mainBox.PackStart(versionLabel, false, false, 0);
-
-        Box versionBox = new Box(Orientation.Horizontal, 10);
-
-        Label keepVersionsLabel = new Label("Number of versions to keep:");
-        versionBox.PackStart(keepVersionsLabel, false, false, 0);
-
-        SpinButton versionSpinBtn = new SpinButton(1, 100, 1);
-        versionSpinBtn.Value = 5; // Default value
-        versionSpinBtn.WidthRequest = 80;
-        versionBox.PackStart(versionSpinBtn, false, false, 0);
-
-        mainBox.PackStart(versionBox, false, false, 0);
-
-        // Database File Location Section
-        Label dbLabel = new Label("<b>Database File Location:</b>");
-        dbLabel.UseMarkup = true;
-        dbLabel.Xalign = 0;
-        mainBox.PackStart(dbLabel, false, false, 0);
-
-        Box dbBox = new Box(Orientation.Horizontal, 5);
-
-        Label selectedDbLabel = new Label(Environment.GetEnvironmentVariable("HOME") ?? "/home");
-        selectedDbLabel.Xalign = 0;
-        dbBox.PackStart(selectedDbLabel, true, true, 0);
-
-        Button browseDbBtn = new Button("Browse...");
-        browseDbBtn.Clicked += (o, e) =>
-        {
-            FileChooserDialog dbChooser = new FileChooserDialog(
-                "Select Database File Location",
-                configDialog,
-                FileChooserAction.SelectFolder
-            );
-            dbChooser.AddButton("Cancel", ResponseType.Cancel);
-            dbChooser.AddButton("Select", ResponseType.Accept);
-
-            if (dbChooser.Run() == (int)ResponseType.Accept)
-            {
-                selectedDbLabel.Text = dbChooser.Filename;
-            }
-
-            dbChooser.Destroy();
-        };
-        dbBox.PackStart(browseDbBtn, false, false, 0);
-
-        mainBox.PackStart(dbBox, false, false, 0);
-
-        // Add main box to dialog content area
-        configDialog.ContentArea.PackStart(mainBox, true, true, 0);
-
-        // Add buttons
-        configDialog.AddButton("Cancel", ResponseType.Cancel);
-        configDialog.AddButton("Save", ResponseType.Accept);
-
-        configDialog.ShowAll();
-
+        using var configurationDialog = new ConfigurationDialog();
+        configurationDialog.SetConfiguration(configuration);
+        configurationDialog.ShowAll();
+        
         // Handle dialog response
-        if (configDialog.Run() == (int)ResponseType.Accept)
+        if (configurationDialog.Run() == (int)ResponseType.Accept)
         {
-            int versionsToKeep = (int)versionSpinBtn.Value;
-            string dbLocation = selectedDbLabel.Text;
+            configuration = configurationDialog.GetConfiguration();
 
-            // Collect all folders from the list
-            List<string> foldersList = new List<string>();
-            TreeIter iter;
-            if (foldersConfigStore.GetIterFirst(out iter))
+            var result = await _configurationService.ApplyConfigurationAsync(configuration, token);
+            
+            if (result.IsError)
             {
-                do
-                {
-                    string folderPath = (string)foldersConfigStore.GetValue(iter, 0);
-                    foldersList.Add(folderPath);
-                } while (foldersConfigStore.IterNext(ref iter));
+                var errorMessages = string.Join("\n", result.Errors.Select(e => e.Description));
+                GenericDialogs.ShowErrorDialog(this, "Configuration Error", errorMessages);
             }
-
-            // Show confirmation message
-            MessageDialog confirmDialog = new MessageDialog(
-                this,
-                DialogFlags.Modal,
-                MessageType.Info,
-                ButtonsType.Ok,
-                "Configuration Saved"
-            );
-            string foldersText = string.Join("\n  • ", foldersList);
-            confirmDialog.SecondaryText =
-                $"Monitored Folders:\n  • {foldersText}\n\nVersions to keep: {versionsToKeep}\n\nDatabase Location: {dbLocation}\n\nConfiguration will be implemented here.";
-            confirmDialog.Run();
-            confirmDialog.Destroy();
         }
-
-        configDialog.Destroy();
     }
 
     private void ShowBackupMessage()

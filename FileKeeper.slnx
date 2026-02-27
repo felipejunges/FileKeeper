@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="FileKeeper.Core/FileKeeper.Core.csproj" />
   <Project Path="FileKeeper.Gtk/FileKeeper.Gtk.csproj" />
 </Solution>
