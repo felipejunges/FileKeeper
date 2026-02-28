@@ -13,6 +13,7 @@ var host = Host.CreateDefaultBuilder(args)
     {
         services.AddSingleton<IConfigurationStore, ConfigurationStore>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
+        services.AddSingleton<IDatabaseService, DatabaseService>();
     });
 
 var configurationService = host.Build().Services.GetRequiredService<IConfigurationService>();
