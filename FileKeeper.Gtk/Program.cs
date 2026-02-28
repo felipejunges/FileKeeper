@@ -1,7 +1,10 @@
 ﻿using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Persistence;
+using FileKeeper.Core.Persistence.Repositories;
 using FileKeeper.Core.Services;
+using FileKeeper.Core.UseCases;
 using Gtk;
 using FileKeeper.Gtk;
 using FileKeeper.Gtk.Dialogs;
@@ -11,17 +14,33 @@ using Microsoft.Extensions.Hosting;
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((_, services) =>
     {
+        services.AddSingleton<ICriarBackupUseCase, CriarBackupUseCase>();
+
+        services.AddSingleton<IFileSystem, LocalFileSystem>();
+        services.AddSingleton<IFileRepository, FileRepository>();
+
         services.AddSingleton<IConfigurationStore, ConfigurationStore>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IDatabaseService, DatabaseService>();
-    });
+    })
+    .Build();
 
-var configurationService = host.Build().Services.GetRequiredService<IConfigurationService>();
+var configurationService = host.Services.GetRequiredService<IConfigurationService>();
+var criarBackupUseCase = host.Services.GetRequiredService<ICriarBackupUseCase>();
+var databaseService = host.Services.GetRequiredService<IDatabaseService>();
+
+var initResult = await databaseService.InitializeAsync(CancellationToken.None);
+if (initResult.IsError)
+{
+    Console.WriteLine($"Erro ao inicializar banco: {initResult.FirstError.Description}");
+    return;
+}
 
 Application.Init();
 
 var win = new MainWindow(
-    configurationService);
+    configurationService,
+    criarBackupUseCase);
 
 win.ShowAll();
 
@@ -41,15 +60,28 @@ public class MainWindow : Window
     private Stack<string> _navigationHistory;
     private string? _selectedFilePath;
 
-    private readonly IConfigurationService _configurationService;
+    private CancellationTokenSource? _defaultCancellationTokenSource;
     
-    public MainWindow(IConfigurationService configurationService) : base("File Browser with Versions")
+    private readonly IConfigurationService _configurationService;
+    private readonly ICriarBackupUseCase _criarBackupUseCase;
+    
+    public MainWindow(
+        IConfigurationService configurationService,
+        ICriarBackupUseCase criarBackupUseCase)
+        : base("File Browser with Versions")
     {
         _configurationService = configurationService;
+        _criarBackupUseCase = criarBackupUseCase;
+        _defaultCancellationTokenSource = new CancellationTokenSource();
         
         SetDefaultSize(1000, 700);
         SetPosition(WindowPosition.Center);
-        DeleteEvent += (o, e) => Application.Quit();
+
+        DeleteEvent += (_, _) => 
+        {
+            _defaultCancellationTokenSource?.Cancel();
+            Application.Quit();
+        };
 
         _currentPath = Environment.GetEnvironmentVariable("HOME") ?? "/home";
         _navigationHistory = new Stack<string>();
@@ -77,12 +109,12 @@ public class MainWindow : Window
 
         // Configuration button
         Button configBtn = new Button("⚙️ Configuration");
-        configBtn.Clicked += async (_, _) => await ShowConfigurationDialogAsync(CancellationToken.None);
+        configBtn.Clicked += async (_, _) => await ShowConfigurationDialogAsync(_defaultCancellationTokenSource.Token);
         navBox.PackStart(configBtn, false, false, 0);
 
         // Create Backup button
         Button backupBtn = new Button("💾 Create Backup");
-        backupBtn.Clicked += (o, e) => ShowBackupMessage();
+        backupBtn.Clicked += async (_, _) => await CreateNewBackupAsync(_defaultCancellationTokenSource.Token);
         navBox.PackStart(backupBtn, false, false, 0);
 
         // Restore button
@@ -218,7 +250,7 @@ public class MainWindow : Window
 
         RefreshCurrentDirectory();
     }
-
+    
     private void NavigateTo(string path)
     {
         try
@@ -412,8 +444,16 @@ public class MainWindow : Window
         }
     }
 
-    private void ShowBackupMessage()
+    private async Task CreateNewBackupAsync(CancellationToken token)
     {
+        var result = await _criarBackupUseCase.ExecuteAsync(token);
+
+        if (result.IsError)
+        {
+            GenericDialogs.ShowErrorDialog(this, "ERRO!!!!", result.Errors);
+            return;
+        }
+
         MessageDialog dialog = new MessageDialog(
             this,
             DialogFlags.Modal,

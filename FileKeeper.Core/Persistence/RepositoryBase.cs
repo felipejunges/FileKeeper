@@ -16,7 +16,7 @@ public abstract class RepositoryBase
     /// <summary>
     /// Executes a query that returns multiple rows.
     /// </summary>
-    protected async Task<ErrorOr<List<T>>> QueryAsync<T>(
+    protected async Task<ErrorOr<IEnumerable<T>>> QueryAsync<T>(
         string sql,
         object? param = null,
         CancellationToken token = default)
@@ -44,8 +44,7 @@ public abstract class RepositoryBase
         try
         {
             var connection = DatabaseService.GetConnection();
-            var result = await connection.QuerySingleOrDefaultAsync<T>(sql, param);
-            return result;
+            return await connection.QuerySingleOrDefaultAsync<T>(sql, param);
         }
         catch (Exception ex)
         {
@@ -64,8 +63,7 @@ public abstract class RepositoryBase
         try
         {
             var connection = DatabaseService.GetConnection();
-            var result = await connection.QuerySingleOrDefaultAsync<T>(sql, param);
-            return result;
+            return await connection.QuerySingleOrDefaultAsync<T>(sql, param);
         }
         catch (Exception ex)
         {
@@ -93,4 +91,3 @@ public abstract class RepositoryBase
         }
     }
 }
-

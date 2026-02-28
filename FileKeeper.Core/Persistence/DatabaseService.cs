@@ -23,21 +23,28 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
                 @"
                 CREATE TABLE IF NOT EXISTS Files (
                     Id TEXT PRIMARY KEY,
-                    Path TEXT UNIQUE,
-                    Name TEXT,
-                    VersionNumberDeleted INTEGER
+                    Path TEXT NOT NULL,
+                    Name TEXT NOT NULL,
+                    IsDeleted INTEGER NOT NULL,
+                    DeletedVersionNumber INTEGER
                 );",
                 @"
                 CREATE TABLE IF NOT EXISTS FileVersions (
                     Id TEXT PRIMARY KEY,
-                    FileId TEXT,
-                    Content BLOB,
-                    Hash TEXT,
-                    Size INTEGER,
-                    VersionNumber INTEGER,
-                    CreatedAt TEXT,
+                    FileId TEXT NOT NULL,
+                    Content BLOB NOT NULL,
+                    Hash TEXT NOT NULL,
+                    Size INTEGER NOT NULL,
+                    VersionNumber INTEGER NOT NULL,
+                    CreatedAt TEXT NOT NULL,
                     FOREIGN KEY(FileId) REFERENCES Files(Id)
-                );"
+                );",
+                
+                @"CREATE INDEX IF NOT EXISTS idx_files_path ON Files(Path);",
+                @"CREATE INDEX IF NOT EXISTS idx_files_is_deleted ON Files(IsDeleted);",
+                @"CREATE INDEX IF NOT EXISTS idx_file_versions_file_id ON FileVersions(FileId);",
+                @"CREATE INDEX IF NOT EXISTS idx_file_versions_hash ON FileVersions(Hash);",
+                @"CREATE INDEX IF NOT EXISTS idx_file_versions_created_at ON FileVersions(CreatedAt);"
             }
         }
     };
