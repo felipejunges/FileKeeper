@@ -6,7 +6,7 @@ public static class GenericDialogs
 {
     public static void ShowErrorDialog(Window parent, string format, params object?[] args)
     {
-        using var errorDialog = new MessageDialog(
+        using var dialog = new MessageDialog(
             parent,
             DialogFlags.Modal,
             MessageType.Error,
@@ -14,7 +14,11 @@ public static class GenericDialogs
             format,
             args
         );
-        errorDialog.Run();
+        
+        dialog.SecondaryText =
+            "Why did the backup go to the gym?\n\nBecause it wanted to make a STRONG copy! 💪\n\nBackup implementation coming soon...";
+        
+        dialog.Run();
     }
 
     public static bool ShowConfirmDialog(Window parent, string format)

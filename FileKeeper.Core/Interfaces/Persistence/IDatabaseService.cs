@@ -1,4 +1,5 @@
 using ErrorOr;
+using System.Data.SQLite;
 
 namespace FileKeeper.Core.Interfaces.Persistence;
 
@@ -33,6 +34,12 @@ public interface IDatabaseService
     /// Gets the reusable database connection.
     /// </summary>
     System.Data.SQLite.SQLiteConnection GetConnection();
+
+    SQLiteTransaction BeginTransaction();
+
+    void CommitTransaction();
+
+    void RollbackTransaction();
 
     /// <summary>
     /// Disposes the database connection.

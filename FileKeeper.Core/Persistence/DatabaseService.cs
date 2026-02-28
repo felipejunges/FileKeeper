@@ -12,6 +12,7 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
 {
     private readonly string _databasePath;
     private SQLiteConnection? _connection;
+    private SQLiteTransaction? _transaction;
     private int _currentVersion;
     private const int LatestDatabaseVersion = 1;
 
@@ -21,23 +22,41 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             1, new[]
             {
                 @"
-                CREATE TABLE IF NOT EXISTS Files (
-                    Id TEXT PRIMARY KEY,
-                    Path TEXT UNIQUE,
-                    Name TEXT,
-                    VersionNumberDeleted INTEGER
+                CREATE TABLE IF NOT EXISTS Backups (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CreatedAt TEXT NOT NULL,
+                    CreatedFiles INTEGER NOT NULL,
+                    UpdatedFiles INTEGER NOT NULL,
+                    DeletedFiles INTEGER NOT NULL
                 );",
+                
+                @"
+                CREATE TABLE IF NOT EXISTS Files (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    BackupPath TEXT NOT NULL,
+                    RelativePath TEXT NOT NULL,
+                    IsDeleted INTEGER NOT NULL,
+                    DeletedAt INTEGER,
+                    FOREIGN KEY(DeletedAt) REFERENCES Backups(Id)
+                );",
+                
                 @"
                 CREATE TABLE IF NOT EXISTS FileVersions (
-                    Id TEXT PRIMARY KEY,
-                    FileId TEXT,
-                    Content BLOB,
-                    Hash TEXT,
-                    Size INTEGER,
-                    VersionNumber INTEGER,
-                    CreatedAt TEXT,
-                    FOREIGN KEY(FileId) REFERENCES Files(Id)
-                );"
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    FileId INTEGER NOT NULL,
+                    BackupId INTEGER NOT NULL,
+                    Size INTEGER NOT NULL,
+                    Hash TEXT NOT NULL,
+                    Content BLOB NOT NULL,
+                    FOREIGN KEY(FileId) REFERENCES Files(Id),
+                    FOREIGN KEY(BackupId) REFERENCES Backups(Id)
+                );",
+                
+                @"CREATE INDEX IF NOT EXISTS idx_files_backup_path ON Files(BackupPath);",
+                @"CREATE INDEX IF NOT EXISTS idx_files_is_deleted ON Files(IsDeleted);",
+                @"CREATE INDEX IF NOT EXISTS idx_files_deleted_at ON Files(DeletedAt);",
+                @"CREATE INDEX IF NOT EXISTS idx_file_versions_file_id ON FileVersions(FileId);",
+                @"CREATE INDEX IF NOT EXISTS idx_file_versions_file_id ON FileVersions(BackupId);",
             }
         }
     };
@@ -187,6 +206,26 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
         }
 
         return _connection;
+    }
+    
+    public SQLiteTransaction BeginTransaction()
+    {
+        var connection = GetConnection();
+        
+        _transaction = connection.BeginTransaction();
+        return _transaction;
+    }
+    
+    public void CommitTransaction()
+    {
+        _transaction?.Commit();
+        _transaction?.Dispose();
+    }
+    
+    public void RollbackTransaction()
+    {
+        _transaction?.Rollback();
+        _transaction?.Dispose();
     }
 
     private void EnsureDirectoryExists()
