@@ -8,8 +8,9 @@
 
     <ItemGroup>
       <PackageReference Include="ErrorOr" Version="2.0.1" />
-      <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
-      <PackageReference Include="Dapper" Version="2.1.15" />
+      <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
+      <PackageReference Include="System.Data.SQLite" Version="2.0.2" />
+      <PackageReference Include="Dapper" Version="2.1.66" />
     </ItemGroup>
 
 </Project>
