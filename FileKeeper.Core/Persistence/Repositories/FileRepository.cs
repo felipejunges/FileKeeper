@@ -31,7 +31,8 @@ public class FileRepository : RepositoryBase, IFileRepository
                 LIMIT 1
             )
             WHERE
-                f.BackupPath = @backupPath;";
+                f.BackupPath = @backupPath
+                AND IsDeleted = 0;";
 
         return await QueryAsync<FileVersionDM>(sql, new { backupPath }, token);
     }
