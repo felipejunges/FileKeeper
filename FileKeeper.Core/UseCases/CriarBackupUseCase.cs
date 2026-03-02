@@ -4,8 +4,8 @@ using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
+using FileKeeper.Core.Models.DMs;
 using FileKeeper.Core.Models.Entities;
-using FileKeeper.Core.Persistence.Repositories;
 using File = FileKeeper.Core.Models.Entities.File;
 
 namespace FileKeeper.Core.UseCases;
@@ -31,10 +31,10 @@ public class CriarBackupUseCase : ICriarBackupUseCase
 
     public async Task<ErrorOr<Backup>> ExecuteAsync(CancellationToken token)
     {
-        var todoDir = "/home/felipe/Dropbox/Imagens-Perfil"; // TODO: TODO!
+        var backupPath = "/home/felipe/Dropbox/Imagens-Perfil"; // TODO: TODO!
 
-        var localFiles = _fileSystem.GetFiles(todoDir, "*.*", SearchOption.AllDirectories);
-        var storedFilesResult = await _fileRepository.GetFilesWithVersionAsync(todoDir, token);
+        var localFiles = _fileSystem.GetFiles(backupPath, "*.*", SearchOption.AllDirectories);
+        var storedFilesResult = await _fileRepository.GetFilesWithVersionAsync(backupPath, token);
 
         if (storedFilesResult.IsError)
             return storedFilesResult.Errors;
@@ -50,19 +50,22 @@ public class CriarBackupUseCase : ICriarBackupUseCase
         if (backupResult.IsError)
             return backupResult.Errors;
 
-        var relativePathsProcessados = new List<string>();
+        var relativePathsProcessados = new List<(string RelativePath, string FileName)>();
 
         foreach (var localFile in localFiles)
         {
-            var relativePath = Path.GetRelativePath(todoDir, localFile);
-            var storedFile = storedFiles.FirstOrDefault(f => f.RelativePath == relativePath);
+            var pathOnly = Path.GetDirectoryName(localFile) ?? string.Empty;
+            var fileName = Path.GetFileName(localFile);
+            var relativePath = Path.GetRelativePath(backupPath, pathOnly);
+            
+            var storedFile = storedFiles.FirstOrDefault(f => f.RelativePath == relativePath && f.FileName == fileName);
 
             await using var localFileStream = _fileSystem.GetReadFileStream(localFile);
             var localFileHash = await HasingHelpers.ComputeHashFromStreamAsync(localFileStream, token);
 
             if (storedFile is null)
             {
-                var result = await AddNewFileToStorageAsync(todoDir, relativePath, localFileHash, newBackup.Id, localFileStream, token);
+                var result = await AddNewFileToStorageAsync(backupPath, relativePath, fileName, localFileHash, newBackup.Id, localFileStream, token);
 
                 if (result.IsError)
                 {
@@ -85,18 +88,11 @@ public class CriarBackupUseCase : ICriarBackupUseCase
                 newBackup.IncrementUpdatedFiles();
             }
 
-            relativePathsProcessados.Add(relativePath);
+            relativePathsProcessados.Add((relativePath, fileName));
         }
 
-        var idsArquivosExcluir = storedFiles
-            .Where(f => !relativePathsProcessados.Contains(f.RelativePath))
-            .Select(f => f.Id)
-            .ToList();
+        await ValidarArquivosExcluidosAsync(storedFiles, relativePathsProcessados, newBackup, token);
 
-        var deletionResult = await _fileRepository.MarkAsDeletedAsync(idsArquivosExcluir, newBackup.Id, token);
-        var deletedFiels = deletionResult.IsError ? 0 : deletionResult.Value;
-
-        newBackup.IncrementDeletedFiles(deletedFiels);
         await _backupRepository.UpdateAsync(newBackup, token);
 
         _databaseService.CommitTransaction();
@@ -104,9 +100,25 @@ public class CriarBackupUseCase : ICriarBackupUseCase
         return newBackup;
     }
 
-    private async Task<ErrorOr<long>> AddNewFileToStorageAsync(string backupPath, string relativePath, string fileHash, long backupId, FileStream fileStream, CancellationToken token)
+    private async Task ValidarArquivosExcluidosAsync(List<FileVersionDM> storedFiles, List<(string RelativePath, string FileName)> relativePathsProcessados, Backup newBackup, CancellationToken token)
     {
-        var file = File.CreateNew(backupPath, relativePath);
+        var idsArquivosExcluir = storedFiles
+            .Where(f => !relativePathsProcessados.Contains((f.RelativePath, f.FileName)))
+            .Select(f => f.Id)
+            .ToList();
+
+        if (idsArquivosExcluir.Any())
+        {
+            var deletionResult = await _fileRepository.MarkAsDeletedAsync(idsArquivosExcluir, newBackup.Id, token);
+            var deletedFiels = deletionResult.IsError ? 0 : deletionResult.Value;
+
+            newBackup.IncrementDeletedFiles(deletedFiels);
+        }
+    }
+
+    private async Task<ErrorOr<long>> AddNewFileToStorageAsync(string backupPath, string relativePath, string fileName, string fileHash, long backupId, FileStream fileStream, CancellationToken token)
+    {
+        var file = File.CreateNew(backupPath, relativePath, fileName);
 
         var result = await _fileRepository.InsertAsync(file, token);
 

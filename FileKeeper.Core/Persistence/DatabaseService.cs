@@ -33,6 +33,7 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             Id INTEGER PRIMARY KEY AUTOINCREMENT,
             BackupPath TEXT NOT NULL,
             RelativePath TEXT NOT NULL,
+            FileName TEXT NOT NULL,
             IsDeleted INTEGER NOT NULL,
             DeletedAt INTEGER,
             FOREIGN KEY(DeletedAt) REFERENCES Backups(Id)
@@ -50,7 +51,7 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             FOREIGN KEY(BackupId) REFERENCES Backups(Id)
         );",
         
-        @"CREATE INDEX idx_files_backup_path ON Files(BackupPath);",
+        @"CREATE INDEX idx_files_backup_relative_path ON Files(BackupPath, RelativePath);",
         @"CREATE INDEX idx_files_is_deleted ON Files(IsDeleted);",
         @"CREATE INDEX idx_files_deleted_at ON Files(DeletedAt);",
         @"CREATE INDEX idx_file_versions_file_id ON FileVersions(FileId);",
@@ -172,7 +173,9 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             using var cmd = new SQLiteCommand(sql, _connection);
             
             var result = await Task.Run(() => cmd.ExecuteScalar(), token);
-            return result is int version ? version : 0;
+            return result is int version ? version
+                : result is long versionLong ? (int)versionLong
+                : 0;
         }
         catch (Exception ex)
         {

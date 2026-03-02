@@ -13,12 +13,13 @@ public class FileRepository : RepositoryBase, IFileRepository
     {
     }
 
-    public async Task<ErrorOr<IEnumerable<FileVersionDM>>> GetFilesWithVersionAsync(string path, CancellationToken token)
+    public async Task<ErrorOr<IEnumerable<FileVersionDM>>> GetFilesWithVersionAsync(string backupPath, CancellationToken token)
     {
         const string sql = @"SELECT 
                 f.Id,
                 f.BackupPath,
                 f.RelativePath,
+                f.FileName,
                 f.IsDeleted,
                 fv.Hash AS CurrentHash
             FROM Files f
@@ -28,9 +29,11 @@ public class FileRepository : RepositoryBase, IFileRepository
                 WHERE FileId = f.Id 
                 ORDER BY BackupId DESC 
                 LIMIT 1
-            );";
+            )
+            WHERE
+                f.BackupPath = @backupPath;";
 
-        return await QueryAsync<FileVersionDM>(sql, new { path }, token);
+        return await QueryAsync<FileVersionDM>(sql, new { backupPath }, token);
     }
     
     public async Task<ErrorOr<long>> InsertAsync(File file, CancellationToken token)
@@ -39,9 +42,10 @@ public class FileRepository : RepositoryBase, IFileRepository
             INSERT INTO Files (
                 {nameof(File.BackupPath)},
                 {nameof(File.RelativePath)},
+                {nameof(File.FileName)},
                 {nameof(File.IsDeleted)},
                 {nameof(File.DeletedAt)})
-            VALUES (@BackupPath, @RelativePath, @IsDeleted, @DeletedAt);
+            VALUES (@BackupPath, @RelativePath, @FileName, @IsDeleted, @DeletedAt);
             SELECT last_insert_rowid() AS Id;";
 
         var result = await QuerySingleOrDefaultAsync<long>(sql, file, token);
