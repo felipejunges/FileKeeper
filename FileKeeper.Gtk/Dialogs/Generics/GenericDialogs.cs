@@ -1,6 +1,6 @@
 using Gtk;
 
-namespace FileKeeper.Gtk.Dialogs;
+namespace FileKeeper.Gtk.Dialogs.Generics;
 
 public static class GenericDialogs
 {
