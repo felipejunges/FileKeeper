@@ -16,23 +16,59 @@ public class CriarBackupUseCase : ICriarBackupUseCase
     private readonly IFileRepository _fileRepository;
     private readonly IBackupRepository _backupRepository;
     private readonly IDatabaseService _databaseService;
+    private readonly IConfigurationService _configurationService;
 
     public CriarBackupUseCase(
         IFileSystem fileSystem,
         IFileRepository fileRepository,
         IBackupRepository backupRepository,
-        IDatabaseService databaseService)
+        IDatabaseService databaseService,
+        IConfigurationService configurationService)
     {
         _fileSystem = fileSystem;
         _fileRepository = fileRepository;
         _backupRepository = backupRepository;
         _databaseService = databaseService;
+        _configurationService = configurationService;
     }
 
     public async Task<ErrorOr<Backup>> ExecuteAsync(CancellationToken token)
     {
-        var backupPath = "/home/felipe/Dropbox/Imagens-Perfil"; // TODO: TODO!
+        var configuration = await _configurationService.GetConfigurationAsync(token);
+        if (!configuration.MonitoredFolders.Any())
+        {
+            return Error.Failure(description: "At least one monitored folder must be configured to create a backup.");
+        }
+        
+        _databaseService.BeginTransaction();
 
+        var newBackup = Backup.CreateNew();
+        var backupResult = await _backupRepository.InsertAsync(newBackup, token);
+
+        if (backupResult.IsError)
+        {
+            _databaseService.RollbackTransaction();
+            return backupResult.Errors;
+        }
+        
+        foreach(var folder in configuration.MonitoredFolders)
+        {
+            var folderBackup = await ExecuteBackupFromFolderAsync(folder, newBackup, token);
+
+            if (folderBackup.IsError)
+            {
+                _databaseService.RollbackTransaction();
+                return folderBackup.Errors;
+            }
+        }
+        
+        _databaseService.CommitTransaction();
+
+        return newBackup;
+    }
+
+    private async Task<ErrorOr<Success>> ExecuteBackupFromFolderAsync(string backupPath, Backup newBackup, CancellationToken token)
+    {
         var localFiles = _fileSystem.GetFiles(backupPath, "*.*", SearchOption.AllDirectories);
         var storedFilesResult = await _fileRepository.GetFilesWithVersionAsync(backupPath, token);
 
@@ -40,15 +76,6 @@ public class CriarBackupUseCase : ICriarBackupUseCase
             return storedFilesResult.Errors;
 
         var storedFiles = storedFilesResult.Value.ToList();
-
-        // begin transaction
-        _databaseService.BeginTransaction();
-
-        var newBackup = Backup.CreateNew();
-        var backupResult = await _backupRepository.InsertAsync(newBackup, token);
-
-        if (backupResult.IsError)
-            return backupResult.Errors;
 
         var relativePathsProcessados = new List<(string RelativePath, string FileName)>();
 
@@ -68,10 +95,7 @@ public class CriarBackupUseCase : ICriarBackupUseCase
                 var result = await AddNewFileToStorageAsync(backupPath, relativePath, fileName, localFileHash, newBackup.Id, localFileStream, token);
 
                 if (result.IsError)
-                {
-                    _databaseService.RollbackTransaction();
                     return result.Errors;
-                }
 
                 newBackup.IncrementCreatedFiles();
             }
@@ -80,10 +104,7 @@ public class CriarBackupUseCase : ICriarBackupUseCase
                 var result = await AddNewVersionToFileInStorageAsync(storedFile.Id, localFileHash, newBackup.Id, localFileStream, token);
 
                 if (result.IsError)
-                {
-                    _databaseService.RollbackTransaction();
                     return result.Errors;
-                }
 
                 newBackup.IncrementUpdatedFiles();
             }
@@ -95,9 +116,7 @@ public class CriarBackupUseCase : ICriarBackupUseCase
 
         await _backupRepository.UpdateAsync(newBackup, token);
 
-        _databaseService.CommitTransaction();
-
-        return newBackup;
+        return Result.Success;
     }
 
     private async Task ValidarArquivosExcluidosAsync(List<FileVersionDM> storedFiles, List<(string RelativePath, string FileName)> relativePathsProcessados, Backup newBackup, CancellationToken token)
