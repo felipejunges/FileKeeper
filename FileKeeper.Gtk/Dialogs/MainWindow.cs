@@ -353,29 +353,21 @@ public class MainWindow : Window
             string date = (string)_versionsStore.GetValue(iter, 1);
             string message = (string)_versionsStore.GetValue(iter, 2);
 
-            // Show a dialog with version information
-            MessageDialog dialog = new MessageDialog(
-                this,
-                DialogFlags.Modal,
-                MessageType.Info,
-                ButtonsType.Ok,
-                $"Action for Version {versionNumber}"
-            );
-            dialog.SecondaryText = $"Date: {date}\nCommit: {message}\nFile: {_selectedFilePath}";
-            dialog.Run();
-            dialog.Destroy();
+            // Show a dialog with version information using DialogBuilder
+            new DialogBuilder()
+                .WithParent(this)
+                .AsInfo()
+                .WithPrimaryText($"Action for Version {versionNumber}")
+                .WithSecondaryText($"Date: {date}\nCommit: {message}\nFile: {_selectedFilePath}")
+                .ShowAndDestroy();
         }
         else
         {
-            MessageDialog dialog = new MessageDialog(
-                this,
-                DialogFlags.Modal,
-                MessageType.Warning,
-                ButtonsType.Ok,
-                "Please select a version first"
-            );
-            dialog.Run();
-            dialog.Destroy();
+            new DialogBuilder()
+                .WithParent(this)
+                .AsWarning()
+                .WithPrimaryText("Please select a version first")
+                .ShowAndDestroy();
         }
     }
 
@@ -397,8 +389,12 @@ public class MainWindow : Window
             
             if (result.IsError)
             {
-                var errorMessages = string.Join("\n", result.Errors.Select(e => e.Description));
-                GenericDialogs.ShowErrorDialog(this, "Configuration Error", errorMessages);
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsError()
+                    .WithPrimaryText("Configuration Error")
+                    .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
+                    .ShowAndDestroy();
             }
         }
     }
@@ -409,21 +405,22 @@ public class MainWindow : Window
 
         if (result.IsError)
         {
-            GenericDialogs.ShowErrorDialog(this, "ERRO!!!!", result.Errors);
+            new DialogBuilder()
+                .WithParent(this)
+                .AsError()
+                .WithPrimaryText("Backup Creation Failed")
+                .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
+                .ShowAndDestroy();
+            
             return;
         }
 
-        MessageDialog dialog = new MessageDialog(
-            this,
-            DialogFlags.Modal,
-            MessageType.Info,
-            ButtonsType.Ok,
-            "Create Backup"
-        );
-        dialog.SecondaryText =
-            $"Success! {result.Value.CreatedFiles} files created, {result.Value.UpdatedFiles} files updated, {result.Value.DeletedFiles} files deleted.";
-        dialog.Run();
-        dialog.Destroy();
+        new DialogBuilder()
+            .WithParent(this)
+            .AsInfo()
+            .WithPrimaryText("Create Backup")
+            .WithSecondaryText($"Backup creation success!\n\n{result.Value.CreatedFiles} files created.\n{result.Value.UpdatedFiles} files updated.\n{result.Value.DeletedFiles} files deleted.")
+            .ShowAndDestroy();
     }
 
     private void ShowRestoreDialog()
@@ -438,32 +435,24 @@ public class MainWindow : Window
             var data = restoreDialog.GetSelectedDestination();
             if (data.Success)
             {
-                string selectedVersion = data.Version;
-                string selectedDest = data.DestinationFolder;
+                var selectedVersion = data.Version;
+                var selectedDest = data.DestinationFolder;
 
                 // Show confirmation message
-                MessageDialog confirmDialog = new MessageDialog(
-                    this,
-                    DialogFlags.Modal,
-                    MessageType.Info,
-                    ButtonsType.Ok,
-                    "Restore Operation"
-                );
-                confirmDialog.SecondaryText = $"Version: {selectedVersion}\nDestination: {selectedDest}\n\nRestore will be implemented here.";
-                confirmDialog.Run();
-                confirmDialog.Destroy();
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsInfo()
+                    .WithPrimaryText("Restore Operation")
+                    .WithSecondaryText($"Version: {selectedVersion}\nDestination: {selectedDest}\n\nRestore will be implemented here.")
+                    .ShowAndDestroy();
             }
             else
             {
-                MessageDialog errorDialog = new MessageDialog(
-                    this,
-                    DialogFlags.Modal,
-                    MessageType.Error,
-                    ButtonsType.Ok,
-                    "Please select a version to restore"
-                );
-                errorDialog.Run();
-                errorDialog.Destroy();
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsError()
+                    .WithPrimaryText("Please select a version to restore")
+                    .ShowAndDestroy();
             }
         }
     }
