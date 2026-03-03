@@ -11,6 +11,21 @@ public class BackupRepository : RepositoryBase, IBackupRepository
     {
     }
 
+    public async Task<ErrorOr<IEnumerable<Backup>>> GetAllAsync(CancellationToken token)
+    {
+        const string sql = @$"
+            SELECT
+                {nameof(Backup.Id)},
+                {nameof(Backup.CreatedAt)},
+                {nameof(Backup.CreatedFiles)},
+                {nameof(Backup.UpdatedFiles)},
+                {nameof(Backup.DeletedFiles)}
+            FROM Backups
+            ORDER BY {nameof(Backup.CreatedAt)} DESC;";
+        
+        return await QueryAsync<Backup>(sql, null, token);
+    }
+
     public async Task<ErrorOr<long>> InsertAsync(Backup backup, CancellationToken token)
     {
         const string sql = @$"

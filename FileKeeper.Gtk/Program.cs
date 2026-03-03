@@ -30,6 +30,7 @@ var host = Host.CreateDefaultBuilder(args)
 var configurationService = host.Services.GetRequiredService<IConfigurationService>();
 var createBackupUseCase = host.Services.GetRequiredService<ICreateBackupUseCase>();
 var restoreBackupUseCase = host.Services.GetRequiredService<IRestoreBackupUseCase>();
+var backupRepository = host.Services.GetRequiredService<IBackupRepository>();
 var databaseService = host.Services.GetRequiredService<IDatabaseService>();
 
 var initResult = await databaseService.InitializeAsync(CancellationToken.None);
@@ -44,7 +45,8 @@ Application.Init();
 var win = new MainWindow(
     configurationService,
     createBackupUseCase,
-    restoreBackupUseCase);
+    restoreBackupUseCase,
+    backupRepository);
 
 win.ShowAll();
 
