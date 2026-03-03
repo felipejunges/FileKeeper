@@ -20,8 +20,6 @@ public class MainWindow : Window
     private Stack<string> _navigationHistory;
     private string? _selectedFilePath;
 
-    private CancellationTokenSource? _defaultCancellationTokenSource;
-
     private readonly IConfigurationService _configurationService;
     private readonly ICreateBackupUseCase _createBackupUseCase;
     private readonly IRestoreBackupUseCase _restoreBackupUseCase;
@@ -39,14 +37,14 @@ public class MainWindow : Window
         _restoreBackupUseCase = restoreBackupUseCase;
         _backupRepository = backupRepository;
 
-        _defaultCancellationTokenSource = new CancellationTokenSource();
+        var defaultCancellationTokenSource = new CancellationTokenSource();
 
         SetDefaultSize(1000, 700);
         SetPosition(WindowPosition.Center);
 
         DeleteEvent += (_, _) =>
         {
-            _defaultCancellationTokenSource?.Cancel();
+            defaultCancellationTokenSource?.Cancel();
             Application.Quit();
         };
 
@@ -76,17 +74,17 @@ public class MainWindow : Window
 
         // Configuration button
         Button configBtn = new Button("⚙️ Configuration");
-        configBtn.Clicked += async (_, _) => await ShowConfigurationDialogAsync(_defaultCancellationTokenSource.Token);
+        configBtn.Clicked += async (_, _) => await ShowConfigurationDialogAsync(defaultCancellationTokenSource.Token);
         navBox.PackStart(configBtn, false, false, 0);
 
         // Create Backup button
         Button backupBtn = new Button("💾 Create Backup");
-        backupBtn.Clicked += async (_, _) => await CreateNewBackupAsync(_defaultCancellationTokenSource.Token);
+        backupBtn.Clicked += async (_, _) => await CreateNewBackupAsync(defaultCancellationTokenSource.Token);
         navBox.PackStart(backupBtn, false, false, 0);
 
         // Restore button
         Button restoreBtn = new Button("↻ Restore");
-        restoreBtn.Clicked += async (_, _) => await ShowRestoreDialogAsync(_defaultCancellationTokenSource.Token);
+        restoreBtn.Clicked += async (_, _) => await ShowRestoreDialogAsync(defaultCancellationTokenSource.Token);
         navBox.PackStart(restoreBtn, false, false, 0);
 
         mainLayout.PackStart(navBox, false, false, 0);

@@ -1,4 +1,4 @@
-﻿using FileKeeper.Core.Interfaces.Persistence;
+using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
@@ -8,46 +8,75 @@ using FileKeeper.Core.Services;
 using FileKeeper.Core.UseCases;
 using Gtk;
 using FileKeeper.Gtk.Dialogs;
+using FileKeeper.Gtk.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((_, services) =>
-    {
-        services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
-        services.AddSingleton<IRestoreBackupUseCase, RestoreBackupUseCase>();
-
-        services.AddSingleton<IFileSystem, LocalFileSystem>();
-        services.AddSingleton<IBackupRepository, BackupRepository>();
-        services.AddSingleton<IFileRepository, FileRepository>();
-
-        services.AddSingleton<IConfigurationStore, ConfigurationStore>();
-        services.AddSingleton<IConfigurationService, ConfigurationService>();
-        services.AddSingleton<IDatabaseService, DatabaseService>();
-    })
-    .Build();
-
-var configurationService = host.Services.GetRequiredService<IConfigurationService>();
-var createBackupUseCase = host.Services.GetRequiredService<ICreateBackupUseCase>();
-var restoreBackupUseCase = host.Services.GetRequiredService<IRestoreBackupUseCase>();
-var backupRepository = host.Services.GetRequiredService<IBackupRepository>();
-var databaseService = host.Services.GetRequiredService<IDatabaseService>();
-
-var initResult = await databaseService.InitializeAsync(CancellationToken.None);
-if (initResult.IsError)
+try
 {
-    Console.WriteLine($"Erro ao inicializar banco: {initResult.FirstError.Description}");
-    return;
+    var host = Host.CreateDefaultBuilder(args)
+        .ConfigureLogging((_, logging) =>
+        {
+            logging.ClearProviders();
+            logging.AddConsole();
+            logging.AddFileLogger("FileKeeper", LogLevel.Information);
+            logging.SetMinimumLevel(LogLevel.Information);
+        })
+        .ConfigureServices((_, services) =>
+        {
+            services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
+            services.AddSingleton<IRestoreBackupUseCase, RestoreBackupUseCase>();
+
+            services.AddSingleton<IFileSystem, LocalFileSystem>();
+            services.AddSingleton<IBackupRepository, BackupRepository>();
+            services.AddSingleton<IFileRepository, FileRepository>();
+
+            services.AddSingleton<IConfigurationStore, ConfigurationStore>();
+            services.AddSingleton<IConfigurationService, ConfigurationService>();
+            services.AddSingleton<IDatabaseService, DatabaseService>();
+        })
+        .Build();
+
+    var logger = host.Services.GetRequiredService<ILogger<Program>>();
+    
+    logger.LogInformation("========== Application Starting ==========");
+    logger.LogInformation("Current OS: {OS}", System.Runtime.InteropServices.RuntimeInformation.OSDescription);
+    logger.LogInformation("Current Time: {Time}", DateTime.UtcNow);
+
+    var configurationService = host.Services.GetRequiredService<IConfigurationService>();
+    var createBackupUseCase = host.Services.GetRequiredService<ICreateBackupUseCase>();
+    var restoreBackupUseCase = host.Services.GetRequiredService<IRestoreBackupUseCase>();
+    var backupRepository = host.Services.GetRequiredService<IBackupRepository>();
+    var databaseService = host.Services.GetRequiredService<IDatabaseService>();
+
+    var initResult = await databaseService.InitializeAsync(CancellationToken.None);
+    if (initResult.IsError)
+    {
+        logger.LogError("Failed to initialize database: {Error}", initResult.FirstError.Description);
+        Console.WriteLine($"Erro ao inicializar banco: {initResult.FirstError.Description}");
+        return;
+    }
+
+    logger.LogInformation("Database initialized successfully");
+
+    Application.Init();
+
+    var win = new MainWindow(
+        configurationService,
+        createBackupUseCase,
+        restoreBackupUseCase,
+        backupRepository);
+
+    logger.LogInformation("Main window created and showing");
+    win.ShowAll();
+
+    Application.Run();
+
+    logger.LogInformation("========== Application Closing ==========");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Fatal error: {ex}");
 }
 
-Application.Init();
-
-var win = new MainWindow(
-    configurationService,
-    createBackupUseCase,
-    restoreBackupUseCase,
-    backupRepository);
-
-win.ShowAll();
-
-Application.Run();
