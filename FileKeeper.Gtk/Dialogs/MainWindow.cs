@@ -20,23 +20,27 @@ public class MainWindow : Window
     private string? _selectedFilePath;
 
     private CancellationTokenSource? _defaultCancellationTokenSource;
-    
+
     private readonly IConfigurationService _configurationService;
     private readonly ICreateBackupUseCase _createBackupUseCase;
-    
+    private readonly IRestoreBackupUseCase _restoreBackupUseCase;
+
     public MainWindow(
         IConfigurationService configurationService,
-        ICreateBackupUseCase createBackupUseCase)
+        ICreateBackupUseCase createBackupUseCase,
+        IRestoreBackupUseCase restoreBackupUseCase)
         : base("File Browser with Versions")
     {
         _configurationService = configurationService;
         _createBackupUseCase = createBackupUseCase;
+        _restoreBackupUseCase = restoreBackupUseCase;
+
         _defaultCancellationTokenSource = new CancellationTokenSource();
-        
+
         SetDefaultSize(1000, 700);
         SetPosition(WindowPosition.Center);
 
-        DeleteEvent += (_, _) => 
+        DeleteEvent += (_, _) =>
         {
             _defaultCancellationTokenSource?.Cancel();
             Application.Quit();
@@ -78,7 +82,7 @@ public class MainWindow : Window
 
         // Restore button
         Button restoreBtn = new Button("↻ Restore");
-        restoreBtn.Clicked += (o, e) => ShowRestoreDialog();
+        restoreBtn.Clicked += async (_, _) => await ShowRestoreDialogAsync(_defaultCancellationTokenSource.Token);
         navBox.PackStart(restoreBtn, false, false, 0);
 
         mainLayout.PackStart(navBox, false, false, 0);
@@ -209,7 +213,7 @@ public class MainWindow : Window
 
         RefreshCurrentDirectory();
     }
-    
+
     private void NavigateTo(string path)
     {
         try
@@ -374,19 +378,19 @@ public class MainWindow : Window
     private async Task ShowConfigurationDialogAsync(CancellationToken token)
     {
         var configuration = await _configurationService.GetConfigurationAsync(token);
-        
+
         // Create the configuration dialog
         using var configurationDialog = new ConfigurationDialog();
         configurationDialog.SetConfiguration(configuration);
         configurationDialog.ShowAll();
-        
+
         // Handle dialog response
         if (configurationDialog.Run() == (int)ResponseType.Accept)
         {
             configuration = configurationDialog.GetConfiguration();
 
             var result = await _configurationService.ApplyConfigurationAsync(configuration, token);
-            
+
             if (result.IsError)
             {
                 new DialogBuilder()
@@ -411,7 +415,7 @@ public class MainWindow : Window
                 .WithPrimaryText("Backup Creation Failed")
                 .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
                 .ShowAndDestroy();
-            
+
             return;
         }
 
@@ -419,15 +423,16 @@ public class MainWindow : Window
             .WithParent(this)
             .AsInfo()
             .WithPrimaryText("Create Backup")
-            .WithSecondaryText($"Backup creation success!\n\n{result.Value.CreatedFiles} files created.\n{result.Value.UpdatedFiles} files updated.\n{result.Value.DeletedFiles} files deleted.")
+            .WithSecondaryText(
+                $"Backup creation success!\n\n{result.Value.CreatedFiles} files created.\n{result.Value.UpdatedFiles} files updated.\n{result.Value.DeletedFiles} files deleted.")
             .ShowAndDestroy();
     }
 
-    private void ShowRestoreDialog()
+    private async Task ShowRestoreDialogAsync(CancellationToken token)
     {
         var restoreDialog = new RestoreDialog(this);
         restoreDialog.ShowAll();
-        
+
         // Handle dialog response
         if (restoreDialog.Run() == (int)ResponseType.Accept)
         {
@@ -438,20 +443,27 @@ public class MainWindow : Window
                 var selectedVersion = data.Version;
                 var selectedDest = data.DestinationFolder;
 
+                var TEMP_BACKUP_ID = 1;
+
+                var result = await _restoreBackupUseCase.ExecuteAsync(TEMP_BACKUP_ID, selectedDest, token);
+                if (result.IsError)
+                {
+                    new DialogBuilder()
+                        .WithParent(this)
+                        .AsError()
+                        .WithPrimaryText("Error restoring the backup")
+                        .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
+                        .ShowAndDestroy();
+
+                    return;
+                }
+
                 // Show confirmation message
                 new DialogBuilder()
                     .WithParent(this)
                     .AsInfo()
                     .WithPrimaryText("Restore Operation")
-                    .WithSecondaryText($"Version: {selectedVersion}\nDestination: {selectedDest}\n\nRestore will be implemented here.")
-                    .ShowAndDestroy();
-            }
-            else
-            {
-                new DialogBuilder()
-                    .WithParent(this)
-                    .AsError()
-                    .WithPrimaryText("Please select a version to restore")
+                    .WithSecondaryText($"The restoration was a tremendous success!!\n\nThe backup was restored to: {selectedDest}")
                     .ShowAndDestroy();
             }
         }
