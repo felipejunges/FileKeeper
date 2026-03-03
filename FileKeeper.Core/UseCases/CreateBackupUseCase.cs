@@ -10,7 +10,7 @@ using FileKeeper.Core.Models.Entities;
 
 namespace FileKeeper.Core.UseCases;
 
-public class CriarBackupUseCase : ICriarBackupUseCase
+public class CreateBackupUseCase : ICreateBackupUseCase
 {
     private readonly IFileSystem _fileSystem;
     private readonly IFileRepository _fileRepository;
@@ -18,7 +18,7 @@ public class CriarBackupUseCase : ICriarBackupUseCase
     private readonly IDatabaseService _databaseService;
     private readonly IConfigurationService _configurationService;
 
-    public CriarBackupUseCase(
+    public CreateBackupUseCase(
         IFileSystem fileSystem,
         IFileRepository fileRepository,
         IBackupRepository backupRepository,
