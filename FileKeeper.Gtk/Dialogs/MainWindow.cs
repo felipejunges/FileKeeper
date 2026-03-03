@@ -1,3 +1,4 @@
+using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Gtk.Dialogs.Generics;
@@ -24,16 +25,19 @@ public class MainWindow : Window
     private readonly IConfigurationService _configurationService;
     private readonly ICreateBackupUseCase _createBackupUseCase;
     private readonly IRestoreBackupUseCase _restoreBackupUseCase;
+    private readonly IBackupRepository _backupRepository;
 
     public MainWindow(
         IConfigurationService configurationService,
         ICreateBackupUseCase createBackupUseCase,
-        IRestoreBackupUseCase restoreBackupUseCase)
+        IRestoreBackupUseCase restoreBackupUseCase,
+        IBackupRepository backupRepository)
         : base("File Browser with Versions")
     {
         _configurationService = configurationService;
         _createBackupUseCase = createBackupUseCase;
         _restoreBackupUseCase = restoreBackupUseCase;
+        _backupRepository = backupRepository;
 
         _defaultCancellationTokenSource = new CancellationTokenSource();
 
@@ -442,7 +446,11 @@ public class MainWindow : Window
     {
         var configuration = await _configurationService.GetConfigurationAsync(token);
 
-        var restoreDialog = new RestoreDialog(this, configuration.CurrentDestination);
+        var restoreDialog = new RestoreDialog(this, configuration.CurrentDestination, _backupRepository);
+        
+        // Load backups from database before showing the dialog
+        await restoreDialog.LoadBackupsAsync(token);
+        
         restoreDialog.Response += async (_, args) =>
         {
             if (args.ResponseId != ResponseType.Accept)
@@ -468,13 +476,10 @@ public class MainWindow : Window
                 await _configurationService.ApplyConfigurationAsync(configuration, token);
             }
 
-            var selectedVersion = data.Version;
+            var backupId = data.BackupId;
             var selectedDest = data.DestinationFolder;
 
-            // TODO: selecionar corretamente na lista
-            var TEMP_BACKUP_ID = 1;
-
-            var result = await _restoreBackupUseCase.ExecuteAsync(TEMP_BACKUP_ID, selectedDest, token);
+            var result = await _restoreBackupUseCase.ExecuteAsync(backupId, selectedDest, token);
             if (result.IsError)
             {
                 new DialogBuilder()
