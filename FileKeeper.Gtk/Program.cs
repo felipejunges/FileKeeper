@@ -14,7 +14,7 @@ using Microsoft.Extensions.Hosting;
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((_, services) =>
     {
-        services.AddSingleton<ICriarBackupUseCase, CriarBackupUseCase>();
+        services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
 
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<IBackupRepository, BackupRepository>();
@@ -27,7 +27,7 @@ var host = Host.CreateDefaultBuilder(args)
     .Build();
 
 var configurationService = host.Services.GetRequiredService<IConfigurationService>();
-var criarBackupUseCase = host.Services.GetRequiredService<ICriarBackupUseCase>();
+var createBackupUseCase = host.Services.GetRequiredService<ICreateBackupUseCase>();
 var databaseService = host.Services.GetRequiredService<IDatabaseService>();
 
 var initResult = await databaseService.InitializeAsync(CancellationToken.None);
@@ -41,7 +41,7 @@ Application.Init();
 
 var win = new MainWindow(
     configurationService,
-    criarBackupUseCase);
+    createBackupUseCase);
 
 win.ShowAll();
 

@@ -22,15 +22,15 @@ public class MainWindow : Window
     private CancellationTokenSource? _defaultCancellationTokenSource;
     
     private readonly IConfigurationService _configurationService;
-    private readonly ICriarBackupUseCase _criarBackupUseCase;
+    private readonly ICreateBackupUseCase _createBackupUseCase;
     
     public MainWindow(
         IConfigurationService configurationService,
-        ICriarBackupUseCase criarBackupUseCase)
+        ICreateBackupUseCase createBackupUseCase)
         : base("File Browser with Versions")
     {
         _configurationService = configurationService;
-        _criarBackupUseCase = criarBackupUseCase;
+        _createBackupUseCase = createBackupUseCase;
         _defaultCancellationTokenSource = new CancellationTokenSource();
         
         SetDefaultSize(1000, 700);
@@ -401,7 +401,7 @@ public class MainWindow : Window
 
     private async Task CreateNewBackupAsync(CancellationToken token)
     {
-        var result = await _criarBackupUseCase.ExecuteAsync(token);
+        var result = await _createBackupUseCase.ExecuteAsync(token);
 
         if (result.IsError)
         {
