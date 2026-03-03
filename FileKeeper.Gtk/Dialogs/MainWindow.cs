@@ -380,29 +380,37 @@ public class MainWindow : Window
         var configuration = await _configurationService.GetConfigurationAsync(token);
 
         // Create the configuration dialog
-        using var configurationDialog = new ConfigurationDialog(this);
+        var configurationDialog = new ConfigurationDialog(this);
         configurationDialog.SetConfiguration(configuration);
-        configurationDialog.ShowAll();
-        
-        var response = (ResponseType)configurationDialog.Run();
-        configurationDialog.Hide();
 
-        if (response != ResponseType.Accept)
-            return;
-        
-        configuration = configurationDialog.GetConfiguration();
-
-        var result = await _configurationService.ApplyConfigurationAsync(configuration, token);
-
-        if (result.IsError)
+        configurationDialog.Response += async (_, args) =>
         {
-            new DialogBuilder()
-                .WithParent(this)
-                .AsError()
-                .WithPrimaryText("Configuration Error")
-                .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
-                .ShowAndDestroy();
-        }
+            if (args.ResponseId != ResponseType.Accept)
+            {
+                configurationDialog.Destroy();
+                return;
+            }
+
+            configuration = configurationDialog.GetConfiguration();
+
+            var result = await _configurationService.ApplyConfigurationAsync(configuration, token);
+
+            if (result.IsError)
+            {
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsError()
+                    .WithPrimaryText("Configuration Error")
+                    .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
+                    .ShowAndDestroy();
+            }
+            else
+            {
+                configurationDialog.Destroy();
+            }
+        };
+
+        configurationDialog.ShowAll();
     }
 
     private async Task CreateNewBackupAsync(CancellationToken token)
@@ -435,49 +443,59 @@ public class MainWindow : Window
         var configuration = await _configurationService.GetConfigurationAsync(token);
 
         var restoreDialog = new RestoreDialog(this, configuration.CurrentDestination);
+        restoreDialog.Response += async (_, args) =>
+        {
+            if (args.ResponseId != ResponseType.Accept)
+            {
+                restoreDialog.Destroy();
+                return;
+            }
+
+            var data = restoreDialog.GetSelectedDestination();
+            if (!data.Success)
+            {
+                restoreDialog.Destroy();
+                return;
+            }
+            
+            // a janela tem que ser destruída antes da execução pesada, pois o GC pode recolher ela durante o await.
+            // entender como fazer para manter a janela aberta durante a execução do await, para mostrar uma barra de progresso ou algo do tipo.
+            restoreDialog.Destroy();
+
+            if (data.DestinationFolder != configuration.CurrentDestination)
+            {
+                configuration.CurrentDestination = data.DestinationFolder;
+                await _configurationService.ApplyConfigurationAsync(configuration, token);
+            }
+
+            var selectedVersion = data.Version;
+            var selectedDest = data.DestinationFolder;
+
+            // TODO: selecionar corretamente na lista
+            var TEMP_BACKUP_ID = 1;
+
+            var result = await _restoreBackupUseCase.ExecuteAsync(TEMP_BACKUP_ID, selectedDest, token);
+            if (result.IsError)
+            {
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsError()
+                    .WithPrimaryText("Error restoring the backup")
+                    .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
+                    .ShowAndDestroy();
+            }
+            else
+            {
+                // Show confirmation message
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsInfo()
+                    .WithPrimaryText("Restore Operation")
+                    .WithSecondaryText($"The restoration was a tremendous success!!\n\nThe backup was restored to: {selectedDest}")
+                    .ShowAndDestroy();
+            }
+        };
+
         restoreDialog.ShowAll();
-
-        var response = (ResponseType)restoreDialog.Run();
-        restoreDialog.Hide();
-
-        if (response != ResponseType.Accept)
-            return;
-
-        var data = restoreDialog.GetSelectedDestination();
-        if (!data.Success)
-            return;
-
-        if (data.DestinationFolder != configuration.CurrentDestination)
-        {
-            configuration.CurrentDestination = data.DestinationFolder;
-            await _configurationService.ApplyConfigurationAsync(configuration, token);
-        }
-
-        var selectedVersion = data.Version;
-        var selectedDest = data.DestinationFolder;
-
-        // TODO: selecionar corretamente na lista
-        var TEMP_BACKUP_ID = 1;
-
-        var result = await _restoreBackupUseCase.ExecuteAsync(TEMP_BACKUP_ID, selectedDest, token);
-        if (result.IsError)
-        {
-            new DialogBuilder()
-                .WithParent(this)
-                .AsError()
-                .WithPrimaryText("Error restoring the backup")
-                .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
-                .ShowAndDestroy();
-
-            return;
-        }
-
-        // Show confirmation message
-        new DialogBuilder()
-            .WithParent(this)
-            .AsInfo()
-            .WithPrimaryText("Restore Operation")
-            .WithSecondaryText($"The restoration was a tremendous success!!\n\nThe backup was restored to: {selectedDest}")
-            .ShowAndDestroy();
     }
 }
