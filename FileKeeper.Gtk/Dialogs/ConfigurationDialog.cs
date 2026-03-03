@@ -3,15 +3,14 @@ using Gtk;
 
 namespace FileKeeper.Gtk.Dialogs;
 
-public class ConfigurationDialog : Dialog, IDisposable
+public class ConfigurationDialog : Dialog
 {
-    private bool _disposed = false;
-    
     private SpinButton _versionSpinBtn;
     private Label _selectedDbLabel;
     private ListStore _foldersConfigStore;
 
-    public ConfigurationDialog()
+    public ConfigurationDialog(Window parent)
+        : base("Configuration", parent, DialogFlags.Modal)
     {
         SetDefaultSize(600, 500);
 
@@ -227,31 +226,5 @@ public class ConfigurationDialog : Dialog, IDisposable
             } while (_foldersConfigStore.IterNext(ref iter));
         }
         return folders;
-    }
-
-    public new void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        
-        if (!_disposed)
-        {
-            if (disposing)
-            {
-                Destroy();
-            }
-
-            _disposed = true;
-        }
-    }
-
-    ~ConfigurationDialog()
-    {
-        Dispose(false);
     }
 }

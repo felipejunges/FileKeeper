@@ -2,19 +2,17 @@ using Gtk;
 
 namespace FileKeeper.Gtk.Dialogs;
 
-public class RestoreDialog : Dialog, IDisposable
+public class RestoreDialog : Dialog
 {
-    private bool _disposed = false;
-
     private readonly ListStore _versionStore;
     private readonly TreeView _versionTreeView;
     private readonly Label _selectedDestLabel;
-    
-    public RestoreDialog(Window parent)
+
+    public RestoreDialog(Window parent, string? currentDestination)
         : base("Restore backup", parent, DialogFlags.Modal)
     {
         SetDefaultSize(500, 400);
-        
+
         Box mainBox = new Box(Orientation.Vertical, 10);
         mainBox.Margin = 10;
 
@@ -56,7 +54,7 @@ public class RestoreDialog : Dialog, IDisposable
 
         Box destBox = new Box(Orientation.Horizontal, 5);
 
-        _selectedDestLabel = new Label(Environment.GetEnvironmentVariable("HOME") ?? "/home");
+        _selectedDestLabel = new Label(currentDestination ?? Environment.GetEnvironmentVariable("HOME") ?? "/home");
         _selectedDestLabel.Xalign = 0;
         destBox.PackStart(_selectedDestLabel, true, true, 0);
 
@@ -89,7 +87,7 @@ public class RestoreDialog : Dialog, IDisposable
         AddButton("Cancel", ResponseType.Cancel);
         AddButton("Proceed", ResponseType.Accept);
     }
-    
+
     public (bool Success, string Version, string DestinationFolder) GetSelectedDestination()
     {
         TreeIter iter;
@@ -102,31 +100,5 @@ public class RestoreDialog : Dialog, IDisposable
         }
 
         return (false, string.Empty, string.Empty);
-    }
-    
-    public new void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        
-        if (!_disposed)
-        {
-            if (disposing)
-            {
-                Destroy();
-            }
-
-            _disposed = true;
-        }
-    }
-
-    ~RestoreDialog()
-    {
-        Dispose(false);
     }
 }
