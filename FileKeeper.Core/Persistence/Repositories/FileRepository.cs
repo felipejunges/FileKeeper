@@ -35,7 +35,35 @@ public class FileRepository : RepositoryBase, IFileRepository
 
         return await QueryAsync<FileVersionDM>(sql, new { backupPath }, token);
     }
-    
+
+    public async Task<ErrorOr<IEnumerable<FileToRecoverDM>>> GetFilesToRecoverAsync(long backupId, CancellationToken token)
+    {
+        const string sql = @$"SELECT 
+                f.Id,
+                f.BackupPath,
+                f.RelativePath,
+                f.FileName,
+                fv.BackupId,
+                fv.Size,
+                fv.Hash,
+                fv.Content
+            FROM Files f
+            INNER JOIN FileVersions fv ON f.Id = fv.FileId
+            WHERE (
+                f.IsDeleted = 0
+                OR f.IsDeleted = 1 AND f.DeletedAt < @backupId
+            )
+            AND fv.BackupId = (
+                SELECT MAX(fv2.BackupId)
+                FROM FileVersions fv2
+                WHERE fv2.FileId = f.Id
+                    AND fv2.BackupId <= @backupId
+            )
+            ORDER BY f.BackupPath, f.RelativePath;";
+        
+        return await QueryAsync<FileToRecoverDM>(sql, new { backupId }, token);
+    }
+
     public async Task<ErrorOr<long>> InsertAsync(FileModel fileModel, CancellationToken token)
     {
         const string sql = @$"

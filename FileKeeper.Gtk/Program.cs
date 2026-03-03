@@ -15,6 +15,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((_, services) =>
     {
         services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
+        services.AddSingleton<IRestoreBackupUseCase, RestoreBackupUseCase>();
 
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<IBackupRepository, BackupRepository>();
@@ -28,6 +29,7 @@ var host = Host.CreateDefaultBuilder(args)
 
 var configurationService = host.Services.GetRequiredService<IConfigurationService>();
 var createBackupUseCase = host.Services.GetRequiredService<ICreateBackupUseCase>();
+var restoreBackupUseCase = host.Services.GetRequiredService<IRestoreBackupUseCase>();
 var databaseService = host.Services.GetRequiredService<IDatabaseService>();
 
 var initResult = await databaseService.InitializeAsync(CancellationToken.None);
@@ -41,7 +43,8 @@ Application.Init();
 
 var win = new MainWindow(
     configurationService,
-    createBackupUseCase);
+    createBackupUseCase,
+    restoreBackupUseCase);
 
 win.ShowAll();
 

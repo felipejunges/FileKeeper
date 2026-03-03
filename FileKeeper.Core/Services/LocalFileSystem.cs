@@ -11,4 +11,13 @@ public class LocalFileSystem : IFileSystem
     {
         return new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
     }
+
+    public bool DirectoryExists(string destinationFolder) =>
+        Directory.Exists(destinationFolder);
+    
+    public void CreateDirectory(string destinationFolder) =>
+        Directory.CreateDirectory(destinationFolder);
+
+    public bool IsDirectoryEmpty(string destinationFolder) =>
+        !Directory.EnumerateFileSystemEntries(destinationFolder).Any();
 }

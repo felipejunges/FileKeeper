@@ -12,7 +12,6 @@ public class FileVersion
     public byte[]? Content { get; private set; }
     
     public byte[] CompressedContent => Content == null ? [] : CompressionHelper.Compress(Content);
-    public byte[] DecompressedContent => Content == null ? [] : CompressionHelper.Decompress(Content);
 
     private FileVersion()
     {
