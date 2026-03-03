@@ -2,7 +2,7 @@ using Dapper;
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Persistence;
 
-namespace FileKeeper.Core.Persistence;
+namespace FileKeeper.Core.Persistence.Repositories;
 
 public abstract class RepositoryBase
 {

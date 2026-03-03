@@ -3,7 +3,6 @@ using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Models.DMs;
 using FileKeeper.Core.Models.Entities;
-using File = FileKeeper.Core.Models.Entities.File;
 
 namespace FileKeeper.Core.Persistence.Repositories;
 
@@ -37,24 +36,24 @@ public class FileRepository : RepositoryBase, IFileRepository
         return await QueryAsync<FileVersionDM>(sql, new { backupPath }, token);
     }
     
-    public async Task<ErrorOr<long>> InsertAsync(File file, CancellationToken token)
+    public async Task<ErrorOr<long>> InsertAsync(FileModel fileModel, CancellationToken token)
     {
         const string sql = @$"
             INSERT INTO Files (
-                {nameof(File.BackupPath)},
-                {nameof(File.RelativePath)},
-                {nameof(File.FileName)},
-                {nameof(File.IsDeleted)},
-                {nameof(File.DeletedAt)})
+                {nameof(FileModel.BackupPath)},
+                {nameof(FileModel.RelativePath)},
+                {nameof(FileModel.FileName)},
+                {nameof(FileModel.IsDeleted)},
+                {nameof(FileModel.DeletedAt)})
             VALUES (@BackupPath, @RelativePath, @FileName, @IsDeleted, @DeletedAt);
             SELECT last_insert_rowid() AS Id;";
 
-        var result = await QuerySingleOrDefaultAsync<long>(sql, file, token);
+        var result = await QuerySingleOrDefaultAsync<long>(sql, fileModel, token);
 
         if (result.IsError)
             return result;
         
-        file.UpdateId(result.Value);
+        fileModel.UpdateId(result.Value);
         
         return result.Value;
     }
@@ -68,7 +67,7 @@ public class FileRepository : RepositoryBase, IFileRepository
                 {nameof(FileVersion.Size)},
                 {nameof(FileVersion.Hash)},
                 {nameof(FileVersion.Content)})
-            VALUES (@FileId, @BackupId, @Size, @Hash, @Content);
+            VALUES (@FileId, @BackupId, @Size, @Hash, @CompressedContent);
             SELECT last_insert_rowid() AS Id;";
 
         var result = await QuerySingleOrDefaultAsync<long>(sql, version, token);

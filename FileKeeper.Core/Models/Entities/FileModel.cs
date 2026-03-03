@@ -1,6 +1,6 @@
 namespace FileKeeper.Core.Models.Entities;
 
-public class File
+public class FileModel
 {
     public long Id { get; private set; }
     public string BackupPath { get; private set; } = null!;
@@ -9,13 +9,13 @@ public class File
     public bool IsDeleted { get; private set; }
     public long? DeletedAt { get; private set; }
 
-    private File()
+    private FileModel()
     {
     }
 
-    public static File CreateNew(string backupPath, string relativePath, string fileName)
+    public static FileModel CreateNew(string backupPath, string relativePath, string fileName)
     {
-        return new File
+        return new FileModel
         {
             Id = 0,
             BackupPath = backupPath,

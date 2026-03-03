@@ -1,12 +1,12 @@
 using ErrorOr;
 using FileKeeper.Core.Extensions;
+using FileKeeper.Core.Helpers;
 using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models.DMs;
 using FileKeeper.Core.Models.Entities;
-using File = FileKeeper.Core.Models.Entities.File;
 
 namespace FileKeeper.Core.UseCases;
 
@@ -137,7 +137,7 @@ public class CriarBackupUseCase : ICriarBackupUseCase
 
     private async Task<ErrorOr<long>> AddNewFileToStorageAsync(string backupPath, string relativePath, string fileName, string fileHash, long backupId, FileStream fileStream, CancellationToken token)
     {
-        var file = File.CreateNew(backupPath, relativePath, fileName);
+        var file = FileModel.CreateNew(backupPath, relativePath, fileName);
 
         var result = await _fileRepository.InsertAsync(file, token);
 
