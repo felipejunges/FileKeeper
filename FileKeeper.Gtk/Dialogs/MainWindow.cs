@@ -445,60 +445,55 @@ public class MainWindow : Window
         var configuration = await _configurationService.GetConfigurationAsync(token);
 
         var restoreDialog = new RestoreDialog(this, configuration.CurrentDestination, _backupRepository);
-        
-        // Load backups from database before showing the dialog
         await restoreDialog.LoadBackupsAsync(token);
-        
-        restoreDialog.Response += async (_, args) =>
-        {
-            if (args.ResponseId != ResponseType.Accept)
-            {
-                restoreDialog.Destroy();
-                return;
-            }
-
-            var data = restoreDialog.GetSelectedDestination();
-            if (!data.Success)
-            {
-                restoreDialog.Destroy();
-                return;
-            }
-            
-            // a janela tem que ser destruída antes da execução pesada, pois o GC pode recolher ela durante o await.
-            // entender como fazer para manter a janela aberta durante a execução do await, para mostrar uma barra de progresso ou algo do tipo.
-            restoreDialog.Destroy();
-
-            if (data.DestinationFolder != configuration.CurrentDestination)
-            {
-                configuration.CurrentDestination = data.DestinationFolder;
-                await _configurationService.ApplyConfigurationAsync(configuration, token);
-            }
-
-            var backupId = data.BackupId;
-            var selectedDest = data.DestinationFolder;
-
-            var result = await _restoreBackupUseCase.ExecuteAsync(backupId, selectedDest, token);
-            if (result.IsError)
-            {
-                new DialogBuilder()
-                    .WithParent(this)
-                    .AsError()
-                    .WithPrimaryText("Error restoring the backup")
-                    .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
-                    .ShowAndDestroy();
-            }
-            else
-            {
-                // Show confirmation message
-                new DialogBuilder()
-                    .WithParent(this)
-                    .AsInfo()
-                    .WithPrimaryText("Restore Operation")
-                    .WithSecondaryText($"The restoration was a tremendous success!!\n\nThe backup was restored to: {selectedDest}")
-                    .ShowAndDestroy();
-            }
-        };
-
         restoreDialog.ShowAll();
+
+        var response = (ResponseType)restoreDialog.Run();
+        if (response != ResponseType.Accept)
+        {
+            restoreDialog.Destroy();
+            return;
+        }
+
+        var data = restoreDialog.GetSelectedDestination();
+        if (!data.Success)
+        {
+            restoreDialog.Destroy();
+            return;
+        }
+        
+        // TODO: buscar uma forma de manter a janela aberta enquanto o processo assíncrono pesado roda.
+        //       usar o evento `Response` e rodar o processamento dentro nao é uma boa, porque o GC mata a janela antes disso.
+        restoreDialog.Destroy();
+        
+        if (data.DestinationFolder != configuration.CurrentDestination)
+        {
+            configuration.CurrentDestination = data.DestinationFolder;
+            await _configurationService.ApplyConfigurationAsync(configuration, token);
+        }
+
+        var backupId = data.BackupId;
+        var selectedDest = data.DestinationFolder;
+
+        var result = await _restoreBackupUseCase.ExecuteAsync(backupId, selectedDest, token);
+        if (result.IsError)
+        {
+            new DialogBuilder()
+                .WithParent(this)
+                .AsError()
+                .WithPrimaryText("Error restoring the backup")
+                .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
+                .ShowAndDestroy();
+        }
+        else
+        {
+            // Show confirmation message
+            new DialogBuilder()
+                .WithParent(this)
+                .AsInfo()
+                .WithPrimaryText("Restore Operation")
+                .WithSecondaryText($"The restoration was a tremendous success!!\n\nThe backup was restored to: {selectedDest}")
+                .ShowAndDestroy();
+        }
     }
 }
