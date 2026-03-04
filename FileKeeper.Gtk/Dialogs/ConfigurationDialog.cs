@@ -9,6 +9,8 @@ public class ConfigurationDialog : Dialog
     private Label _selectedDbLabel;
     private ListStore _foldersConfigStore;
 
+    private string? _currentRestoreDestination;
+    
     public ConfigurationDialog(Window parent)
         : base("Configuration", parent, DialogFlags.Modal)
     {
@@ -197,7 +199,8 @@ public class ConfigurationDialog : Dialog
         {
             VersionsToKeep = (int)_versionSpinBtn.Value,
             DatabaseLocation = _selectedDbLabel.Text,
-            MonitoredFolders = GetFoldersFromStore()
+            MonitoredFolders = GetFoldersFromStore(),
+            CurrentRestoreDestination = _currentRestoreDestination
         };
     }
     
@@ -205,6 +208,7 @@ public class ConfigurationDialog : Dialog
     {
         _versionSpinBtn.Value = config.VersionsToKeep;
         _selectedDbLabel.Text = config.DatabaseLocation;
+        _currentRestoreDestination = config.CurrentRestoreDestination;
 
         _foldersConfigStore.Clear();
         foreach (var folder in config.MonitoredFolders)

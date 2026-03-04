@@ -22,8 +22,8 @@ public class Configuration
     [JsonPropertyName("enable_compression")]
     public bool EnableCompression { get; set; } = false;
     
-    [JsonPropertyName("current_destination")]
-    public string? CurrentDestination { get; set; }
+    [JsonPropertyName("current_restore_destination")]
+    public string? CurrentRestoreDestination { get; set; }
 
     [JsonPropertyName("last_modified")]
     public DateTime LastModified { get; set; } = DateTime.Now;

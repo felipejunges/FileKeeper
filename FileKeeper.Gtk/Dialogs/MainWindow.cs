@@ -454,7 +454,7 @@ public class MainWindow : Window
     {
         var configuration = await _configurationService.GetConfigurationAsync(token);
 
-        var restoreDialog = new RestoreDialog(this, configuration.CurrentDestination, _backupRepository);
+        var restoreDialog = new RestoreDialog(this, configuration.CurrentRestoreDestination, _backupRepository);
         await restoreDialog.LoadBackupsAsync(token);
         restoreDialog.ShowAll();
 
@@ -476,9 +476,9 @@ public class MainWindow : Window
         //       usar o evento `Response` e rodar o processamento dentro nao é uma boa, porque o GC mata a janela antes disso.
         restoreDialog.Destroy();
         
-        if (data.DestinationFolder != configuration.CurrentDestination)
+        if (data.DestinationFolder != configuration.CurrentRestoreDestination)
         {
-            configuration.CurrentDestination = data.DestinationFolder;
+            configuration.CurrentRestoreDestination = data.DestinationFolder;
             await _configurationService.ApplyConfigurationAsync(configuration, token);
         }
 
