@@ -417,8 +417,18 @@ public class MainWindow : Window
 
     private async Task CreateNewBackupAsync(CancellationToken token)
     {
-        var result = await _createBackupUseCase.ExecuteAsync(token);
+        Sensitive = false; // Desabilita a janela durante o processo
+       
+        ErrorOr.ErrorOr<Core.Models.Entities.Backup> result = default;
+        
+        // Executar em thread separada para evitar problemas com GTK
+        await Task.Run(async () =>
+        {
+            result = await _createBackupUseCase.ExecuteAsync(token);
+        }, token);
 
+        Sensitive = true; // Re-habilita a janela
+        
         if (result.IsError)
         {
             new DialogBuilder()
