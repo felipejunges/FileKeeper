@@ -12,6 +12,15 @@ public class Backup
     {
     }
 
+    public Backup(long id, DateTime createdAt, int createdFiles, int updatedFiles, int deletedFiles)
+    {
+        Id = id;
+        CreatedAt = createdAt;
+        CreatedFiles = createdFiles;
+        UpdatedFiles = updatedFiles;
+        DeletedFiles = deletedFiles;
+    }
+
     public static Backup CreateNew()
     {
         return new Backup
