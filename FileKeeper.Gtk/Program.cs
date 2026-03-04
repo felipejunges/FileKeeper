@@ -20,13 +20,14 @@ try
         {
             logging.ClearProviders();
             logging.AddConsole();
-            logging.AddFileLogger("FileKeeper", LogLevel.Information);
+            logging.AddFileLogger("FileKeeper", LogLevel.Trace);
             logging.SetMinimumLevel(LogLevel.Information);
         })
         .ConfigureServices((_, services) =>
         {
             services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
             services.AddSingleton<IRestoreBackupUseCase, RestoreBackupUseCase>();
+            services.AddSingleton<IDeleteBackupUseCase, DeleteBackupUseCase>();
 
             services.AddSingleton<IFileSystem, LocalFileSystem>();
             services.AddSingleton<IBackupRepository, BackupRepository>();

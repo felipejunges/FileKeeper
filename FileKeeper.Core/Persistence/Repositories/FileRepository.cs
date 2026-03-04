@@ -64,6 +64,31 @@ public class FileRepository : RepositoryBase, IFileRepository
         return await QueryAsync<FileToRecoverDM>(sql, new { backupId }, token);
     }
 
+    public async Task<ErrorOr<IEnumerable<FileToDeleteDM>>> GetFilesToDeleteAsync(long backupId, long? nextBackupId, CancellationToken token)
+    {
+        const string sql = @"
+            SELECT
+                fv1.Id,
+                fv1.FileId,
+                fv1.BackupId,
+                CASE
+                    WHEN fv2.Id IS NOT NULL THEN 1
+                    ELSE 0
+                END AS ExistsInNextBackup,
+                f.BackupPath,
+                f.RelativePath,
+                f.FileName
+            FROM FileVersions fv1
+            INNER JOIN Files f ON fv1.FileId = f.Id
+            LEFT JOIN FileVersions fv2
+                ON fv1.FileId = fv2.FileId
+                AND fv2.BackupId = @nextBackupId
+            WHERE fv1.BackupId = @backupId
+            AND (f.DeletedAt IS NULL OR f.DeletedAt != @nextBackupId);";
+        
+        return await QueryAsync<FileToDeleteDM>(sql, new { backupId, nextBackupId }, token);
+    }
+
     public async Task<ErrorOr<long>> InsertAsync(FileModel fileModel, CancellationToken token)
     {
         const string sql = @$"
@@ -108,13 +133,41 @@ public class FileRepository : RepositoryBase, IFileRepository
         return result.Value;
     }
 
-    public async Task<ErrorOr<int>> MarkAsDeletedAsync(List<long> idsArquivosExcluir, long backupId, CancellationToken token)
+    public async Task<ErrorOr<int>> MarkAsDeletedAsync(List<long> idsFilesToMarkAsDeleted, long backupId, CancellationToken token)
     {
         const string sql = @"
             UPDATE Files
             SET IsDeleted = 1, DeletedAt = @backupId
             WHERE Id IN @ids;";
 
-        return await ExecuteAsync(sql, new { ids = idsArquivosExcluir, backupId }, token);
+        return await ExecuteAsync(sql, new { ids = idsFilesToMarkAsDeleted, backupId }, token);
+    }
+
+    public Task<ErrorOr<int>> MoveVersionsToBackupAsync(List<long> idsVersionsToMove, long backupId, CancellationToken token)
+    {
+        const string sql = @"
+            UPDATE FileVersions
+            SET BackupId = @backupId
+            WHERE Id IN @ids;";
+
+        return ExecuteAsync(sql, new { ids = idsVersionsToMove, backupId }, token);
+    }
+
+    public Task<ErrorOr<int>> DeleteAllVersionsInBackupAsync(long backupId, CancellationToken token)
+    {
+        const string sql = @"
+            DELETE FROM FileVersions
+            WHERE BackupId = @backupId;";
+
+        return ExecuteAsync(sql, new { backupId }, token);
+    }
+
+    public Task<ErrorOr<int>> DeleteFilesWithoutVersionsAsync(CancellationToken token)
+    {
+        const string sql = @"
+            DELETE FROM Files
+            WHERE Id NOT IN (SELECT DISTINCT FileId FROM FileVersions);";
+
+        return ExecuteAsync(sql, null, token);
     }
 }
