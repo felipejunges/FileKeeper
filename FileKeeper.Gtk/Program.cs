@@ -28,6 +28,7 @@ try
             services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
             services.AddSingleton<IRestoreBackupUseCase, RestoreBackupUseCase>();
             services.AddSingleton<IDeleteBackupUseCase, DeleteBackupUseCase>();
+            services.AddSingleton<IRecycleOldBackupUseCase, RecycleOldBackupUseCase>();
 
             services.AddSingleton<IFileSystem, LocalFileSystem>();
             services.AddSingleton<IBackupRepository, BackupRepository>();
@@ -50,6 +51,7 @@ try
     var restoreBackupUseCase = host.Services.GetRequiredService<IRestoreBackupUseCase>();
     var backupRepository = host.Services.GetRequiredService<IBackupRepository>();
     var databaseService = host.Services.GetRequiredService<IDatabaseService>();
+    var recycleOldBackupUseCase = host.Services.GetRequiredService<IRecycleOldBackupUseCase>();
 
     var initResult = await databaseService.InitializeAsync(CancellationToken.None);
     if (initResult.IsError)
@@ -67,7 +69,8 @@ try
         configurationService,
         createBackupUseCase,
         restoreBackupUseCase,
-        backupRepository);
+        backupRepository,
+        recycleOldBackupUseCase);
 
     logger.LogInformation("Main window created and showing");
     win.ShowAll();

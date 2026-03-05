@@ -22,16 +22,23 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.DeletedFiles)}
             FROM Backups
             WHERE Id = @id;";
-        
+
         var result = await QuerySingleOrDefaultAsync<Backup>(sql, new { id }, token);
-        
+
         if (result.IsError)
             return result.Errors;
 
         if (result.Value is null)
             return Error.NotFound(description: "Backup not found.");
-        
+
         return result.Value;
+    }
+
+    public Task<ErrorOr<int>> GetCountAsync(CancellationToken cancellationToken)
+    {
+        const string sql = "SELECT COUNT(*) FROM Backups;";
+
+        return QuerySingleOrDefaultAsync<int>(sql, null, cancellationToken);
     }
 
     public async Task<ErrorOr<Backup>> GetNextBackupAfterAsync(DateTime createdAt, CancellationToken token)
@@ -44,16 +51,18 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.UpdatedFiles)},
                 {nameof(Backup.DeletedFiles)}
             FROM Backups
-            WHERE CreatedAt > @createdAt;";
-        
+            WHERE CreatedAt > @createdAt
+            ORDER BY CreatedAt ASC
+            LIMIT 1;";
+
         var result = await QuerySingleOrDefaultAsync<Backup>(sql, new { createdAt }, token);
-        
+
         if (result.IsError)
             return result.Errors;
 
         if (result.Value is null)
             return Error.NotFound(description: "Backup not found.");
-        
+
         return result.Value;
     }
 
@@ -68,7 +77,7 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.DeletedFiles)}
             FROM Backups
             ORDER BY {nameof(Backup.CreatedAt)} DESC;";
-        
+
         return await QueryAsync<Backup>(sql, null, token);
     }
 
@@ -116,5 +125,29 @@ public class BackupRepository : RepositoryBase, IBackupRepository
             WHERE Id = @backupId;";
 
         return ExecuteAsync(sql, new { backupId }, token);
+    }
+
+    public async Task<ErrorOr<Backup>> GetOldestAsync(CancellationToken cancellationToken)
+    {
+        const string sql = @$"
+            SELECT
+                {nameof(Backup.Id)},
+                {nameof(Backup.CreatedAt)},
+                {nameof(Backup.CreatedFiles)},
+                {nameof(Backup.UpdatedFiles)},
+                {nameof(Backup.DeletedFiles)}
+            FROM Backups
+            ORDER BY CreatedAt ASC
+            LIMIT 1;";
+
+        var backupResult = await QuerySingleOrDefaultAsync<Backup>(sql, null, cancellationToken);
+
+        if (backupResult.IsError)
+            return backupResult.Errors;
+
+        if (backupResult.Value is null)
+            return Error.NotFound(description: "No backups found.");
+
+        return backupResult.Value;
     }
 }

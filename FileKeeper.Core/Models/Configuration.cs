@@ -7,20 +7,20 @@ public class Configuration
     [JsonPropertyName("monitored_folders")]
     public List<string> MonitoredFolders { get; set; } = new();
 
+    [JsonPropertyName("database_location")]
+    public string DatabaseLocation { get; set; } = "";
+    
     [JsonPropertyName("versions_to_keep")]
     public int VersionsToKeep { get; set; } = 5;
 
-    [JsonPropertyName("database_location")]
-    public string DatabaseLocation { get; set; } = "";
-
     [JsonPropertyName("auto_backup_interval_minutes")]
-    public int AutoBackupIntervalMinutes { get; set; } = 0;
+    public int AutoBackupIntervalMinutes { get; set; } = 0; // TODO: implement this on the Console or Service
 
     [JsonPropertyName("max_database_size_mb")]
-    public int MaxDatabaseSizeMb { get; set; } = 0;
+    public long MaxDatabaseSizeMb { get; set; } = 0;
 
     [JsonPropertyName("enable_compression")]
-    public bool EnableCompression { get; set; } = false;
+    public bool EnableCompression { get; set; } = false; // TODO; consider this flag in the UseCases
     
     [JsonPropertyName("current_restore_destination")]
     public string? CurrentRestoreDestination { get; set; }

@@ -6,6 +6,8 @@ namespace FileKeeper.Gtk.Dialogs;
 public class ConfigurationDialog : Dialog
 {
     private SpinButton _versionSpinBtn;
+    private SpinButton _maxDatabaseSizeSpinBtn;
+    private CheckButton _enableCompressionCheckBtn;
     private Label _selectedDbLabel;
     private ListStore _foldersConfigStore;
 
@@ -17,6 +19,8 @@ public class ConfigurationDialog : Dialog
         SetDefaultSize(600, 500);
 
         _versionSpinBtn = new SpinButton(1, 100, 1);
+        _maxDatabaseSizeSpinBtn = new SpinButton(0, 102400, 10);
+        _enableCompressionCheckBtn = new CheckButton("Enable compression");
         _selectedDbLabel = new Label(Environment.GetEnvironmentVariable("HOME") ?? "/home");
         _foldersConfigStore = new ListStore(typeof(string));
         
@@ -150,7 +154,27 @@ public class ConfigurationDialog : Dialog
         _versionSpinBtn.WidthRequest = 80;
         versionBox.PackStart(_versionSpinBtn, false, false, 0);
 
+        Label maxDbSizeLabel = new Label("Max database size (MB):");
+        versionBox.PackStart(maxDbSizeLabel, false, false, 0);
+
+        _maxDatabaseSizeSpinBtn.Value = 0;
+        _maxDatabaseSizeSpinBtn.WidthRequest = 100;
+        versionBox.PackStart(_maxDatabaseSizeSpinBtn, false, false, 0);
+
         mainBox.PackStart(versionBox, false, false, 0);
+
+        Box compressionBox = new Box(Orientation.Vertical, 5);
+
+        Label compressionLabel = new Label("<b>Compression:</b>");
+        compressionLabel.UseMarkup = true;
+        compressionLabel.Xalign = 0;
+        compressionBox.PackStart(compressionLabel, false, false, 0);
+
+        _enableCompressionCheckBtn.Active = false;
+        _enableCompressionCheckBtn.Halign = Align.Start;
+        compressionBox.PackStart(_enableCompressionCheckBtn, false, false, 0);
+
+        mainBox.PackStart(compressionBox, false, false, 0);
 
         // Database File Location Section
         Label dbLabel = new Label("<b>Database File Location:</b>");
@@ -198,6 +222,8 @@ public class ConfigurationDialog : Dialog
         return new Configuration
         {
             VersionsToKeep = (int)_versionSpinBtn.Value,
+            MaxDatabaseSizeMb = (long)_maxDatabaseSizeSpinBtn.Value,
+            EnableCompression = _enableCompressionCheckBtn.Active,
             DatabaseLocation = _selectedDbLabel.Text,
             MonitoredFolders = GetFoldersFromStore(),
             CurrentRestoreDestination = _currentRestoreDestination
@@ -207,6 +233,8 @@ public class ConfigurationDialog : Dialog
     public void SetConfiguration(Configuration config)
     {
         _versionSpinBtn.Value = config.VersionsToKeep;
+        _maxDatabaseSizeSpinBtn.Value = config.MaxDatabaseSizeMb;
+        _enableCompressionCheckBtn.Active = config.EnableCompression;
         _selectedDbLabel.Text = config.DatabaseLocation;
         _currentRestoreDestination = config.CurrentRestoreDestination;
 

@@ -182,7 +182,36 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             return Error.Failure("database.version_check_failed", $"Failed to get database version: {ex.Message}");
         }
     }
-
+    
+    public async Task<ErrorOr<long>> GetDatabaseSizeAsync(CancellationToken token)
+    {
+        try
+        {
+            await OpenConnectionAsync(token);
+    
+            const string sql = "PRAGMA page_count;";
+            using var cmd = new SQLiteCommand(sql, _connection);
+            
+            var pageCount = await Task.Run(() => cmd.ExecuteScalar(), token);
+            
+            const string pageSizeSql = "PRAGMA page_size;";
+            using var pageSizeCmd = new SQLiteCommand(pageSizeSql, _connection);
+            
+            var pageSize = await Task.Run(() => pageSizeCmd.ExecuteScalar(), token);
+    
+            if (pageCount is int pages && pageSize is int size)
+            {
+                return (long)pages * size;
+            }
+    
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            return Error.Failure("database.size_check_failed", $"Failed to get database size: {ex.Message}");
+        }
+    }
+    
     public async Task<ErrorOr<Success>> MigrateAsync(int targetVersion, CancellationToken token)
     {
         try
