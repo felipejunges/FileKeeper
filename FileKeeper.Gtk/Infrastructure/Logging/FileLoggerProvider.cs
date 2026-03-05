@@ -1,3 +1,4 @@
+using FileKeeper.Core.Application;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -21,11 +22,17 @@ public class FileLoggerProvider : ILoggerProvider
         _minimumLevel = minimumLevel;
         _loggers = new ConcurrentDictionary<string, FileLoggerInstance>();
         
-        _logsDirectory = Path.Combine(
+        var paths = new List<string>
+        {
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            applicationName,
-            "Logs"
-        );
+            "FileKeeper",
+            "logs"
+        };
+
+        if (ApplicationInfo.IsDebug)
+            paths.Insert(2, "debug");
+
+        _logsDirectory = Path.Combine(paths.ToArray());
 
         if (!Directory.Exists(_logsDirectory))
         {
