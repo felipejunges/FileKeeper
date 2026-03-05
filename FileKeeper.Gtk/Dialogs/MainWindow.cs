@@ -421,65 +421,90 @@ public class MainWindow : Window
     private async Task CreateNewBackupAsync(CancellationToken token)
     {
         Sensitive = false;
-       
-        ErrorOr.ErrorOr<Core.Models.Entities.Backup> result = default;
-        
-        // Executar em thread separada para evitar problemas com GTK
-        await Task.Run(async () =>
-        {
-            result = await _createBackupUseCase.ExecuteAsync(token);
-        }, token);
 
-        Sensitive = true;
-        
-        if (result.IsError)
+        try
         {
-            new DialogBuilder()
-                .WithParent(this)
-                .AsError()
-                .WithPrimaryText("Backup Creation Failed")
-                .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
-                .ShowAndDestroy();
+            ErrorOr.ErrorOr<Core.Models.Entities.Backup> result = default;
 
-            return;
-        }
-
-        var recycleQuestion = new DialogBuilder()
-            .WithParent(this)
-            .AsQuestion()
-            .WithMessageType(MessageType.Question)
-            .WithButtonsType(ButtonsType.YesNo)
-            .WithPrimaryText("Backup creation success!")
-            .WithSecondaryText(
-                $"{result.Value.CreatedFiles} files created.\n{result.Value.UpdatedFiles} files updated.\n{result.Value.DeletedFiles} files deleted.\n\nDo you want to run backup recycle, if needed?")
-            .ShowAndDestroy();
-        
-        if (recycleQuestion == (int)ResponseType.Yes)
-        {
-            ErrorOr.ErrorOr<int> recycleResult = default;
+            // Run the backup operation on a background thread
             await Task.Run(async () =>
             {
-                recycleResult = await _recycleOldBackupUseCase.ExecuteAsync(token);
+                result = await _createBackupUseCase.ExecuteAsync(token);
             }, token);
-            
-            if (recycleResult.IsError)
+
+            Sensitive = true;
+
+            if (result.IsError)
             {
                 new DialogBuilder()
                     .WithParent(this)
                     .AsError()
-                    .WithPrimaryText("Backup Recycle Failed")
-                    .WithSecondaryText(string.Join("\n", recycleResult.Errors.Select(e => e.Description)))
+                    .WithPrimaryText("Backup Creation Failed")
+                    .WithSecondaryText(string.Join("\n", result.Errors.Select(e => e.Description)))
                     .ShowAndDestroy();
+
+                return;
             }
-            else
+
+            var recycleQuestion = new DialogBuilder()
+                .WithParent(this)
+                .AsQuestion()
+                .WithMessageType(MessageType.Question)
+                .WithButtonsType(ButtonsType.YesNo)
+                .WithPrimaryText("Backup creation success!")
+                .WithSecondaryText(
+                    $"{result.Value.CreatedFiles} files created.\n{result.Value.UpdatedFiles} files updated.\n{result.Value.DeletedFiles} files deleted.\n\nDo you want to run backup recycle, if needed?")
+                .ShowAndDestroy();
+
+            if (recycleQuestion == (int)ResponseType.Yes)
             {
-                new DialogBuilder()
-                    .WithParent(this)
-                    .AsInfo()
-                    .WithPrimaryText("Backup Recycle Completed")
-                    .WithSecondaryText($"{recycleResult.Value} backups were recycled.")
-                    .ShowAndDestroy();
+                Sensitive = false;
+
+                try
+                {
+                    ErrorOr.ErrorOr<int> recycleResult = default;
+                    await Task.Run(async () =>
+                    {
+                        recycleResult = await _recycleOldBackupUseCase.ExecuteAsync(token);
+                    }, token);
+
+                    Sensitive = true;
+
+                    if (recycleResult.IsError)
+                    {
+                        new DialogBuilder()
+                            .WithParent(this)
+                            .AsError()
+                            .WithPrimaryText("Backup Recycle Failed")
+                            .WithSecondaryText(string.Join("\n", recycleResult.Errors.Select(e => e.Description)))
+                            .ShowAndDestroy();
+                    }
+                    else
+                    {
+                        new DialogBuilder()
+                            .WithParent(this)
+                            .AsInfo()
+                            .WithPrimaryText("Backup Recycle Completed")
+                            .WithSecondaryText($"{recycleResult.Value} backups were recycled.")
+                            .ShowAndDestroy();
+                    }
+                }
+                catch
+                {
+                    Sensitive = true;
+                    throw;
+                }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            Sensitive = true;
+        }
+        catch (Exception ex)
+        {
+            Sensitive = true;
+            Console.WriteLine($"Error in CreateNewBackupAsync: {ex.Message}");
+            throw;
         }
     }
 
