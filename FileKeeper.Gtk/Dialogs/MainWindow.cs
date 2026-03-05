@@ -24,18 +24,21 @@ public class MainWindow : Window
     private readonly ICreateBackupUseCase _createBackupUseCase;
     private readonly IRestoreBackupUseCase _restoreBackupUseCase;
     private readonly IBackupRepository _backupRepository;
+    private readonly IRecycleOldBackupUseCase _recycleOldBackupUseCase;
 
     public MainWindow(
         IConfigurationService configurationService,
         ICreateBackupUseCase createBackupUseCase,
         IRestoreBackupUseCase restoreBackupUseCase,
-        IBackupRepository backupRepository)
+        IBackupRepository backupRepository,
+        IRecycleOldBackupUseCase recycleOldBackupUseCase)
         : base("File Browser with Versions")
     {
         _configurationService = configurationService;
         _createBackupUseCase = createBackupUseCase;
         _restoreBackupUseCase = restoreBackupUseCase;
         _backupRepository = backupRepository;
+        _recycleOldBackupUseCase = recycleOldBackupUseCase;
 
         var defaultCancellationTokenSource = new CancellationTokenSource();
 
@@ -417,7 +420,7 @@ public class MainWindow : Window
 
     private async Task CreateNewBackupAsync(CancellationToken token)
     {
-        Sensitive = false; // Desabilita a janela durante o processo
+        Sensitive = false;
        
         ErrorOr.ErrorOr<Core.Models.Entities.Backup> result = default;
         
@@ -427,7 +430,7 @@ public class MainWindow : Window
             result = await _createBackupUseCase.ExecuteAsync(token);
         }, token);
 
-        Sensitive = true; // Re-habilita a janela
+        Sensitive = true;
         
         if (result.IsError)
         {
@@ -441,13 +444,43 @@ public class MainWindow : Window
             return;
         }
 
-        new DialogBuilder()
+        var recycleQuestion = new DialogBuilder()
             .WithParent(this)
-            .AsInfo()
-            .WithPrimaryText("Create Backup")
+            .AsQuestion()
+            .WithMessageType(MessageType.Question)
+            .WithButtonsType(ButtonsType.YesNo)
+            .WithPrimaryText("Backup creation success!")
             .WithSecondaryText(
-                $"Backup creation success!\n\n{result.Value.CreatedFiles} files created.\n{result.Value.UpdatedFiles} files updated.\n{result.Value.DeletedFiles} files deleted.")
+                $"{result.Value.CreatedFiles} files created.\n{result.Value.UpdatedFiles} files updated.\n{result.Value.DeletedFiles} files deleted.\n\nDo you want to run backup recycle, if needed?")
             .ShowAndDestroy();
+        
+        if (recycleQuestion == (int)ResponseType.Yes)
+        {
+            ErrorOr.ErrorOr<int> recycleResult = default;
+            await Task.Run(async () =>
+            {
+                recycleResult = await _recycleOldBackupUseCase.ExecuteAsync(token);
+            }, token);
+            
+            if (recycleResult.IsError)
+            {
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsError()
+                    .WithPrimaryText("Backup Recycle Failed")
+                    .WithSecondaryText(string.Join("\n", recycleResult.Errors.Select(e => e.Description)))
+                    .ShowAndDestroy();
+            }
+            else
+            {
+                new DialogBuilder()
+                    .WithParent(this)
+                    .AsInfo()
+                    .WithPrimaryText("Backup Recycle Completed")
+                    .WithSecondaryText($"{recycleResult.Value} backups were recycled.")
+                    .ShowAndDestroy();
+            }
+        }
     }
 
     private async Task ShowRestoreDialogAsync(CancellationToken token)
