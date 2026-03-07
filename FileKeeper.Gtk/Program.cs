@@ -15,6 +15,17 @@ using Microsoft.Extensions.Logging;
 
 try
 {
+    AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+    {
+        Console.WriteLine($"[AppDomain.UnhandledException] {eventArgs.ExceptionObject}");
+    };
+
+    TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+    {
+        Console.WriteLine($"[TaskScheduler.UnobservedTaskException] {eventArgs.Exception}");
+        eventArgs.SetObserved();
+    };
+
     var host = Host.CreateDefaultBuilder(args)
         .ConfigureLogging((_, logging) =>
         {
@@ -64,6 +75,7 @@ try
     logger.LogInformation("Database initialized successfully");
 
     Application.Init();
+    //SynchronizationContext.SetSynchronizationContext(new GLib.GLibSynchronizationContext());
 
     var win = new MainWindow(
         configurationService,
