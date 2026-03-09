@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FileKeeper.UI.ViewModels"
+        x:Class="FileKeeper.UI.Views.ConfigurationWindow"
+        x:DataType="vm:ConfigurationWindowViewModel"
+        Title="Configuration"
+        WindowStartupLocation="CenterScreen"
+        Width="500" Height="500">
+
+    <Grid RowDefinitions="*,Auto" Margin="20">
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="15">
+                <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Margin="0,0,0,10" />
+
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Database Location" FontWeight="SemiBold" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Text="{Binding DatabaseLocation}" />
+                        <Button Grid.Column="1" Margin="5,0,0,0">
+                            <TextBlock Text="📁" />
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Versions to Keep" FontWeight="SemiBold" />
+                    <NumericUpDown Value="{Binding VersionsToKeep}" Minimum="1" Maximum="100" />
+                </StackPanel>
+
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Auto Backup Interval (Minutes)" FontWeight="SemiBold" />
+                    <NumericUpDown Value="{Binding AutoBackupIntervalMinutes}" Minimum="0" />
+                    <TextBlock Text="Set to 0 to disable" FontSize="11" Foreground="Gray" />
+                </StackPanel>
+
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Max Database Size (MB)" FontWeight="SemiBold" />
+                    <NumericUpDown Value="{Binding MaxDatabaseSizeMb}" Minimum="0" />
+                </StackPanel>
+
+                <CheckBox IsChecked="{Binding EnableCompression}" Content="Enable Compression" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+            <Button Command="{Binding SaveConfigurationCommand}" HotKey="Ctrl+S">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Text="💾 Save" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

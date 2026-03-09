@@ -1,0 +1,124 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FileKeeper.UI.ViewModels"
+        xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="FileKeeper.UI.Views.MainWindow"
+        x:Name="RootWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="FileKeeper - Backups"
+        WindowStartupLocation="CenterScreen"
+        Width="900" Height="600">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Error Message -->
+        <Border Grid.Row="0"
+                Background="#FFE74C3C"
+                IsVisible="{Binding IsErrorVisible}"
+                Padding="10"
+                CornerRadius="4"
+                Margin="10,10,10,0">
+            <TextBlock Text="{Binding ErrorMessage}"
+                       Foreground="White"
+                       TextWrapping="Wrap" />
+        </Border>
+        
+        <!-- Backup List -->
+        <ScrollViewer Grid.Row="1" Margin="10"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Backups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,10"
+                                Padding="12"
+                                CornerRadius="10"
+                                BorderBrush="#DDDDDD"
+                                BorderThickness="1"
+                                Background="#FAFAFA"
+                                Cursor="Hand">
+                            <Interaction.Behaviors>
+                                <EventTriggerBehavior EventName="Tapped">
+                                    <InvokeCommandAction Command="{Binding DataContext.OpenBackupDetailsCommand, ElementName=RootWindow}"
+                                                         CommandParameter="{Binding}" />
+                                </EventTriggerBehavior>
+                            </Interaction.Behaviors>
+                            
+                            <Grid ColumnDefinitions="2*,Auto,Auto,Auto,Auto"
+                                  RowDefinitions="Auto,Auto"
+                                  ColumnSpacing="12"
+                                  RowSpacing="6">
+
+                                <TextBlock Grid.Column="0"
+                                           Grid.Row="0"
+                                           Text="{Binding CreatedAt, StringFormat='Backup em \{0:dd/MM/yyyy HH:mm\}'}"
+                                           FontWeight="SemiBold"
+                                           FontSize="14" />
+
+                                <Border Grid.Column="1" Grid.Row="0" Background="#E8F5E9" CornerRadius="8" Padding="8,3">
+                                    <TextBlock Text="{Binding CreatedFiles, StringFormat='+ \{0\}'}" Foreground="#2E7D32" />
+                                </Border>
+
+                                <Border Grid.Column="2" Grid.Row="0" Background="#E3F2FD" CornerRadius="8" Padding="8,3">
+                                    <TextBlock Text="{Binding UpdatedFiles, StringFormat='~ \{0\}'}" Foreground="#1565C0" />
+                                </Border>
+
+                                <Border Grid.Column="3" Grid.Row="0" Background="#FFEBEE" CornerRadius="8" Padding="8,3">
+                                    <TextBlock Text="{Binding DeletedFiles, StringFormat='- \{0\}'}" Foreground="#C62828" />
+                                </Border>
+
+                                <TextBlock Grid.Column="4"
+                                           Grid.Row="0"
+                                           Text="{Binding Id, StringFormat='Tamanho: \{0\} MB'}"
+                                           VerticalAlignment="Center"
+                                           Opacity="0.8" />
+
+                                <TextBlock Grid.Column="0"
+                                           Grid.Row="1"
+                                           Grid.ColumnSpan="6"
+                                           Text="Resumo do backup"
+                                           Opacity="0.65"
+                                           FontSize="12" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="20">
+                    <TextBlock Text="{Binding BackupCountText}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding TotalSizeText}" FontWeight="SemiBold" />
+                </StackPanel>
+                
+                <Button Grid.Column="1" Command="{Binding CreateBackupCommand}" IsEnabled="{Binding !CreateBackupCommand.IsRunning}" Margin="5,0" ToolTip.Tip="Create New Backup">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="➕ New Backup" />
+                    </StackPanel>
+                </Button>
+
+                <Button Grid.Column="2" Command="{Binding OpenFilesCommand}" Margin="5,0" ToolTip.Tip="View All Files">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="📂 Files" />
+                    </StackPanel>
+                </Button>
+
+                <Button Grid.Column="3" Command="{Binding OpenConfigurationCommand}" ToolTip.Tip="Settings">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="⚙️ Configuration" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -111,7 +111,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
             var fileAction = ObtainFileAction(storedFile, localFileHash);
             
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "File '{FileName}' in folder '{Folder}' determined to be '{FileAction}' for backup ID {BackupId}.",
                 fileName,
                 backupPath,
