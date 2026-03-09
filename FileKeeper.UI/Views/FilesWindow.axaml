@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FileKeeper.UI.ViewModels"
+        x:Class="FileKeeper.UI.Views.FilesWindow"
+        x:DataType="vm:FilesWindowViewModel"
+        Title="File Explorer"
+        WindowStartupLocation="CenterScreen"
+        Width="800" Height="600">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header & Breadcrumbs -->
+        <StackPanel Grid.Row="0" Margin="10" Orientation="Horizontal" Spacing="10">
+            <TextBlock Text="📂" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentDirectory}" VerticalAlignment="Center" FontWeight="Bold" />
+        </StackPanel>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,2*">
+            <!-- File List -->
+            <ListBox Grid.Column="0" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <TextBlock Text="📄" />
+                            <TextBlock Text="{Binding FileName}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Versions View -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="10,0,0,0">
+                <TextBlock Grid.Row="0" Text="File Versions" Margin="0,0,0,5" FontWeight="SemiBold" />
+                <ListBox Grid.Row="1" ItemsSource="{Binding SelectedFileVersions}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding CurrentHash}" FontSize="12" Foreground="Gray" />
+                                    <TextBlock Text="{Binding BackupPath}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" VerticalAlignment="Center" Margin="5">
+                                    <TextBlock Text="🕒" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Grid>
+
+        <!-- Actions Footer -->
+        <Border Grid.Row="2" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Command="{Binding RestoreBackupCommand}" Background="#E1F5FE">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="⬇️ Restore Backup" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding DeleteBackupCommand}" Background="#FFEBEE">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="🗑️ Delete Backup" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
