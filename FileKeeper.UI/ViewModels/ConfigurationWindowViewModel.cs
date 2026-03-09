@@ -3,65 +3,52 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Interfaces.Services;
+using System.Threading;
 
 namespace FileKeeper.UI.ViewModels;
 
-public partial class ConfigurationWindowViewModel : ViewModelBase
+public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializable
 {
-    private readonly IConfigurationService? _configService;
+    private readonly IConfigurationService? _configurationService;
 
-    [ObservableProperty]
-    private string _databaseLocation = string.Empty;
+    [ObservableProperty] private string _databaseLocation = string.Empty;
 
-    [ObservableProperty]
-    private int _versionsToKeep;
+    [ObservableProperty] private int _versionsToKeep;
 
-    [ObservableProperty]
-    private int _autoBackupIntervalMinutes;
+    [ObservableProperty] private int _autoBackupIntervalMinutes;
 
-    [ObservableProperty]
-    private long _maxDatabaseSizeMb;
+    [ObservableProperty] private long _maxDatabaseSizeMb;
 
-    [ObservableProperty]
-    private bool _enableCompression;
+    [ObservableProperty] private bool _enableCompression;
 
-    public ConfigurationWindowViewModel()
+    public ConfigurationWindowViewModel(IConfigurationService configurationService)
     {
-        // Parameterless constructor for XAML previewer or simple DI
-        LoadMockData();
+        _configurationService = configurationService;
+    }
+    
+    public async Task InitializeAsync()
+    {
+        var ct = new CancellationTokenSource().Token;
+        await LoadConfigurationAsync(ct);
     }
 
-    public ConfigurationWindowViewModel(IConfigurationService configService)
+    private async Task LoadConfigurationAsync(CancellationToken cancellationToken)
     {
-        _configService = configService;
-        LoadConfiguration();
-    }
-
-    private void LoadMockData()
-    {
-        DatabaseLocation = "C:\\FileKeeper\\filekeeper.db";
-        VersionsToKeep = 5;
-        AutoBackupIntervalMinutes = 60;
-        MaxDatabaseSizeMb = 1024;
-        EnableCompression = true;
-    }
-
-    private async void LoadConfiguration()
-    {
-        if (_configService == null) return;
-        var config = await _configService.GetConfigurationAsync(default);
-        DatabaseLocation = config.DatabaseLocation;
-        VersionsToKeep = config.VersionsToKeep;
-        AutoBackupIntervalMinutes = config.AutoBackupIntervalMinutes;
-        MaxDatabaseSizeMb = config.MaxDatabaseSizeMb;
-        EnableCompression = config.EnableCompression;
+        if (_configurationService == null) return;
+        var configuration = await _configurationService.GetConfigurationAsync(cancellationToken);
+        
+        DatabaseLocation = configuration.DatabaseLocation;
+        VersionsToKeep = configuration.VersionsToKeep;
+        AutoBackupIntervalMinutes = configuration.AutoBackupIntervalMinutes;
+        MaxDatabaseSizeMb = configuration.MaxDatabaseSizeMb;
+        EnableCompression = configuration.EnableCompression;
     }
 
     [RelayCommand]
-    private async Task SaveConfiguration()
+    private async Task SaveConfiguration(CancellationToken cancellationToken)
     {
-        if (_configService == null) return;
-        
+        if (_configurationService == null) return;
+
         var config = new Configuration
         {
             DatabaseLocation = DatabaseLocation,
@@ -71,6 +58,6 @@ public partial class ConfigurationWindowViewModel : ViewModelBase
             EnableCompression = EnableCompression
         };
 
-        await _configService.ApplyConfigurationAsync(config, default);
+        await _configurationService.ApplyConfigurationAsync(config, cancellationToken);
     }
 }
