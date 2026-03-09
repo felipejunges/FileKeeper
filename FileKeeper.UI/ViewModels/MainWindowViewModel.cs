@@ -37,13 +37,18 @@ public partial class MainWindowViewModel : ViewModelBase, IInitializable
     public async Task InitializeAsync()
     {
         var ct = new CancellationTokenSource().Token;
-        var backupsResult = await _backupRepository.GetAllAsync(ct);
-        var backups = backupsResult.IsError ? [] : backupsResult.Value;
-        
-        Backups = new ObservableCollection<Backup>(backups);
+        await UpdateBackupListAsync(ct);
         
         BackupCountText = $"Backups: {Backups.Count}";
         TotalSizeText = "Total Size: 127 MB (Mocked)";
+    }
+
+    private async Task UpdateBackupListAsync(CancellationToken cancellationToken)
+    {
+        var backupsResult = await _backupRepository.GetAllAsync(cancellationToken);
+        var backups = backupsResult.IsError ? [] : backupsResult.Value;
+        
+        Backups = new ObservableCollection<Backup>(backups);
     }
 
     [RelayCommand]
@@ -76,5 +81,7 @@ public partial class MainWindowViewModel : ViewModelBase, IInitializable
             ErrorMessage = $"Falha ao criar backup: {result.FirstError.Description}";
             IsErrorVisible = true;
         }
+        
+        await UpdateBackupListAsync(cancellationToken);
     }
 }
