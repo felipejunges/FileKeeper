@@ -1,6 +1,6 @@
 # FileKeeper
 
-FileKeeper is a **Backup Manager** project built with **.NET 10** and **GTK**.
+FileKeeper is a **Backup Manager** project built with **.NET 10** and **AvaloniaUI**.
 
 > **Status:** Under development.
 
@@ -16,36 +16,48 @@ FileKeeper is designed to keep backup management simple and portable:
 
 - **Incremental backups**: only changed data is added in new backup cycles.
 - **Backup recycling**: includes options to recycle/remove old backups.
-- **Desktop interface with GTK** for local backup management.
+- **Desktop interface with AvaloniaUI** for local backup management.
 
 ## Tech Stack
 
 - **.NET 10**
-- **GTK**
+- **AvaloniaUI**
 - **SQLite**
 
 ## Goal
 
-Provide a lightweight, desktop-friendly backup manager that keeps historical backups organized while reducing storage usage with incremental backup strategy and old backup recycling. The goal is to make this app run on both Linux and Windows.
+Provide a lightweight, desktop-friendly backup manager that keeps historical backups organized while reducing storage usage with incremental backup strategy and old backup recycling. AvaloniaUI is used so the app builds for both Linux and Windows.
 
 ## How to Run
 
 From the project root, run:
 
 ```bash
-dotnet run --project FileKeeper.Gtk
+dotnet run --project FileKeeper.UI
 ```
 
-## Building single executable (Linux and Windows):
+## Building single executable (Linux and Windows)
 
-If you like, you can build this project as a Linux single file:
+AvaloniaUI enables cross-platform desktop builds. You can publish a single-file executable for Linux and Windows:
+
+#### For Linux single file:
 
 ```bash
-dotnet publish -c Release -o publish -r linux-x64 --self-contained true FileKeeper.Gtk/FileKeeper.Gtk.csproj
+dotnet publish -c Release -o publish -r linux-x64 --self-contained true FileKeeper.UI/FileKeeper.UI.csproj
 ```
 
-For Windows single file:
+Optionally, you can configure the binary in the system `bin` folder:
+```bash
+sudo cp publish/libe_sqlite3.so /usr/local/lib/
+sudo ldconfig
+
+sudo cp publish/FileKeeper /usr/local/bin/
+```
+
+Now, the `FileKeeper` binary is available in any directory of the system.
+
+#### For Windows single file:
 
 ```bash
-dotnet publish -c Release -o publish -r win-x64 --self-contained true FileKeeper.Gtk/FileKeeper.Gtk.csproj
+dotnet publish -c Release -o publish -r win-x64 --self-contained true FileKeeper.UI/FileKeeper.UI.csproj
 ```
