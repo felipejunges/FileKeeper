@@ -11,7 +11,9 @@ using Microsoft.Extensions.DependencyInjection;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Services;
 using FileKeeper.Core.Interfaces.Persistence;
+using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Persistence;
+using FileKeeper.Core.Persistence.Repositories;
 using System;
 
 namespace FileKeeper.UI;
@@ -36,7 +38,11 @@ public partial class App : Application
             DisableAvaloniaDataAnnotationValidation();
             
             var mainWindow = new MainWindow();
-            mainWindow.DataContext = Services.GetRequiredService<MainWindowViewModel>();
+            
+            var vm = Services.GetRequiredService<MainWindowViewModel>();
+            vm.InitializeAsync();
+            
+            mainWindow.DataContext = vm;
             desktop.MainWindow = mainWindow;
         }
 
@@ -53,6 +59,10 @@ public partial class App : Application
         // Services
         services.AddSingleton<IConfigurationStore, ConfigurationStore>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
+        services.AddSingleton<IDatabaseService, DatabaseService>();
+        
+        // Repositories
+        services.AddSingleton<IBackupRepository, BackupRepository>();
     }
 
     private void DisableAvaloniaDataAnnotationValidation()

@@ -3,31 +3,36 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using FileKeeper.Core.Models.Entities;
 using CommunityToolkit.Mvvm.ComponentModel;
+using FileKeeper.Core.Interfaces.Repositories;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FileKeeper.UI.ViewModels;
 
-public partial class MainWindowViewModel : ViewModelBase
+public partial class MainWindowViewModel : ViewModelBase, IInitializable
 {
-    [ObservableProperty]
-    private ObservableCollection<Backup> _backups = new();
+    [ObservableProperty] private ObservableCollection<Backup> _backups = new();
 
-    [ObservableProperty]
-    private string _backupCountText = "Backups: 0";
+    [ObservableProperty] private string _backupCountText = "Backups: 0";
 
-    [ObservableProperty]
-    private string _totalSizeText = "Total Size: 0 MB";
+    [ObservableProperty] private string _totalSizeText = "Total Size: 0 MB";
 
-    public MainWindowViewModel()
+    private readonly IBackupRepository _backupRepository;
+    
+    public MainWindowViewModel(
+        IBackupRepository backupRepository)
     {
-        // Mock data
-        Backups.Add(new Backup(1, DateTime.Now.AddDays(-1), 10, 5, 2));
-        Backups.Add(new Backup(2, DateTime.Now, 2, 8, 1));
-        
-        UpdateFooter();
+        _backupRepository = backupRepository;
     }
-
-    private void UpdateFooter()
+    
+    public async Task InitializeAsync()
     {
+        var ct = new CancellationTokenSource().Token;
+        var backupsResult = await _backupRepository.GetAllAsync(ct);
+        var backups = backupsResult.IsError ? [] : backupsResult.Value;
+        
+        Backups = new ObservableCollection<Backup>(backups);
+        
         BackupCountText = $"Backups: {Backups.Count}";
         TotalSizeText = "Total Size: 127 MB (Mocked)";
     }

@@ -24,7 +24,15 @@ public class ViewLocator : IDataTemplate
 
         if (type != null)
         {
-            return (Control)Activator.CreateInstance(type)!;
+            var view = (Control)Activator.CreateInstance(type)!;
+            
+            // Chamar InitializeAsync se a ViewModel implementar IInitializable
+            if (param is IInitializable initializable)
+            {
+                _ = initializable.InitializeAsync();
+            }
+
+            return view;
         }
         
         return new TextBlock { Text = "Not Found: " + name };
