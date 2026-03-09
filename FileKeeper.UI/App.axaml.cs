@@ -12,8 +12,13 @@ using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Services;
 using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Persistence;
 using FileKeeper.Core.Persistence.Repositories;
+using FileKeeper.Core.UseCases;
+using FileKeeper.UI.Infrastructure.Logging;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 
 namespace FileKeeper.UI;
@@ -21,6 +26,7 @@ namespace FileKeeper.UI;
 public partial class App : Application
 {
     public IServiceProvider? Services { get; private set; }
+    private IHost? _host;
 
     public override void Initialize()
     {
@@ -29,10 +35,25 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        var serviceCollection = new ServiceCollection();
-        ConfigureServices(serviceCollection);
-        Services = serviceCollection.BuildServiceProvider();
+        _host = Host.CreateDefaultBuilder()
+            .ConfigureLogging((_, logging) =>
+            {
+                logging.ClearProviders();
+                logging.AddConsole();
+                logging.AddFileLogger("FileKeeper", LogLevel.Trace); // Se você tiver o FileLogger
+                logging.SetMinimumLevel(LogLevel.Information);
+            })
+            .ConfigureServices((_, services) =>
+            {
+                ConfigureServices(services);
+            })
+            .Build();
+        
+        Services = _host.Services;
 
+        var logger = Services.GetRequiredService<ILogger<App>>();
+        logger.LogInformation("========== Application Starting ==========");
+        
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             DisableAvaloniaDataAnnotationValidation();
@@ -44,6 +65,11 @@ public partial class App : Application
             
             mainWindow.DataContext = vm;
             desktop.MainWindow = mainWindow;
+            
+            desktop.ShutdownRequested += (s, e) =>
+            {
+                logger.LogInformation("========== Application Closing ==========");
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -59,10 +85,15 @@ public partial class App : Application
         // Services
         services.AddSingleton<IConfigurationStore, ConfigurationStore>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
+        services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<IDatabaseService, DatabaseService>();
         
         // Repositories
         services.AddSingleton<IBackupRepository, BackupRepository>();
+        services.AddSingleton<IFileRepository, FileRepository>();
+        
+        // UseCases
+        services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
     }
 
     private void DisableAvaloniaDataAnnotationValidation()
