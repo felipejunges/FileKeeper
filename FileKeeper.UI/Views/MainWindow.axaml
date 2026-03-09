@@ -42,8 +42,16 @@
                                 CornerRadius="10"
                                 BorderBrush="#DDDDDD"
                                 BorderThickness="1"
-                                Background="#FAFAFA">
-                            <Grid ColumnDefinitions="2*,Auto,Auto,Auto,Auto,Auto"
+                                Background="#FAFAFA"
+                                Cursor="Hand">
+                            <Interaction.Behaviors>
+                                <EventTriggerBehavior EventName="Tapped">
+                                    <InvokeCommandAction Command="{Binding DataContext.OpenBackupDetailsCommand, ElementName=RootWindow}"
+                                                         CommandParameter="{Binding}" />
+                                </EventTriggerBehavior>
+                            </Interaction.Behaviors>
+                            
+                            <Grid ColumnDefinitions="2*,Auto,Auto,Auto,Auto"
                                   RowDefinitions="Auto,Auto"
                                   ColumnSpacing="12"
                                   RowSpacing="6">
@@ -71,14 +79,6 @@
                                            Text="{Binding Id, StringFormat='Tamanho: \{0\} MB'}"
                                            VerticalAlignment="Center"
                                            Opacity="0.8" />
-
-                                <Button Grid.Column="5"
-                                        Grid.Row="0"
-                                        Command="{Binding DataContext.OpenBackupDetailsCommand, ElementName=RootWindow}"
-                                        CommandParameter="{Binding}"
-                                        Padding="8,4">
-                                    <TextBlock Text="📁 Abrir" />
-                                </Button>
 
                                 <TextBlock Grid.Column="0"
                                            Grid.Row="1"
