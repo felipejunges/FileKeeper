@@ -78,7 +78,7 @@ public partial class MainWindowViewModel : ViewModelBase, IInitializable
 
         if (result.IsError)
         {
-            ErrorMessage = $"Falha ao criar backup: {result.FirstError.Description}";
+            ErrorMessage = $"Failed to save backup: {result.FirstError.Description}";
             IsErrorVisible = true;
         }
         

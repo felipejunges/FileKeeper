@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Interfaces.Services;
+using System;
 using System.Threading;
 
 namespace FileKeeper.UI.ViewModels;
@@ -10,6 +11,8 @@ namespace FileKeeper.UI.ViewModels;
 public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializable
 {
     private readonly IConfigurationService? _configurationService;
+    
+    public event Action? RequestClose;
 
     [ObservableProperty] private string _databaseLocation = string.Empty;
 
@@ -20,6 +23,12 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
     [ObservableProperty] private long _maxDatabaseSizeMb;
 
     [ObservableProperty] private bool _enableCompression;
+    
+    [ObservableProperty] private string _errorMessage = string.Empty;
+    
+    [ObservableProperty] private bool _isErrorVisible = false;
+
+    private string? _currentRestoreDestination;
 
     public ConfigurationWindowViewModel(IConfigurationService configurationService)
     {
@@ -42,11 +51,15 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
         AutoBackupIntervalMinutes = configuration.AutoBackupIntervalMinutes;
         MaxDatabaseSizeMb = configuration.MaxDatabaseSizeMb;
         EnableCompression = configuration.EnableCompression;
+        
+        _currentRestoreDestination = configuration.CurrentRestoreDestination;
     }
 
     [RelayCommand]
     private async Task SaveConfiguration(CancellationToken cancellationToken)
     {
+        IsErrorVisible = false;
+        
         if (_configurationService == null) return;
 
         var config = new Configuration
@@ -55,9 +68,26 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
             VersionsToKeep = VersionsToKeep,
             AutoBackupIntervalMinutes = AutoBackupIntervalMinutes,
             MaxDatabaseSizeMb = MaxDatabaseSizeMb,
-            EnableCompression = EnableCompression
+            EnableCompression = EnableCompression,
+            CurrentRestoreDestination = _currentRestoreDestination
         };
 
-        await _configurationService.ApplyConfigurationAsync(config, cancellationToken);
+        var result = await _configurationService.ApplyConfigurationAsync(config, cancellationToken);
+
+        if (result.IsError)
+        {
+            ErrorMessage = $"Failed to save configuration: {result.FirstError.Description}";
+            IsErrorVisible = true;
+            
+            return;
+        }
+        
+        RequestClose?.Invoke();
+    }
+    
+    [RelayCommand]
+    private void Cancel()
+    {
+        RequestClose?.Invoke();
     }
 }

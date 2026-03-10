@@ -116,10 +116,7 @@ public partial class App : Application
             var vm = services?.GetRequiredService<ConfigurationWindowViewModel>();
             vm.InitializeAsync();
             
-            var window = new ConfigurationWindow
-            {
-                DataContext = vm
-            };
+            var window = new ConfigurationWindow(vm);
             window.ShowDialog(desktop.MainWindow!);
         }
     }
