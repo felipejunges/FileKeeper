@@ -21,7 +21,7 @@ public partial class BackupWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        if (DataContext is ConfigurationWindowViewModel vm)
+        if (DataContext is BackupWindowViewModel vm)
         {
             vm.RequestClose -= OnRequestClose;
         }
