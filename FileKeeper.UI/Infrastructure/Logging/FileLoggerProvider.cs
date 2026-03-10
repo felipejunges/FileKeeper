@@ -1,4 +1,5 @@
 using FileKeeper.Core.Application;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -21,9 +22,19 @@ public class FileLoggerProvider : ILoggerProvider
     private DateTime _currentLogDate;
     private const long MaxFileSizeBytes = 104857600; // 100 MB
 
-    public FileLoggerProvider(string applicationName = "FileKeeper", LogLevel minimumLevel = LogLevel.Information)
+    public FileLoggerProvider(IConfiguration configuration, string applicationName = "FileKeeper", LogLevel minimumLevel = LogLevel.Information)
     {
-        _minimumLevel = minimumLevel;
+        // Try to read LogLevel from config, fallback to parameter
+        var configLogLevel = configuration.GetSection("Logging:FileLogger:LogLevel").Value;
+        if (Enum.TryParse<LogLevel>(configLogLevel, out var parsedLevel))
+        {
+            _minimumLevel = parsedLevel;
+        }
+        else
+        {
+            _minimumLevel = minimumLevel;
+        }
+        
         _loggers = new ConcurrentDictionary<string, FileLoggerInstance>();
         
         var paths = new List<string>
@@ -215,9 +226,9 @@ public class FileLoggerInstance : ILogger
 /// </summary>
 public static class FileLoggerExtensions
 {
-    public static ILoggingBuilder AddFileLogger(this ILoggingBuilder builder, string applicationName, LogLevel minimumLevel)
+    public static ILoggingBuilder AddFileLogger(this ILoggingBuilder builder, IConfiguration configuration, string applicationName = "FileKeeper", LogLevel minimumLevel = LogLevel.Information)
     {
-        builder.AddProvider(new FileLoggerProvider(applicationName, minimumLevel));
+        builder.AddProvider(new FileLoggerProvider(configuration, applicationName, minimumLevel));
         return builder;
     }
 }

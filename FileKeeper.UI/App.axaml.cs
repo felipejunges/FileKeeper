@@ -15,6 +15,7 @@ using FileKeeper.UI.Infrastructure.Logging;
 using FileKeeper.UI.Services;
 using FileKeeper.UI.ViewModels;
 using FileKeeper.UI.Views;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -38,11 +39,15 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         _host = Host.CreateDefaultBuilder()
-            .ConfigureLogging((_, logging) =>
+            .ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+            })
+            .ConfigureLogging((context, logging) =>
             {
                 logging.ClearProviders();
                 logging.AddConsole();
-                logging.AddFileLogger("FileKeeper", LogLevel.Trace); // Se você tiver o FileLogger
+                logging.AddFileLogger(context.Configuration, "FileKeeper", LogLevel.Trace);
                 logging.SetMinimumLevel(LogLevel.Information);
             })
             .ConfigureServices((_, services) => { ConfigureServices(services); })
