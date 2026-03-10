@@ -1,13 +1,16 @@
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using FileKeeper.Core;
+using FileKeeper.Core.Extensions;
+using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
+using FileKeeper.UI.Services;
 using System;
 using System.Collections.ObjectModel;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,22 +29,32 @@ public partial class MainWindowViewModel
 
     [ObservableProperty] private string _errorMessage = string.Empty;
 
-    [ObservableProperty] private bool _isErrorVisible = false;
+    [ObservableProperty] private bool _isErrorVisible;
 
     private readonly IBackupRepository _backupRepository = null!;
 
     private readonly ICreateBackupUseCase _createBackupUseCase = null!;
 
+    private readonly IRecycleOldBackupUseCase _recycleOldBackupUseCase = null!;
+
+    private readonly IDatabaseService _databaseService = null!;
+
+    private Window? _window;
+    
     public MainWindowViewModel()
     {
     }
     
     public MainWindowViewModel(
         IBackupRepository backupRepository,
-        ICreateBackupUseCase createBackupUseCase)
+        ICreateBackupUseCase createBackupUseCase,
+        IRecycleOldBackupUseCase recycleOldBackupUseCase,
+        IDatabaseService databaseService)
     {
         _backupRepository = backupRepository;
         _createBackupUseCase = createBackupUseCase;
+        _recycleOldBackupUseCase = recycleOldBackupUseCase;
+        _databaseService = databaseService;
 
         WeakReferenceMessenger.Default.Register(this);
     }
@@ -50,14 +63,16 @@ public partial class MainWindowViewModel
     {
         var ct = new CancellationTokenSource().Token;
         await UpdateBackupListAsync(ct);
-
-        UpdateFooter();
+        await UpdateFooterAsync(ct);
     }
 
-    private void UpdateFooter()
+    private async Task UpdateFooterAsync(CancellationToken cancellationToken)
     {
+        var dbSizeResult = await _databaseService.GetDatabaseSizeAsync(cancellationToken);
+        var dbSize = dbSizeResult.Match(d => d, _ => 0);
+        
         BackupCountText = $"Backups: {Backups.Count}";
-        TotalSizeText = "Total Size: 127 MB (Mocked)";
+        TotalSizeText = $"Total Size: {dbSize.ToHumanReadableSize()}";
     }
 
     private async Task UpdateBackupListAsync(CancellationToken cancellationToken)
@@ -87,6 +102,31 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand]
+    private async Task RecycleOldBackupAsync(CancellationToken cancellationToken)
+    {
+        var confirm = await DialogBuilder.CreateConfirmation()
+            .WithTitle("Confirm recycle?")
+            .WithMessage("Confirm recycle of the oldest backup? This will delete the oldest backup permanently.")
+            .ShowAndWaitForYesAsync(_window!);
+
+        if (!confirm)
+            return;
+        
+        IsErrorVisible = false;
+        
+        var result = await _recycleOldBackupUseCase.ExecuteAsync(cancellationToken);
+        
+        if (result.IsError)
+        {
+            ErrorMessage = $"Failed to create new backup: {result.FirstError.Description}";
+            IsErrorVisible = true;
+        }
+        
+        await UpdateBackupListAsync(cancellationToken);
+        await UpdateFooterAsync(cancellationToken);
+    }
+    
+    [RelayCommand]
     private async Task CreateBackup(CancellationToken cancellationToken)
     {
         IsErrorVisible = false;
@@ -100,7 +140,7 @@ public partial class MainWindowViewModel
         }
 
         await UpdateBackupListAsync(cancellationToken);
-        UpdateFooter();
+        await UpdateFooterAsync(cancellationToken);
     }
 
     public void Receive(BackupDeletedMessage message)
@@ -110,10 +150,12 @@ public partial class MainWindowViewModel
 
     private async Task HandleBackupDeletedAsync()
     {
+        var cancellationToken = new CancellationTokenSource().Token;
+        
         try
         {
-            await UpdateBackupListAsync(CancellationToken.None);
-            UpdateFooter();
+            await UpdateBackupListAsync(cancellationToken);
+            await UpdateFooterAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -121,4 +163,6 @@ public partial class MainWindowViewModel
             IsErrorVisible = true;
         }
     }
+    
+    public void SetWindow(Window window) => _window = window;
 }

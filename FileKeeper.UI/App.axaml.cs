@@ -62,16 +62,16 @@ public partial class App : Application
         {
             DisableAvaloniaDataAnnotationValidation();
 
-            // TODO: this is needed:
             InitializeDatabaseAsync()
                  .GetAwaiter()
                  .GetResult();
-            //await InitializeDatabaseAsync();
-
-            var vm = Services.GetRequiredService<MainWindowViewModel>();
-            _ = vm.InitializeAsync();
 
             var mainWindow = new MainWindow();
+            var vm = Services.GetRequiredService<MainWindowViewModel>();
+
+            vm.SetWindow(mainWindow);
+            _ = vm.InitializeAsync();
+
             mainWindow.DataContext = vm;
             desktop.MainWindow = mainWindow;
 

@@ -215,9 +215,9 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             
             var pageSize = await pageSizeCmd.ExecuteScalarAsync(token);
     
-            if (pageCount is int pages && pageSize is int size)
+            if (pageCount is long pages && pageSize is long size)
             {
-                return (long)pages * size;
+                return pages * size;
             }
     
             return 0;

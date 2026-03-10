@@ -70,7 +70,7 @@ public class FileRepository : RepositoryBase, IFileRepository
 
     public async Task<ErrorOr<IEnumerable<FileToRecoverDM>>> GetFilesToRecoverAsync(long backupId, CancellationToken token)
     {
-        const string sql = @$"SELECT 
+        const string sql = @"SELECT 
                 f.Id,
                 f.BackupPath,
                 f.RelativePath,

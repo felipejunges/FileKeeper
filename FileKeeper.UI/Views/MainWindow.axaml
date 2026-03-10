@@ -95,25 +95,29 @@
 
         <!-- Footer -->
         <Border Grid.Row="2" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="20">
                     <TextBlock Text="{Binding BackupCountText}" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding TotalSizeText}" FontWeight="SemiBold" />
                 </StackPanel>
                 
-                <Button Grid.Column="1" Command="{Binding CreateBackupCommand}" IsEnabled="{Binding !CreateBackupCommand.IsRunning}" Margin="5,0" ToolTip.Tip="Create New Backup">
+                <Button Grid.Column="1" Command="{Binding RecycleOldBackupCommand}" IsEnabled="{Binding !CreateBackupCommand.IsRunning}" Margin="5,0" ToolTip.Tip="Recycle Old Backups">
+                    <TextBlock Text="♻️" />
+                </Button>
+                
+                <Button Grid.Column="2" Command="{Binding CreateBackupCommand}" IsEnabled="{Binding !CreateBackupCommand.IsRunning}" Margin="5,0" ToolTip.Tip="Create New Backup">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="➕ New Backup" />
                     </StackPanel>
                 </Button>
 
-                <Button Grid.Column="2" Command="{Binding OpenFilesCommand}" Margin="5,0" ToolTip.Tip="View All Files">
+                <Button Grid.Column="3" Command="{Binding OpenFilesCommand}" Margin="5,0" ToolTip.Tip="View All Files">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="📂 Files" />
                     </StackPanel>
                 </Button>
 
-                <Button Grid.Column="3" Command="{Binding OpenConfigurationCommand}" ToolTip.Tip="Settings">
+                <Button Grid.Column="4" Command="{Binding OpenConfigurationCommand}" ToolTip.Tip="Settings">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="⚙️ Configuration" />
                     </StackPanel>
