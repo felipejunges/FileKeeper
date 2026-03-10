@@ -103,6 +103,13 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             var moveVersionsResult = await MoveVersionsToNextBackupAsync(backupId, nextBackup.Id, filesVersions, token);
             if (moveVersionsResult.IsError)
                 return moveVersionsResult;
+            
+            // TODO: need unit test
+            var moveDeletedFilesResult = await _fileRepository.MoveDeletedFilesToNextBackupAsync(backupId, nextBackup.Id, token);
+            if (moveDeletedFilesResult.IsError)
+                return moveDeletedFilesResult.Errors;
+            
+            // TODO: add the DeletedCount to the next backup
         }
 
         // 5. delete all the versions has is kept in the current backup
