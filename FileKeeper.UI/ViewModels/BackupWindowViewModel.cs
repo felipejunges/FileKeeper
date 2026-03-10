@@ -23,13 +23,20 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
 
     [ObservableProperty]
     private IEnumerable<FileInBackupDM> _createdFiles = Array.Empty<FileInBackupDM>();
-    
     [ObservableProperty]
     private IEnumerable<FileInBackupDM> _updatedFiles = Array.Empty<FileInBackupDM>();
-    
     [ObservableProperty]
     private IEnumerable<FileInBackupDM> _deletedFiles = Array.Empty<FileInBackupDM>();
 
+    [ObservableProperty]
+    private string _createdFilesTitle = "";
+    
+    [ObservableProperty]
+    private string _updatedFilesTitle = "";
+    
+    [ObservableProperty]
+    private string _deletedFilesTitle = "";
+    
     public event Action? RequestClose;
     private Window? _window;
 
@@ -62,9 +69,13 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
         var filesResult = await _fileRepository.GetFilesInBackupAsync(Backup!.Id, ct);
         var files = filesResult.IsError ? [] : filesResult.Value.ToList();
         
-        CreatedFiles = files.Where(f => f.IsNew);
-        UpdatedFiles = files.Where(f => !f.IsNew);
+        CreatedFiles = files.Where(f => f.IsNew && !f.IsDeleted);
+        UpdatedFiles = files.Where(f => !f.IsNew && !f.IsDeleted);
         DeletedFiles = files.Where(f => f.IsDeleted);
+
+        CreatedFilesTitle = $"Added ({CreatedFiles.Count()})";
+        UpdatedFilesTitle = $"Updated ({UpdatedFiles.Count()})";
+        DeletedFilesTitle = $"Deleted ({DeletedFiles.Count()})";
     }
     
     [RelayCommand]

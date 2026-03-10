@@ -19,31 +19,54 @@
                     <Setter Property="FontSize" Value="14" />
                     <Setter Property="MinHeight" Value="24" />
                 </Style>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Padding" Value="8,4" />
+                </Style>
             </TabControl.Styles>
             
-            <TabItem Header="Added">
+            <TabItem Header="{Binding CreatedFilesTitle}">
                 <ListBox ItemsSource="{Binding CreatedFiles}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding FullFileName}" />
+                            <Border BorderThickness="0,0,0,1" BorderBrush="#E0E0E0" Padding="0,4">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding FullFileName}" FontWeight="SemiBold" />
+                                    <StackPanel Orientation="Horizontal" Spacing="15" Opacity="0.7">
+                                        <TextBlock Text="{Binding FileSize, StringFormat='Size: {0:N0} bytes'}" FontSize="12" />
+                                        <TextBlock Text="{Binding FileHash, StringFormat='Hash: {0}'}" FontSize="11" FontFamily="Courier New" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </TabItem>
-            <TabItem Header="Edited">
+            <TabItem Header="{Binding UpdatedFilesTitle}">
                 <ListBox ItemsSource="{Binding UpdatedFiles}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding FullFileName}" />
+                            <Border BorderThickness="0,0,0,1" BorderBrush="#E0E0E0" Padding="0,4">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding FullFileName}" FontWeight="SemiBold" />
+                                    <StackPanel Orientation="Horizontal" Spacing="15" Opacity="0.7">
+                                        <TextBlock Text="{Binding FileSize, StringFormat='Size: {0:N0} bytes'}" FontSize="12" />
+                                        <TextBlock Text="{Binding FileHash, StringFormat='Hash: {0}'}" FontSize="11" FontFamily="Courier New" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </TabItem>
-            <TabItem Header="Deleted">
+            <TabItem Header="{Binding DeletedFilesTitle}">
                 <ListBox ItemsSource="{Binding DeletedFiles}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding FullFileName}" />
+                            <Border BorderThickness="0,0,0,1" BorderBrush="#E0E0E0" Padding="0,4">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding FullFileName}" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
