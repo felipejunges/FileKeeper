@@ -129,7 +129,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             }
             else if (fileAction == FileAction.Update)
             {
-                var result = await AddNewVersionToFileInStorageAsync(storedFile!.Id, localFileHash, newBackup.Id, localFileStream, token);
+                var result = await AddNewVersionToFileInStorageAsync(storedFile!.Id, localFileHash, newBackup.Id, false, localFileStream, token);
 
                 if (result.IsError)
                     return result.Errors;
@@ -191,14 +191,15 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         if (result.IsError)
             return result.Errors;
 
-        return await AddNewVersionToFileInStorageAsync(file.Id, fileHash, backupId, fileStream, token);
+        return await AddNewVersionToFileInStorageAsync(file.Id, fileHash, backupId, true, fileStream, token);
     }
 
-    private async Task<ErrorOr<long>> AddNewVersionToFileInStorageAsync(long fileId, string fileHash, long backupId, FileStream fileStream, CancellationToken token)
+    private async Task<ErrorOr<long>> AddNewVersionToFileInStorageAsync(long fileId, string fileHash, long backupId, bool isNew, FileStream fileStream, CancellationToken token)
     {
         var fileVersion = FileVersion.CreateNew(
             fileId,
             backupId,
+            isNew,
             fileStream.Length,
             fileHash,
             await fileStream.ReadAllBytesAsync(token));

@@ -117,10 +117,11 @@ public class FileRepository : RepositoryBase, IFileRepository
             INSERT INTO FileVersions (
                 {nameof(FileVersion.FileId)},
                 {nameof(FileVersion.BackupId)},
+                {nameof(FileVersion.IsNew)},
                 {nameof(FileVersion.Size)},
                 {nameof(FileVersion.Hash)},
                 {nameof(FileVersion.Content)})
-            VALUES (@FileId, @BackupId, @Size, @Hash, @CompressedContent);
+            VALUES (@FileId, @BackupId, @IsNew, @Size, @Hash, @CompressedContent);
             SELECT last_insert_rowid() AS Id;";
 
         var result = await QuerySingleOrDefaultAsync<long>(sql, version, token);
