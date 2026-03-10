@@ -12,9 +12,36 @@ public class FileRepository : RepositoryBase, IFileRepository
     {
     }
 
-    public async Task<ErrorOr<FileInBackupDM>> GetFilesInBackupAsync(long backupId, CancellationToken token)
+    public async Task<ErrorOr<IEnumerable<FileInBackupDM>>> GetFilesInBackupAsync(long backupId, CancellationToken token)
     {
-        
+        const string sql = @"
+            SELECT 
+                f.Id AS FileId,
+                f.BackupPath,
+                f.RelativePath,
+                f.FileName,
+                fv.Size AS FileSize,
+                fv.Hash AS FileHash,
+                fv.IsNew,
+                0 AS IsDeleted
+            FROM Files f
+            INNER JOIN FileVersions fv ON f.Id = fv.FileId
+            WHERE fv.BackupId = @backupId
+            UNION ALL
+            SELECT
+                f.Id AS FileId,
+                f.BackupPath,
+                f.RelativePath,
+                f.FileName,
+                0 AS FileSize,
+                '' AS FileHash,
+                0 AS IsNew,
+                f.IsDeleted
+            FROM Files f
+            WHERE f.DeletedAt = @backupId
+            ORDER BY BackupPath, RelativePath, FileName;";
+
+        return await QueryAsync<FileInBackupDM>(sql, new { backupId }, token);
     }
 
     public async Task<ErrorOr<IEnumerable<FileVersionDM>>> GetFilesWithVersionAsync(string backupPath, CancellationToken token)

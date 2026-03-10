@@ -11,6 +11,7 @@ using FileKeeper.Core.Models.Entities;
 using FileKeeper.UI.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,18 +50,21 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
         _fileRepository = fileRepository;
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        return Task.CompletedTask;
+        await UpdateFilesLists();
     }
 
     private async Task UpdateFilesLists()
     {
         var ct = new CancellationTokenSource().Token;
         
-        var files = await _fileRepository.GetFilesInBackupAsync(Backup!.Id, ct);
+        var filesResult = await _fileRepository.GetFilesInBackupAsync(Backup!.Id, ct);
+        var files = filesResult.IsError ? [] : filesResult.Value.ToList();
         
-        
+        CreatedFiles = files.Where(f => f.IsNew);
+        UpdatedFiles = files.Where(f => !f.IsNew);
+        DeletedFiles = files.Where(f => f.IsDeleted);
     }
     
     [RelayCommand]
