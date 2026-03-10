@@ -1,21 +1,24 @@
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FileKeeper.Core.Models;
 using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Interfaces.UI;
+using FileKeeper.Core.Models;
 using System;
-using System.Threading;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FileKeeper.UI.ViewModels;
 
 public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializable
 {
     private readonly IConfigurationService? _configurationService;
+
+    private readonly IFolderPickerService _folderPickerService;
     
     public event Action? RequestClose;
-    public event Func<Task<string?>>? RequestFolderPicker; // TODO: limar daqui!
 
     [ObservableProperty] private string _databaseLocation = string.Empty;
 
@@ -35,9 +38,12 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
 
     private string? _currentRestoreDestination;
 
-    public ConfigurationWindowViewModel(IConfigurationService configurationService)
+    public ConfigurationWindowViewModel(
+        IConfigurationService configurationService,
+        IFolderPickerService folderPickerService)
     {
         _configurationService = configurationService;
+        _folderPickerService = folderPickerService;
     }
     
     public async Task InitializeAsync()
@@ -106,13 +112,12 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
     [RelayCommand]
     private async Task AddFolder()
     {
-        if (RequestFolderPicker == null) return;
+        var ct = new  CancellationTokenSource().Token;
+        var folder = await _folderPickerService.PickFolderAsync("Select a folder to include", ct);
         
-        var selectedFolder = await RequestFolderPicker.Invoke();
-        
-        if (!string.IsNullOrWhiteSpace(selectedFolder) && !MonitoredFolders.Contains(selectedFolder))
+        if (!string.IsNullOrWhiteSpace(folder) && !MonitoredFolders.Contains(folder) && Directory.Exists(folder))
         {
-            MonitoredFolders.Add(selectedFolder);
+            MonitoredFolders.Add(folder);
         }
     }
     
