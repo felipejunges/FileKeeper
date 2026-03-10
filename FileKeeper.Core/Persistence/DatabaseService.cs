@@ -133,18 +133,18 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
     {
         try
         {
-            using var transaction = _connection!.BeginTransaction();
+            await using var transaction = _connection!.BeginTransaction();
             try
             {
                 foreach (var sql in InitialSchema)
                 {
-                    using var cmd = new SQLiteCommand(sql, _connection);
-                    await Task.Run(() => cmd.ExecuteNonQuery(), token);
+                    await using var cmd = new SQLiteCommand(sql, _connection);
+                    await cmd.ExecuteNonQueryAsync(token);
                 }
 
                 // Set initial version to 1
-                using var updateVersionCmd = new SQLiteCommand("PRAGMA user_version = 1;", _connection);
-                await Task.Run(() => updateVersionCmd.ExecuteNonQuery(), token);
+                await using var updateVersionCmd = new SQLiteCommand("PRAGMA user_version = 1;", _connection);
+                await updateVersionCmd.ExecuteNonQueryAsync(token);
 
                 transaction.Commit();
                 _currentVersion = 1;
@@ -172,7 +172,7 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             const string sql = "PRAGMA user_version;";
             using var cmd = new SQLiteCommand(sql, _connection);
             
-            var result = await Task.Run(() => cmd.ExecuteScalar(), token);
+            var result = await cmd.ExecuteScalarAsync(token);
             return result is int version ? version
                 : result is long versionLong ? (int)versionLong
                 : 0;
@@ -190,14 +190,14 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             await OpenConnectionAsync(token);
     
             const string sql = "PRAGMA page_count;";
-            using var cmd = new SQLiteCommand(sql, _connection);
-            
-            var pageCount = await Task.Run(() => cmd.ExecuteScalar(), token);
+            await using var cmd = new SQLiteCommand(sql, _connection);
+
+            var pageCount = await cmd.ExecuteScalarAsync(token);
             
             const string pageSizeSql = "PRAGMA page_size;";
-            using var pageSizeCmd = new SQLiteCommand(pageSizeSql, _connection);
+            await using var pageSizeCmd = new SQLiteCommand(pageSizeSql, _connection);
             
-            var pageSize = await Task.Run(() => pageSizeCmd.ExecuteScalar(), token);
+            var pageSize = await pageSizeCmd.ExecuteScalarAsync(token);
     
             if (pageCount is int pages && pageSize is int size)
             {
@@ -226,18 +226,18 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
                     return Error.Failure("database.migration_not_found", $"Migration for version {version} not found");
                 }
 
-                using var transaction = _connection!.BeginTransaction();
+                await using var transaction = _connection!.BeginTransaction();
                 try
                 {
                     foreach (var sql in migrationSqls)
                     {
-                        using var cmd = new SQLiteCommand(sql, _connection);
-                        await Task.Run(() => cmd.ExecuteNonQuery(), token);
+                        await using var cmd = new SQLiteCommand(sql, _connection);
+                        await cmd.ExecuteNonQueryAsync(token);
                     }
 
                     // Update user_version
-                    using var updateVersionCmd = new SQLiteCommand($"PRAGMA user_version = {version};", _connection);
-                    await Task.Run(() => updateVersionCmd.ExecuteNonQuery(), token);
+                    await using var updateVersionCmd = new SQLiteCommand($"PRAGMA user_version = {version};", _connection);
+                    await updateVersionCmd.ExecuteNonQueryAsync(token);
 
                     transaction.Commit();
                     _currentVersion = version;
@@ -263,8 +263,8 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
         {
             await OpenConnectionAsync(token);
 
-            using var cmd = new SQLiteCommand(sql, _connection);
-            await Task.Run(() => cmd.ExecuteNonQuery(), token);
+            await using var cmd = new SQLiteCommand(sql, _connection);
+            await cmd.ExecuteNonQueryAsync(token);
 
             return Result.Success;
         }
@@ -280,7 +280,7 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
         {
             if (_connection.State == System.Data.ConnectionState.Open)
             {
-                await Task.Run(() => _connection.Close());
+                await _connection.CloseAsync();
             }
 
             _connection.Dispose();
@@ -334,7 +334,6 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             return;
 
         _connection = new SQLiteConnection($"Data Source={_databasePath};Version=3;");
-        await Task.Run(() => _connection.Open(), token);
+        await _connection.OpenAsync(token);
     }
 }
-
