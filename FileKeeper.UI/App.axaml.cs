@@ -48,7 +48,10 @@ public partial class App : Application
                 logging.ClearProviders();
                 logging.AddConsole();
                 logging.AddFileLogger(context.Configuration);
-                logging.SetMinimumLevel(LogLevel.Information);
+                
+                var minLevelConfig = context.Configuration.GetSection("Logging:LogLevel:Default").Value;
+                var minLevel = Enum.TryParse<LogLevel>(minLevelConfig, out var level) ? level : LogLevel.Information;
+                logging.SetMinimumLevel(minLevel);
             })
             .ConfigureServices((_, services) => { ConfigureServices(services); })
             .Build();
