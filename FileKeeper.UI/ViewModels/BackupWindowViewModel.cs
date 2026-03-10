@@ -3,12 +3,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using FileKeeper.Core;
+using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UI;
 using FileKeeper.Core.Interfaces.UseCases;
+using FileKeeper.Core.Models.DMs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.UI.Services;
-using MsBox.Avalonia.Enums;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,26 +21,61 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
 {
     [ObservableProperty] private Backup? _backup;
 
+    [ObservableProperty]
+    private IEnumerable<FileInBackupDM> _createdFiles = Array.Empty<FileInBackupDM>();
+    [ObservableProperty]
+    private IEnumerable<FileInBackupDM> _updatedFiles = Array.Empty<FileInBackupDM>();
+    [ObservableProperty]
+    private IEnumerable<FileInBackupDM> _deletedFiles = Array.Empty<FileInBackupDM>();
+
+    [ObservableProperty]
+    private string _createdFilesTitle = "";
+    
+    [ObservableProperty]
+    private string _updatedFilesTitle = "";
+    
+    [ObservableProperty]
+    private string _deletedFilesTitle = "";
+    
     public event Action? RequestClose;
     private Window? _window;
 
     private readonly IDeleteBackupUseCase _deleteBackupUseCase;
     private readonly IRestoreBackupUseCase _restoreBackupUseCase;
     private readonly IFolderPickerService  _folderPickerService;
+    private readonly IFileRepository _fileRepository;
 
     public BackupWindowViewModel(
         IDeleteBackupUseCase deleteBackupUseCase,
         IRestoreBackupUseCase restoreBackupUseCase,
-        IFolderPickerService folderPickerService)
+        IFolderPickerService folderPickerService,
+        IFileRepository fileRepository)
     {
         _deleteBackupUseCase = deleteBackupUseCase;
         _restoreBackupUseCase = restoreBackupUseCase;
         _folderPickerService = folderPickerService;
+        _fileRepository = fileRepository;
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        return Task.CompletedTask;
+        await UpdateFilesLists();
+    }
+
+    private async Task UpdateFilesLists()
+    {
+        var ct = new CancellationTokenSource().Token;
+        
+        var filesResult = await _fileRepository.GetFilesInBackupAsync(Backup!.Id, ct);
+        var files = filesResult.IsError ? [] : filesResult.Value.ToList();
+        
+        CreatedFiles = files.Where(f => f.IsNew && !f.IsDeleted);
+        UpdatedFiles = files.Where(f => !f.IsNew && !f.IsDeleted);
+        DeletedFiles = files.Where(f => f.IsDeleted);
+
+        CreatedFilesTitle = $"Added ({CreatedFiles.Count()})";
+        UpdatedFilesTitle = $"Updated ({UpdatedFiles.Count()})";
+        DeletedFilesTitle = $"Deleted ({DeletedFiles.Count()})";
     }
     
     [RelayCommand]

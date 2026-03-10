@@ -11,6 +11,8 @@ public partial class ConfigurationWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.RequestClose += OnRequestClose;
+
+        _ = viewModel.InitializeAsync();
     }
     
     private void OnRequestClose() => Close();

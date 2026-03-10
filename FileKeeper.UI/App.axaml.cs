@@ -150,9 +150,8 @@ public partial class App : Application
         var services = ((App)Current).Services;
         
         var vm = services.GetRequiredService<ConfigurationWindowViewModel>();
-        _ = vm.InitializeAsync();
-
         var window = new ConfigurationWindow(vm);
+        
         window.ShowDialog(desktop.MainWindow!);
     }
 
@@ -177,9 +176,8 @@ public partial class App : Application
         var services = ((App)Current).Services;
 
         var vm = services.GetRequiredService<BackupWindowViewModel>();
-        _ = vm.InitializeAsync();
-
         var window = new BackupWindow(vm, backup);
+
         window.ShowDialog(desktop.MainWindow!);
     }
 }
