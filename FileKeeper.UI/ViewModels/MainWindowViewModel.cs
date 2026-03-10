@@ -27,10 +27,14 @@ public partial class MainWindowViewModel
 
     [ObservableProperty] private bool _isErrorVisible = false;
 
-    private readonly IBackupRepository _backupRepository;
+    private readonly IBackupRepository _backupRepository = null!;
 
-    private readonly ICreateBackupUseCase _createBackupUseCase;
+    private readonly ICreateBackupUseCase _createBackupUseCase = null!;
 
+    public MainWindowViewModel()
+    {
+    }
+    
     public MainWindowViewModel(
         IBackupRepository backupRepository,
         ICreateBackupUseCase createBackupUseCase)
