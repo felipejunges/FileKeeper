@@ -47,7 +47,7 @@ public partial class App : Application
             {
                 logging.ClearProviders();
                 logging.AddConsole();
-                logging.AddFileLogger(context.Configuration, "FileKeeper", LogLevel.Trace);
+                logging.AddFileLogger(context.Configuration);
                 logging.SetMinimumLevel(LogLevel.Information);
             })
             .ConfigureServices((_, services) => { ConfigureServices(services); })

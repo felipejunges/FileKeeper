@@ -22,7 +22,7 @@ public class FileLoggerProvider : ILoggerProvider
     private DateTime _currentLogDate;
     private const long MaxFileSizeBytes = 104857600; // 100 MB
 
-    public FileLoggerProvider(IConfiguration configuration, string applicationName = "FileKeeper", LogLevel minimumLevel = LogLevel.Information)
+    public FileLoggerProvider(IConfiguration configuration)
     {
         // Try to read LogLevel from config, fallback to parameter
         var configLogLevel = configuration.GetSection("Logging:FileLogger:LogLevel").Value;
@@ -32,7 +32,7 @@ public class FileLoggerProvider : ILoggerProvider
         }
         else
         {
-            _minimumLevel = minimumLevel;
+            _minimumLevel = LogLevel.Information;
         }
         
         _loggers = new ConcurrentDictionary<string, FileLoggerInstance>();
@@ -226,9 +226,9 @@ public class FileLoggerInstance : ILogger
 /// </summary>
 public static class FileLoggerExtensions
 {
-    public static ILoggingBuilder AddFileLogger(this ILoggingBuilder builder, IConfiguration configuration, string applicationName = "FileKeeper", LogLevel minimumLevel = LogLevel.Information)
+    public static ILoggingBuilder AddFileLogger(this ILoggingBuilder builder, IConfiguration configuration)
     {
-        builder.AddProvider(new FileLoggerProvider(configuration, applicationName, minimumLevel));
+        builder.AddProvider(new FileLoggerProvider(configuration));
         return builder;
     }
 }
