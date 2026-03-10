@@ -2,6 +2,7 @@ using System.Data.SQLite;
 using ErrorOr;
 using FileKeeper.Core.Application;
 using FileKeeper.Core.Interfaces.Persistence;
+using Microsoft.Extensions.Logging;
 
 namespace FileKeeper.Core.Persistence;
 
@@ -15,6 +16,8 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
     private SQLiteTransaction? _transaction;
     private int _currentVersion;
     private const int LatestDatabaseVersion = 1;
+
+    private readonly ILogger<DatabaseService> _logger;
 
     // Initial DDL - executed only when database doesn't exist
     private static readonly string[] InitialSchema = new[]
@@ -74,8 +77,10 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
         // }
     };
 
-    public DatabaseService()
+    public DatabaseService(ILogger<DatabaseService> logger)
     {
+        _logger = logger;
+        
         var paths = new List<string>
         {
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -103,6 +108,8 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
 
             if (!databaseExists)
             {
+                _logger.LogInformation("Database does not exist: Creating Database");
+                
                 // Create new database with initial schema
                 var initResult = await InitializeNewDatabaseAsync(token);
                 if (initResult.IsError)
@@ -113,6 +120,11 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
                 // Existing database - run migrations if needed
                 var versionResult = await GetDatabaseVersionAsync(token);
                 _currentVersion = versionResult.IsError ? 0 : versionResult.Value;
+                
+                _logger.LogInformation(
+                    "Existing database version: {Version}. Current application DB version: {LatestDatabaseVersion}",
+                    _currentVersion,
+                    LatestDatabaseVersion);
 
                 if (_currentVersion < LatestDatabaseVersion)
                 {
@@ -126,6 +138,8 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to initialize database");
+            
             return Error.Failure("database.initialization_failed", $"Failed to initialize database: {ex.Message}");
         }
     }
