@@ -15,6 +15,7 @@ public partial class BackupWindow : Window
 
         viewModel.SetBackup(backup);
         viewModel.SetWindow(this);
+        _ = viewModel.InitializeAsync();
     }
 
     private void OnRequestClose() => Close();

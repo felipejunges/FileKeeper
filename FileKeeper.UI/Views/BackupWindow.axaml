@@ -17,6 +17,7 @@
             <TabControl.Styles>
                 <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="14" />
+                    <Setter Property="MinHeight" Value="24" />
                 </Style>
             </TabControl.Styles>
             
@@ -24,7 +25,7 @@
                 <ListBox ItemsSource="{Binding CreatedFiles}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" />
+                            <TextBlock Text="{Binding FullFileName}" />
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -33,7 +34,7 @@
                 <ListBox ItemsSource="{Binding UpdatedFiles}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" />
+                            <TextBlock Text="{Binding FullFileName}" />
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -42,7 +43,7 @@
                 <ListBox ItemsSource="{Binding DeletedFiles}">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" />
+                            <TextBlock Text="{Binding FullFileName}" />
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
