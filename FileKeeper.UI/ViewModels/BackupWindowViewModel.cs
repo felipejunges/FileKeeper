@@ -92,15 +92,13 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
 
         if (result.IsError)
         {
-            await DialogBuilder.Create()
+            await DialogBuilder.CreateError()
                 .WithTitle("Error while restoring backup")
                 .WithMessage(result.FirstError.Description)
-                .WithButtons(ButtonEnum.Ok)
-                .WithIcon(Icon.Error)
                 .ShowAsync(_window!);
         }
     }
 
-    public void Setbackup(Backup backup)=> Backup = backup;
+    public void SetBackup(Backup backup)=> Backup = backup;
     public void SetWindow(Window window) => _window = window;
 }

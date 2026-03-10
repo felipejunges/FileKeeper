@@ -13,7 +13,7 @@ public partial class BackupWindow : Window
         DataContext = viewModel;
         viewModel.RequestClose += OnRequestClose;
 
-        viewModel.Setbackup(backup);
+        viewModel.SetBackup(backup);
         viewModel.SetWindow(this);
     }
 
