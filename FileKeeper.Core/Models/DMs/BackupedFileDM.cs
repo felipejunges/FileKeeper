@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace FileKeeper.Core.Models.DMs;
 
 public class BackupedFileDM
