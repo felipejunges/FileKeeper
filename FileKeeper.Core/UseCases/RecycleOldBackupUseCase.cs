@@ -103,18 +103,18 @@ public class RecycleOldBackupUseCase : IRecycleOldBackupUseCase
 
         if (configuration.MaxDatabaseSizeMb > 0)
         {
-            var databaseSizeResult = await _databaseService.GetDatabaseSizeAsync(cancellationToken);
-            if (databaseSizeResult.IsError)
+            var backupsTotalSizeResult = await _backupRepository.GetAllBackupsTotalSizeAsync(cancellationToken);
+            if (backupsTotalSizeResult.IsError)
             {
-                _logger.LogWarning("Failed to get database size: {Errors}", databaseSizeResult.Errors);
-                return databaseSizeResult.Errors;
+                _logger.LogWarning("Failed to get backups total size: {Errors}", backupsTotalSizeResult.Errors);
+                return backupsTotalSizeResult.Errors;
             }
-
-            var databaseSizeMb = databaseSizeResult.Value / (1024.0 * 1024.0);
+            
+            var databaseSizeMb = backupsTotalSizeResult.Value / (1024.0 * 1024.0);
             if (databaseSizeMb > configuration.MaxDatabaseSizeMb)
             {
                 _logger.LogInformation(
-                    "Database size ({DatabaseSizeMb:F2} MB) exceeds MaxDatabaseSizeMb ({MaxDatabaseSizeMb} MB), recycling oldest backup.",
+                    "Database size ({DatabaseSizeMb:F2} MB) exceeds MaxDatabaseSizeMb ({MaxDatabaseSizeMb:F2} MB), recycling oldest backup.",
                     databaseSizeMb,
                     configuration.MaxDatabaseSizeMb);
                 
@@ -122,6 +122,8 @@ public class RecycleOldBackupUseCase : IRecycleOldBackupUseCase
             }
         }
 
+        _logger.LogInformation("No backup recycling needed based on current configuration and database state.");
+        
         return false;
     }
 }

@@ -83,7 +83,7 @@
                                 <TextBlock Grid.Column="0"
                                            Grid.Row="1"
                                            Grid.ColumnSpan="5"
-                                           Text="Resumo do backup"
+                                           Text="{Binding Id}"
                                            Opacity="0.65"
                                            FontSize="12" />
                             </Grid>

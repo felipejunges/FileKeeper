@@ -84,6 +84,13 @@ public class BackupRepository : RepositoryBase, IBackupRepository
         return await QueryAsync<Backup>(sql, null, token);
     }
 
+    public Task<ErrorOr<long>> GetAllBackupsTotalSizeAsync(CancellationToken token)
+    {
+        const string sql = "SELECT SUM(TotalSize) FROM Backups;";
+        
+        return QuerySingleOrDefaultAsync<long>(sql, null, token);
+    }
+    
     public async Task<ErrorOr<long>> InsertAsync(Backup backup, CancellationToken token)
     {
         const string sql = @$"

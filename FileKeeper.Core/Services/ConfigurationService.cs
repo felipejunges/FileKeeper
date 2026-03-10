@@ -33,9 +33,9 @@ public class ConfigurationService : IConfigurationService
             }
         }
 
-        if (configuration.VersionsToKeep <= 0)
+        if (configuration.VersionsToKeep < 0)
         {
-            errors.Add(Error.Validation(description: "Versions to keep must be greater than 0."));
+            errors.Add(Error.Validation(description: "Versions to keep cannot be negative."));
         }
 
         if (string.IsNullOrWhiteSpace(configuration.DatabaseLocation))

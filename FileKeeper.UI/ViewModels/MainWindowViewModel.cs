@@ -11,6 +11,7 @@ using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.UI.Services;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -72,7 +73,7 @@ public partial class MainWindowViewModel
         var dbSize = dbSizeResult.Match(d => d, _ => 0);
         
         BackupCountText = $"Backups: {Backups.Count}";
-        TotalSizeText = $"Total Size: {dbSize.ToHumanReadableSize()}";
+        TotalSizeText = $"Total Size: {Backups.Sum(b => b.TotalSize).ToHumanReadableSize()} / {dbSize.ToHumanReadableSize()}";
     }
 
     private async Task UpdateBackupListAsync(CancellationToken cancellationToken)

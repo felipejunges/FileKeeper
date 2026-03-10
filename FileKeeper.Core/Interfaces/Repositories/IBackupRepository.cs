@@ -9,6 +9,7 @@ public interface IBackupRepository
     Task<ErrorOr<int>> GetCountAsync(CancellationToken cancellationToken);
     Task<ErrorOr<Backup>> GetNextBackupAfterAsync(DateTime dateTime, CancellationToken token);
     Task<ErrorOr<IEnumerable<Backup>>> GetAllAsync(CancellationToken token);
+    Task<ErrorOr<long>> GetAllBackupsTotalSizeAsync(CancellationToken token);
     Task<ErrorOr<long>> InsertAsync(Backup backup, CancellationToken token);
     Task UpdateAsync(Backup backup, CancellationToken token);
     Task<ErrorOr<int>> DeleteAsync(long backupId, CancellationToken token);

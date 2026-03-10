@@ -84,18 +84,18 @@
 
                 <StackPanel Spacing="5">
                     <TextBlock Text="Versions to Keep" FontWeight="SemiBold" />
-                    <NumericUpDown Value="{Binding VersionsToKeep}" Minimum="1" Maximum="100" />
-                </StackPanel>
-
-                <StackPanel Spacing="5">
-                    <TextBlock Text="Auto Backup Interval (Minutes)" FontWeight="SemiBold" />
-                    <NumericUpDown Value="{Binding AutoBackupIntervalMinutes}" Minimum="0" ParsingNumberStyle="Integer" />
-                    <TextBlock Text="Set to 0 to disable" FontSize="11" Foreground="Gray" />
+                    <NumericUpDown Value="{Binding VersionsToKeep}" Minimum="0" />
                 </StackPanel>
 
                 <StackPanel Spacing="5">
                     <TextBlock Text="Max Database Size (MB)" FontWeight="SemiBold" />
                     <NumericUpDown Value="{Binding MaxDatabaseSizeMb}" Minimum="0" />
+                </StackPanel>
+                
+                <StackPanel Spacing="5">
+                    <TextBlock Text="Auto Backup Interval (Minutes)" FontWeight="SemiBold" />
+                    <NumericUpDown Value="{Binding AutoBackupIntervalMinutes}" Minimum="0" ParsingNumberStyle="Integer" />
+                    <TextBlock Text="Set to 0 to disable" FontSize="11" Foreground="Gray" />
                 </StackPanel>
 
                 <CheckBox IsChecked="{Binding EnableCompression}" Content="Enable Compression" />
