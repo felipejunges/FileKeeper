@@ -32,7 +32,7 @@ public class BackupRepositoryBehaviorTests
             .Throws(new InvalidOperationException("Connection failed."));
 
         var sut = new BackupRepository(databaseServiceMock.Object);
-        var backup = new Backup(0, new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc), 2, 0, 0);
+        var backup = new Backup(0, new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc), 2, 0, 0, 0);
 
         var result = await sut.InsertAsync(backup, CancellationToken.None);
 

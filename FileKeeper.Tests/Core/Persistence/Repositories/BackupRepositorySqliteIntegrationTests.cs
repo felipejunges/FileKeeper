@@ -14,7 +14,7 @@ public class BackupRepositorySqliteIntegrationTests
         await CreateBackupsTableAsync(databaseService.GetConnection());
 
         var sut = new BackupRepository(databaseService);
-        var backup = new Backup(0, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 2, 1, 0);
+        var backup = new Backup(0, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
 
         var insertResult = await sut.InsertAsync(backup, CancellationToken.None);
 
@@ -53,8 +53,8 @@ public class BackupRepositorySqliteIntegrationTests
 
         var sut = new BackupRepository(databaseService);
 
-        var older = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0);
-        var newer = new Backup(0, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 3, 1, 1);
+        var older = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var newer = new Backup(0, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 3, 1, 1, 0);
 
         await sut.InsertAsync(older, CancellationToken.None);
         await sut.InsertAsync(newer, CancellationToken.None);
@@ -76,9 +76,9 @@ public class BackupRepositorySqliteIntegrationTests
 
         var sut = new BackupRepository(databaseService);
 
-        var first = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0);
-        var second = new Backup(0, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 2, 1, 0);
-        var third = new Backup(0, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 3, 1, 1);
+        var first = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var second = new Backup(0, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
+        var third = new Backup(0, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 3, 1, 1, 0);
 
         await sut.InsertAsync(first, CancellationToken.None);
         await sut.InsertAsync(second, CancellationToken.None);
@@ -97,7 +97,7 @@ public class BackupRepositorySqliteIntegrationTests
         await CreateBackupsTableAsync(databaseService.GetConnection());
 
         var sut = new BackupRepository(databaseService);
-        var backup = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0);
+        var backup = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
         await sut.InsertAsync(backup, CancellationToken.None);
 
         var result = await sut.GetNextBackupAfterAsync(backup.CreatedAt, CancellationToken.None);
@@ -114,8 +114,8 @@ public class BackupRepositorySqliteIntegrationTests
 
         var sut = new BackupRepository(databaseService);
 
-        var older = new Backup(0, new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc), 1, 0, 0);
-        var newer = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 2, 1, 0);
+        var older = new Backup(0, new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var newer = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
 
         await sut.InsertAsync(newer, CancellationToken.None);
         await sut.InsertAsync(older, CancellationToken.None);
@@ -148,7 +148,8 @@ public class BackupRepositorySqliteIntegrationTests
                 CreatedAt TEXT NOT NULL,
                 CreatedFiles INTEGER NOT NULL,
                 UpdatedFiles INTEGER NOT NULL,
-                DeletedFiles INTEGER NOT NULL
+                DeletedFiles INTEGER NOT NULL,
+                TotalSize INTEGER NOT NULL
             );";
 
         using var command = new SQLiteCommand(sql, connection);

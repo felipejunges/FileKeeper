@@ -88,6 +88,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
     private async Task<ErrorOr<Success>> ExecuteBackupFromFolderAsync(string backupPath, Backup newBackup, CancellationToken token)
     {
+        long totalBackupSize = 0;
+        
         var localFiles = _fileSystem.GetFiles(backupPath, "*.*", SearchOption.AllDirectories);
         var storedFilesResult = await _fileRepository.GetFilesWithVersionAsync(backupPath, token);
 
@@ -108,6 +110,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
             await using var localFileStream = _fileSystem.GetReadFileStream(localFile);
             var localFileHash = await HasingHelpers.ComputeHashFromStreamAsync(localFileStream, token);
+            
+            totalBackupSize += localFileStream.Length;
 
             var fileAction = ObtainFileAction(storedFile, localFileHash);
             
@@ -142,6 +146,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
         await ValidateDeletedFilesAsync(storedFiles, relativePathsProcessados, newBackup, token);
 
+        newBackup.UpdateTotalSize(totalBackupSize);
+        
         await _backupRepository.UpdateAsync(newBackup, token);
         
         _logger.LogInformation(

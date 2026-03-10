@@ -35,17 +35,19 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
 
         // recupera o backup do banco de dados
         // TODO: do not load all files into memory at once, but rather stream them one by one
-        var filesToRecover = await _fileRepository.GetFilesToRecoverAsync(backupId, token);
-        if (filesToRecover.IsError)
-            return filesToRecover.Errors;
+        var filesToRecoverResult = await _fileRepository.GetFilesToRecoverAsync(backupId, token);
+        if (filesToRecoverResult.IsError)
+            return filesToRecoverResult.Errors;
+
+        var filesToRecover = filesToRecoverResult.Value.ToList();
         
         _logger.LogInformation(
             "Starting backup restoration for backup ID {BackupId} to destination folder '{DestinationFolder}' with {FileCount} files to recover.",
             backupId,
             destinationFolder,
-            filesToRecover.Value.Count());
+            filesToRecover.Count());
 
-        foreach (var fileToRecover in filesToRecover.Value)
+        foreach (var fileToRecover in filesToRecover)
         {
             var finalDestinationName = Path.Combine(
                 destinationFolder,

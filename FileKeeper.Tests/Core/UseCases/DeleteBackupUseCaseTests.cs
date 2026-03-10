@@ -56,7 +56,7 @@ public class DeleteBackupUseCaseTests
     {
         // Arrange
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
         
         Mock_BackupRepository_GetByIdAsync(backupId, backup);
         Mock_BackupRepository_GetNextBackupAfterAsync(backup.CreatedAt, Error.Unexpected(description: "Database error while fetching backup."));
@@ -78,8 +78,8 @@ public class DeleteBackupUseCaseTests
     {
         // Arrange
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
-        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
         
         Mock_BackupRepository_GetByIdAsync(backupId, backup);
         Mock_BackupRepository_GetNextBackupAfterAsync(backup.CreatedAt, nextBackup);
@@ -103,8 +103,8 @@ public class DeleteBackupUseCaseTests
         // Arrange
         var fileId = 1L;
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
-        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
 
         var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
         var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
@@ -133,8 +133,8 @@ public class DeleteBackupUseCaseTests
         // Arrange
         var fileId = 1L;
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
-        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
 
         var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
         var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
@@ -164,8 +164,8 @@ public class DeleteBackupUseCaseTests
         // Arrange
         var fileId = 1L;
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
-        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
 
         var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
         var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
@@ -195,8 +195,8 @@ public class DeleteBackupUseCaseTests
         // Arrange
         var fileId = 1L;
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
-        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
 
         var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
         var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
@@ -227,8 +227,8 @@ public class DeleteBackupUseCaseTests
         // Arrange
         var fileId = 1L;
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
-        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
 
         var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
         var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
@@ -258,7 +258,7 @@ public class DeleteBackupUseCaseTests
         // Arrange
         var fileId = 1L;
         var backupId = 1L;
-        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2);
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
 
         var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
         var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();

@@ -7,6 +7,7 @@ using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
 using System;
 using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -94,11 +95,12 @@ public partial class MainWindowViewModel
 
         if (result.IsError)
         {
-            ErrorMessage = $"Failed to save backup: {result.FirstError.Description}";
+            ErrorMessage = $"Failed to create new backup: {result.FirstError.Description}";
             IsErrorVisible = true;
         }
 
         await UpdateBackupListAsync(cancellationToken);
+        UpdateFooter();
     }
 
     public void Receive(BackupDeletedMessage message)

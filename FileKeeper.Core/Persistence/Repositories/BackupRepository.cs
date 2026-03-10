@@ -19,7 +19,8 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.CreatedAt)},
                 {nameof(Backup.CreatedFiles)},
                 {nameof(Backup.UpdatedFiles)},
-                {nameof(Backup.DeletedFiles)}
+                {nameof(Backup.DeletedFiles)},
+                {nameof(Backup.TotalSize)}
             FROM Backups
             WHERE Id = @id;";
 
@@ -49,7 +50,8 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.CreatedAt)},
                 {nameof(Backup.CreatedFiles)},
                 {nameof(Backup.UpdatedFiles)},
-                {nameof(Backup.DeletedFiles)}
+                {nameof(Backup.DeletedFiles)},
+                {nameof(Backup.TotalSize)}
             FROM Backups
             WHERE CreatedAt > @createdAt
             ORDER BY CreatedAt ASC
@@ -74,7 +76,8 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.CreatedAt)},
                 {nameof(Backup.CreatedFiles)},
                 {nameof(Backup.UpdatedFiles)},
-                {nameof(Backup.DeletedFiles)}
+                {nameof(Backup.DeletedFiles)},
+                {nameof(Backup.TotalSize)}
             FROM Backups
             ORDER BY {nameof(Backup.CreatedAt)} DESC;";
 
@@ -88,12 +91,14 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.CreatedAt)},
                 {nameof(Backup.CreatedFiles)},
                 {nameof(Backup.UpdatedFiles)},
-                {nameof(Backup.DeletedFiles)})
+                {nameof(Backup.DeletedFiles)},
+                {nameof(Backup.TotalSize)})
             VALUES (
                 @CreatedAt,
                 @CreatedFiles,
                 @UpdatedFiles,
-                @DeletedFiles);
+                @DeletedFiles,
+                @TotalSize);
             SELECT last_insert_rowid() AS Id;";
 
         var result = await QuerySingleOrDefaultAsync<long>(sql, backup, token);
@@ -112,7 +117,8 @@ public class BackupRepository : RepositoryBase, IBackupRepository
             UPDATE Backups
             SET {nameof(Backup.CreatedFiles)} = @CreatedFiles,
                 {nameof(Backup.UpdatedFiles)} = @UpdatedFiles,
-                {nameof(Backup.DeletedFiles)} = @DeletedFiles
+                {nameof(Backup.DeletedFiles)} = @DeletedFiles,
+                {nameof(Backup.TotalSize)} = @TotalSize
             WHERE Id = @Id;";
 
         return ExecuteAsync(sql, backup, token);
@@ -135,7 +141,8 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.CreatedAt)},
                 {nameof(Backup.CreatedFiles)},
                 {nameof(Backup.UpdatedFiles)},
-                {nameof(Backup.DeletedFiles)}
+                {nameof(Backup.DeletedFiles)},
+                {nameof(Backup.TotalSize)}
             FROM Backups
             ORDER BY CreatedAt ASC
             LIMIT 1;";

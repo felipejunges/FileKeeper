@@ -76,13 +76,13 @@
 
                                 <TextBlock Grid.Column="4"
                                            Grid.Row="0"
-                                           Text="{Binding Id, StringFormat='Tamanho: \{0\} MB'}"
+                                           Text="{Binding TotalSizeFormatted}"
                                            VerticalAlignment="Center"
                                            Opacity="0.8" />
 
                                 <TextBlock Grid.Column="0"
                                            Grid.Row="1"
-                                           Grid.ColumnSpan="6"
+                                           Grid.ColumnSpan="5"
                                            Text="Resumo do backup"
                                            Opacity="0.65"
                                            FontSize="12" />

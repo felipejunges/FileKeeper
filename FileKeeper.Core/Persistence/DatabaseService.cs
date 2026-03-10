@@ -28,7 +28,8 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             CreatedAt TEXT NOT NULL,
             CreatedFiles INTEGER NOT NULL,
             UpdatedFiles INTEGER NOT NULL,
-            DeletedFiles INTEGER NOT NULL
+            DeletedFiles INTEGER NOT NULL,
+            TotalSize INTEGER NOT NULL
         );",
         
         @"
