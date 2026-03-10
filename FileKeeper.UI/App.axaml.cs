@@ -20,12 +20,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FileKeeper.UI;
 
 public partial class App : Application
 {
-    public IServiceProvider? Services { get; private set; }
+    public IServiceProvider Services { get; private set; } = null!;
     private IHost? _host;
 
     public override void Initialize()
@@ -46,7 +48,7 @@ public partial class App : Application
             .ConfigureServices((_, services) => { ConfigureServices(services); })
             .Build();
 
-        Services = _host.Services;
+        Services = _host.Services ?? throw new NullReferenceException("Unable to initialize HostServices");
 
         var logger = Services.GetRequiredService<ILogger<App>>();
         logger.LogInformation("========== Application Starting ==========");
@@ -55,6 +57,12 @@ public partial class App : Application
         {
             DisableAvaloniaDataAnnotationValidation();
 
+            // TODO: this is needed:
+            InitializeDatabaseAsync()
+                 .GetAwaiter()
+                 .GetResult();
+            //await InitializeDatabaseAsync();
+
             var vm = Services.GetRequiredService<MainWindowViewModel>();
             _ = vm.InitializeAsync();
 
@@ -62,10 +70,32 @@ public partial class App : Application
             mainWindow.DataContext = vm;
             desktop.MainWindow = mainWindow;
 
-            desktop.ShutdownRequested += (s, e) => { logger.LogInformation("========== Application Closing =========="); };
+            desktop.ShutdownRequested += (_, _) => { logger.LogInformation("========== Application Closing =========="); };
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static async Task InitializeDatabaseAsync()
+    {
+        if (Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime)
+            return;
+        
+        var services = ((App)Current).Services;
+        var databaseService = services.GetRequiredService<IDatabaseService>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        
+        logger.LogInformation("Initializing database");
+        
+        var initResult = await databaseService.InitializeAsync(CancellationToken.None);
+        if (initResult.IsError)
+        {
+            logger.LogError("Failed to initialize database: {Error}", initResult.FirstError.Description);
+            Console.WriteLine($"Failed to initialize database: {initResult.FirstError.Description}");
+            return;
+        }
+        
+        logger.LogInformation("Database initialized successfully");
     }
 
     private void ConfigureServices(IServiceCollection services)
@@ -113,8 +143,6 @@ public partial class App : Application
             return;
         
         var services = ((App)Current).Services;
-        if (services is null)
-            return;
         
         var vm = services.GetRequiredService<ConfigurationWindowViewModel>();
         _ = vm.InitializeAsync();
@@ -142,8 +170,6 @@ public partial class App : Application
             return;
         
         var services = ((App)Current).Services;
-        if (services is null)
-            return;
 
         var vm = services.GetRequiredService<BackupWindowViewModel>();
         _ = vm.InitializeAsync();
