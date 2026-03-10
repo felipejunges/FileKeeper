@@ -42,4 +42,8 @@
   <ItemGroup>
     <ProjectReference Include="..\FileKeeper.Core\FileKeeper.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
+  </ItemGroup>
 </Project>

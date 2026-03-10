@@ -12,6 +12,11 @@ public class FileRepository : RepositoryBase, IFileRepository
     {
     }
 
+    public async Task<ErrorOr<FileInBackupDM>> GetFilesInBackupAsync(long backupId, CancellationToken token)
+    {
+        
+    }
+
     public async Task<ErrorOr<IEnumerable<FileVersionDM>>> GetFilesWithVersionAsync(string backupPath, CancellationToken token)
     {
         const string sql = @"SELECT 
