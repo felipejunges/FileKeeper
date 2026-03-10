@@ -40,8 +40,8 @@ public class BackupRepositoryBehaviorTests
         Assert.Equal(0, backup.Id);
     }
 
-    [Fact(DisplayName = "03 - GetNextBackupAfterAsync should propagate query failure when connection fails")]
-    public async Task GetNextBackupAfterAsync_ShouldPropagateQueryFailure_WhenConnectionFails()
+    [Fact(DisplayName = "03 - GetNextBackupByIdAsync should propagate query failure when connection fails")]
+    public async Task GetNextBackupByIdAsync_ShouldPropagateQueryFailure_WhenConnectionFails()
     {
         var databaseServiceMock = new Mock<IDatabaseService>();
         databaseServiceMock
@@ -50,8 +50,8 @@ public class BackupRepositoryBehaviorTests
 
         var sut = new BackupRepository(databaseServiceMock.Object);
 
-        var result = await sut.GetNextBackupAfterAsync(
-            new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc),
+        var result = await sut.GetNextBackupByIdAsync(
+            1,
             CancellationToken.None);
 
         Assert.True(result.IsError);

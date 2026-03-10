@@ -42,7 +42,7 @@ public class BackupRepository : RepositoryBase, IBackupRepository
         return QuerySingleOrDefaultAsync<int>(sql, null, cancellationToken);
     }
 
-    public async Task<ErrorOr<Backup>> GetNextBackupAfterAsync(DateTime createdAt, CancellationToken token)
+    public async Task<ErrorOr<Backup>> GetNextBackupByIdAsync(long backupId, CancellationToken token)
     {
         const string sql = @$"
             SELECT
@@ -53,11 +53,11 @@ public class BackupRepository : RepositoryBase, IBackupRepository
                 {nameof(Backup.DeletedFiles)},
                 {nameof(Backup.TotalSize)}
             FROM Backups
-            WHERE CreatedAt > @createdAt
-            ORDER BY CreatedAt ASC
+            WHERE Id > @backupId
+            ORDER BY Id ASC
             LIMIT 1;";
 
-        var result = await QuerySingleOrDefaultAsync<Backup>(sql, new { createdAt }, token);
+        var result = await QuerySingleOrDefaultAsync<Backup>(sql, new { backupId }, token);
 
         if (result.IsError)
             return result.Errors;
@@ -163,5 +163,31 @@ public class BackupRepository : RepositoryBase, IBackupRepository
             return Error.NotFound(description: "No backups found.");
 
         return backupResult.Value;
+    }
+
+    public async Task<ErrorOr<Success>> IncrementMovedFilesDataToBackupAsync(long backupId, IEnumerable<long> movedIds, CancellationToken token)
+    {
+        const string sql = "SELECT IsNew, Size FROM FileVersions WHERE Id IN @movedIds;";
+
+        var newFilesResult = await QueryAsync<(bool IsNew, long Size)>(sql, new { movedIds }, token);
+        if (newFilesResult.IsError)
+            return newFilesResult.Errors;
+
+        var sizeToAdd = newFilesResult.Value.Sum(f => f.Size);
+        var createdFilesToAdd = newFilesResult.Value.Count(f => f.IsNew);
+        var updatedFilesToAdd = newFilesResult.Value.Count(f => !f.IsNew);
+
+        const string updateSql = @$"
+            UPDATE Backups
+            SET {nameof(Backup.CreatedFiles)} = {nameof(Backup.CreatedFiles)} + @createdFilesToAdd,
+                {nameof(Backup.UpdatedFiles)} = {nameof(Backup.UpdatedFiles)} + @updatedFilesToAdd,
+                {nameof(Backup.TotalSize)} = {nameof(Backup.TotalSize)} + @sizeToAdd
+            WHERE Id = @backupId;";
+
+        var updateResult = await ExecuteAsync(updateSql, new { backupId, createdFilesToAdd, updatedFilesToAdd, sizeToAdd }, token);
+        if (updateResult.IsError) 
+            return updateResult.Errors;
+
+        return Result.Success;
     }
 }

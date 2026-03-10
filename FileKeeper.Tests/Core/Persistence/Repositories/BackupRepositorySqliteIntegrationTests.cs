@@ -68,8 +68,8 @@ public class BackupRepositorySqliteIntegrationTests
         Assert.Equal(older.Id, backups[1].Id);
     }
 
-    [Fact(DisplayName = "04 - GetNextBackupAfterAsync should return first backup after informed CreatedAt")]
-    public async Task GetNextBackupAfterAsync_ShouldReturnFirstBackupAfterCreatedAt()
+    [Fact(DisplayName = "04 - GetNextBackupByIdAsync should return first backup after informed CreatedAt")]
+    public async Task GetNextBackupByIdAsync_ShouldReturnFirstBackupAfterCreatedAt()
     {
         await using var databaseService = new InMemorySqliteDatabaseService();
         await CreateBackupsTableAsync(databaseService.GetConnection());
@@ -84,14 +84,14 @@ public class BackupRepositorySqliteIntegrationTests
         await sut.InsertAsync(second, CancellationToken.None);
         await sut.InsertAsync(third, CancellationToken.None);
 
-        var result = await sut.GetNextBackupAfterAsync(first.CreatedAt, CancellationToken.None);
+        var result = await sut.GetNextBackupByIdAsync(first.Id, CancellationToken.None);
 
         Assert.False(result.IsError);
         Assert.Equal(second.Id, result.Value.Id);
     }
 
-    [Fact(DisplayName = "05 - GetNextBackupAfterAsync should return NotFound when there is no newer backup")]
-    public async Task GetNextBackupAfterAsync_ShouldReturnNotFound_WhenNoNewerBackupExists()
+    [Fact(DisplayName = "05 - GetNextBackupByIdAsync should return NotFound when there is no newer backup")]
+    public async Task GetNextBackupByIdAsync_ShouldReturnNotFound_WhenNoNewerBackupExists()
     {
         await using var databaseService = new InMemorySqliteDatabaseService();
         await CreateBackupsTableAsync(databaseService.GetConnection());
@@ -100,7 +100,7 @@ public class BackupRepositorySqliteIntegrationTests
         var backup = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
         await sut.InsertAsync(backup, CancellationToken.None);
 
-        var result = await sut.GetNextBackupAfterAsync(backup.CreatedAt, CancellationToken.None);
+        var result = await sut.GetNextBackupByIdAsync(backup.Id, CancellationToken.None);
 
         Assert.True(result.IsError);
         Assert.Equal(ErrorOr.ErrorType.NotFound, result.FirstError.Type);

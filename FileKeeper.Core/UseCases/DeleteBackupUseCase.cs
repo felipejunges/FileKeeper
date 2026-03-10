@@ -4,6 +4,7 @@ using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models.DMs;
 using Microsoft.Extensions.Logging;
+using System.Runtime.ExceptionServices;
 
 namespace FileKeeper.Core.UseCases;
 
@@ -61,7 +62,7 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
         var backup = backupResult.Value;
 
         // 2. Get the next backup after the one to be deleted
-        var nextBackupResult = await _backupRepository.GetNextBackupAfterAsync(backup.CreatedAt, token);
+        var nextBackupResult = await _backupRepository.GetNextBackupByIdAsync(backup.Id, token);
         if (nextBackupResult.IsError && nextBackupResult.FirstError.Type != ErrorType.NotFound)
         {
             _logger.LogWarning(
@@ -73,6 +74,15 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
         }
         
         var nextBackup = nextBackupResult.IsError ? null : nextBackupResult.Value;
+        if (nextBackup is not null && backup.CreatedAt > nextBackup.CreatedAt)
+        {
+            _logger.LogWarning(
+                "The next backup with id {NextBackupId} has a creation date earlier than the current backup with id {BackupId}. Backup deletion aborted.",
+                nextBackup.Id,
+                backupId);
+            
+            return Error.Validation(description: "The next backup's creation date is earlier than the current backup's creation date, which is unexpected. Backup deletion aborted.");
+        }
 
         // 3. Obtain the list of versions linked to the current backup
         var filesVersionsResult = await _fileRepository.GetFilesToDeleteAsync(backup.Id, nextBackup?.Id, token);
@@ -165,6 +175,33 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
                 versionsMovedResult.Errors);
 
             return versionsMovedResult.Errors;
+        }
+        
+        var increementResult = await IncrementNewFilesCountInNextBackupAsync(nextBackupId, idsVersionsToMoveToNextBackup, token);
+        if (increementResult.IsError)
+        {
+            _logger.LogWarning(
+                "Failed to increment new files count in the next backup with id {NextBackupId}. Backup deletion aborted. Errors: {Errors}",
+                nextBackupId,
+                increementResult.Errors);
+            
+            return increementResult;
+        }
+
+        return Result.Success;
+    }
+
+    private async Task<ErrorOr<Success>> IncrementNewFilesCountInNextBackupAsync(long backupId, IEnumerable<long> idsVersionsToMoveToNextBackup, CancellationToken token)
+    {
+        var incrementResult = await _backupRepository.IncrementMovedFilesDataToBackupAsync(backupId, idsVersionsToMoveToNextBackup, token);
+        if (incrementResult.IsError)
+        {
+            _logger.LogWarning(
+                "Failed to increment new files count in the next backup with id {BackupId}. Backup deletion aborted. Errors: {Errors}",
+                backupId,
+                incrementResult.Errors);
+
+            return incrementResult.Errors;
         }
 
         return Result.Success;

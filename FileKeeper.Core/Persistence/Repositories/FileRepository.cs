@@ -103,6 +103,8 @@ public class FileRepository : RepositoryBase, IFileRepository
                 fv1.Id,
                 fv1.FileId,
                 fv1.BackupId,
+                fv1.IsNew,
+                fv1.Size,
                 CASE
                     WHEN fv2.Id IS NOT NULL THEN 1
                     ELSE 0
