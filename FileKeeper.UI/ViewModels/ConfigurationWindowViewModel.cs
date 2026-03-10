@@ -5,6 +5,8 @@ using FileKeeper.Core.Models;
 using FileKeeper.Core.Interfaces.Services;
 using System;
 using System.Threading;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace FileKeeper.UI.ViewModels;
 
@@ -13,6 +15,7 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
     private readonly IConfigurationService? _configurationService;
     
     public event Action? RequestClose;
+    public event Func<Task<string?>>? RequestFolderPicker;
 
     [ObservableProperty] private string _databaseLocation = string.Empty;
 
@@ -27,6 +30,8 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
     [ObservableProperty] private string _errorMessage = string.Empty;
     
     [ObservableProperty] private bool _isErrorVisible = false;
+
+    [ObservableProperty] private ObservableCollection<string> _monitoredFolders = new();
 
     private string? _currentRestoreDestination;
 
@@ -52,6 +57,12 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
         MaxDatabaseSizeMb = configuration.MaxDatabaseSizeMb;
         EnableCompression = configuration.EnableCompression;
         
+        MonitoredFolders.Clear();
+        foreach (var folder in configuration.MonitoredFolders)
+        {
+            MonitoredFolders.Add(folder);
+        }
+        
         _currentRestoreDestination = configuration.CurrentRestoreDestination;
     }
 
@@ -69,6 +80,7 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
             AutoBackupIntervalMinutes = AutoBackupIntervalMinutes,
             MaxDatabaseSizeMb = MaxDatabaseSizeMb,
             EnableCompression = EnableCompression,
+            MonitoredFolders = MonitoredFolders.ToList(),
             CurrentRestoreDestination = _currentRestoreDestination
         };
 
@@ -89,5 +101,24 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
     private void Cancel()
     {
         RequestClose?.Invoke();
+    }
+    
+    [RelayCommand]
+    private async Task AddFolder()
+    {
+        if (RequestFolderPicker == null) return;
+        
+        var selectedFolder = await RequestFolderPicker.Invoke();
+        
+        if (!string.IsNullOrWhiteSpace(selectedFolder) && !MonitoredFolders.Contains(selectedFolder))
+        {
+            MonitoredFolders.Add(selectedFolder);
+        }
+    }
+    
+    [RelayCommand]
+    private void RemoveFolder(string folder)
+    {
+        MonitoredFolders.Remove(folder);
     }
 }
