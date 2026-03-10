@@ -6,7 +6,7 @@ using FileKeeper.Core;
 using FileKeeper.Core.Interfaces.UI;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models.Entities;
-using MsBox.Avalonia;
+using FileKeeper.UI.Services;
 using MsBox.Avalonia.Enums;
 using System;
 using System.Threading;
@@ -44,35 +44,29 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
     private async Task DeleteBackup(CancellationToken cancellationToken)
     {
         if (Backup is null) return;
-        
-        var box = MessageBoxManager.GetMessageBoxStandard(
-            "Confirm backup deletion", 
-            $"Confirm delete backup {Backup.Id}?",
-            ButtonEnum.YesNo);
-        
-        var boxResult = await box.ShowWindowDialogAsync(_window!);
-        if (boxResult != ButtonResult.Yes)
+
+        var confirm = await DialogBuilder.CreateConfirmation()
+            .WithTitle("Confirm backup deletion")
+            .WithMessage($"Confirm delete backup {Backup.Id}?")
+            .ShowAndWaitForYesAsync(_window!);
+
+        if (!confirm)
             return;
-        
+
         var result = await _deleteBackupUseCase.ExecuteAsync(Backup.Id, cancellationToken);
 
         if (result.IsError)
         {
-            // TODO: pensar sobre: abstrair para uma interface própria
-            var messageBox = MessageBoxManager.GetMessageBoxStandard(
-                "Error while deleting backup",
-                result.FirstError.Description,
-                ButtonEnum.Ok,
-                Icon.Error
-            );
-
-            await messageBox.ShowWindowDialogAsync(_window!);
+            await DialogBuilder.CreateError()
+                .WithTitle("Error while deleting backup")
+                .WithMessage(result.FirstError.Description)
+                .ShowAsync(_window!);
 
             return;
         }
-        
+
         WeakReferenceMessenger.Default.Send(new BackupDeletedMessage(Backup.Id));
-        
+
         RequestClose?.Invoke();
     }
 
@@ -86,28 +80,24 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
         if (string.IsNullOrWhiteSpace(destinationFolder))
             return;
 
-        var box = MessageBoxManager.GetMessageBoxStandard(
-            "Confirm backup restoration", 
-            $"Confirm restore backup {Backup.Id} into folder {destinationFolder}?",
-            ButtonEnum.YesNo);
-        
-        var boxResult = await box.ShowWindowDialogAsync(_window!);
-        if (boxResult != ButtonResult.Yes)
+        var confirm = await DialogBuilder.CreateConfirmation()
+            .WithTitle("Confirm backup restoration")
+            .WithMessage($"Confirm restore backup {Backup.Id} into folder {destinationFolder}?")
+            .ShowAndWaitForYesAsync(_window!);
+
+        if (!confirm)
             return;
 
         var result = await _restoreBackupUseCase.ExecuteAsync(Backup.Id, destinationFolder, cancellationToken);
 
         if (result.IsError)
         {
-            // TODO: pensar sobre: abstrair para uma interface própria
-            var messageBox = MessageBoxManager.GetMessageBoxStandard(
-                "Error while restoring backup",
-                result.FirstError.Description,
-                ButtonEnum.Ok,
-                Icon.Error
-            );
-
-            await messageBox.ShowWindowDialogAsync(_window!);
+            await DialogBuilder.Create()
+                .WithTitle("Error while restoring backup")
+                .WithMessage(result.FirstError.Description)
+                .WithButtons(ButtonEnum.Ok)
+                .WithIcon(Icon.Error)
+                .ShowAsync(_window!);
         }
     }
 
