@@ -83,7 +83,7 @@ public class FileRepository : RepositoryBase, IFileRepository
             INNER JOIN FileVersions fv ON f.Id = fv.FileId
             WHERE (
                 f.IsDeleted = 0
-                OR f.IsDeleted = 1 AND f.DeletedAt < @backupId
+                OR f.IsDeleted = 1 AND f.DeletedAt > @backupId
             )
             AND fv.BackupId = (
                 SELECT MAX(fv2.BackupId)
