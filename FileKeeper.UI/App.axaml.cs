@@ -112,10 +112,11 @@ public partial class App : Application
         if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var services = ((App)Current).Services;
-            var window = new ConfigurationWindow
-            {
-                DataContext = services?.GetRequiredService<ConfigurationWindowViewModel>()
-            };
+            
+            var vm = services?.GetRequiredService<ConfigurationWindowViewModel>();
+            vm.InitializeAsync();
+            
+            var window = new ConfigurationWindow(vm);
             window.ShowDialog(desktop.MainWindow!);
         }
     }

@@ -9,8 +9,68 @@
 
     <Grid RowDefinitions="*,Auto" Margin="20">
         <ScrollViewer Grid.Row="0">
-            <StackPanel Spacing="15">
+            <StackPanel Spacing="8">
+                <!-- Error Message -->
+                <Border Grid.Row="0"
+                        Background="#FFE74C3C"
+                        IsVisible="{Binding IsErrorVisible}"
+                        Padding="10"
+                        CornerRadius="4"
+                        Margin="0,0,0,0">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="White"
+                               TextWrapping="Wrap" />
+                </Border>
+                
                 <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Margin="0,0,0,10" />
+
+                <!-- Monitored Folders -->
+                <StackPanel Spacing="5">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="Monitored Folders" FontWeight="SemiBold" />
+                        <Button Grid.Column="1" Command="{Binding AddFolderCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <TextBlock Text="➕ Add Folder" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    
+                    <Border BorderBrush="Gray" 
+                            BorderThickness="1" 
+                            CornerRadius="4" 
+                            MinHeight="100"
+                            MaxHeight="200"
+                            Padding="5">
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding MonitoredFolders}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="LightGray" 
+                                                BorderThickness="0,0,0,1" 
+                                                Padding="5"
+                                                Margin="0,2">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" 
+                                                          Text="{Binding}" 
+                                                          VerticalAlignment="Center"
+                                                          TextTrimming="CharacterEllipsis"
+                                                          ToolTip.Tip="{Binding}" />
+                                                <Button Grid.Column="1" 
+                                                        Command="{Binding $parent[Window].((vm:ConfigurationWindowViewModel)DataContext).RemoveFolderCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="Transparent"
+                                                        Padding="5">
+                                                    <TextBlock Text="🗑️" FontSize="14" />
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                    <TextBlock Text="Folders to monitor for automatic backups" FontSize="11" Foreground="Gray" />
+                </StackPanel>
 
                 <StackPanel Spacing="5">
                     <TextBlock Text="Database Location" FontWeight="SemiBold" />
@@ -29,7 +89,7 @@
 
                 <StackPanel Spacing="5">
                     <TextBlock Text="Auto Backup Interval (Minutes)" FontWeight="SemiBold" />
-                    <NumericUpDown Value="{Binding AutoBackupIntervalMinutes}" Minimum="0" />
+                    <NumericUpDown Value="{Binding AutoBackupIntervalMinutes}" Minimum="0" ParsingNumberStyle="Integer" />
                     <TextBlock Text="Set to 0 to disable" FontSize="11" Foreground="Gray" />
                 </StackPanel>
 
@@ -43,6 +103,12 @@
         </ScrollViewer>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+            <Button Command="{Binding CancelCommand}" HotKey="Escape">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <TextBlock Text="✖ Cancel" />
+                </StackPanel>
+            </Button>
+            
             <Button Command="{Binding SaveConfigurationCommand}" HotKey="Ctrl+S">
                 <StackPanel Orientation="Horizontal" Spacing="5">
                     <TextBlock Text="💾 Save" />
