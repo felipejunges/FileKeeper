@@ -44,6 +44,7 @@ public class DatabaseService : IDatabaseService, IAsyncDisposable
             Id INTEGER PRIMARY KEY AUTOINCREMENT,
             FileId INTEGER NOT NULL,
             BackupId INTEGER NOT NULL,
+            IsNew INTEGER NOT NULL,
             Size INTEGER NOT NULL,
             Hash TEXT NOT NULL,
             Content BLOB NOT NULL,
