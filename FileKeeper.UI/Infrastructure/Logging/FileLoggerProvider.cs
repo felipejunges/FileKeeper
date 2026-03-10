@@ -25,7 +25,7 @@ public class FileLoggerProvider : ILoggerProvider
     public FileLoggerProvider(IConfiguration configuration)
     {
         // Try to read LogLevel from config, fallback to parameter
-        var configLogLevel = configuration.GetSection("Logging:FileLogger:LogLevel").Value;
+        var configLogLevel = configuration.GetSection("Logging:LogLevel:FileKeeper").Value;
         
         _minimumLevel = Enum.TryParse<LogLevel>(configLogLevel, out var parsedLevel)
             ? parsedLevel

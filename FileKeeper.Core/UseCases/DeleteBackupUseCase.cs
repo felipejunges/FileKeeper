@@ -106,7 +106,7 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
         }
 
         // 5. delete all the versions has is kept in the current backup
-        var deleteVersionsResult = await DeleteVersionsKeptInCurrentBackupAsync(backupId, filesVersions, token);
+        var deleteVersionsResult = await DeleteVersionsKeptInCurrentBackupAsync(backupId, token);
         if (deleteVersionsResult.IsError)
             return deleteVersionsResult;
 
@@ -138,8 +138,7 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
         return Result.Success;
     }
 
-    private async Task<ErrorOr<Success>> DeleteVersionsKeptInCurrentBackupAsync(long backupId, List<FileToDeleteDM> filesVersions,
-        CancellationToken token)
+    private async Task<ErrorOr<Success>> DeleteVersionsKeptInCurrentBackupAsync(long backupId, CancellationToken token)
     {
         _logger.LogDebug("Deleting all versions left in backupId {BackupId}", backupId);
 

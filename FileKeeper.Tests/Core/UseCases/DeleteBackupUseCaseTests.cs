@@ -167,8 +167,7 @@ public class DeleteBackupUseCaseTests
         Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
         Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
         Mock_FileRepository_MoveVersionsToBackupAsync(filesToMove, backupId + 1, 5);
-        Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId,
-            Error.Unexpected(description: "Database error while deleting files from backup."));
+        Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId, Error.Unexpected(description: "Database error while deleting files from backup."));
 
         // Act
         var result = await _sut.ExecuteAsync(backupId, CancellationToken.None);
