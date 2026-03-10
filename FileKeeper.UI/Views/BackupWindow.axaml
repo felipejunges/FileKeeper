@@ -7,7 +7,7 @@
         WindowStartupLocation="CenterScreen"
         Width="600" Height="400">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <StackPanel Grid.Row="0" Margin="10" Spacing="5">
             <TextBlock Text="Backup Details" FontSize="20" FontWeight="Bold" />
             <TextBlock Text="{Binding Backup.CreatedAt, StringFormat='Date: {0:yyyy-MM-dd HH:mm:ss}'}" />
@@ -42,5 +42,21 @@
                 </ListBox>
             </TabItem>
         </TabControl>
+        
+        <!-- Actions Footer -->
+        <Border Grid.Row="2" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Command="{Binding RestoreBackupCommand}" Background="#E1F5FE">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="⬇️ Restore Backup" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding DeleteBackupCommand}" Background="#FFEBEE">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="🗑️ Delete Backup" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

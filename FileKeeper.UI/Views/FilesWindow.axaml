@@ -7,7 +7,7 @@
         WindowStartupLocation="CenterScreen"
         Width="800" Height="600">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*">
         <!-- Header & Breadcrumbs -->
         <StackPanel Grid.Row="0" Margin="10" Orientation="Horizontal" Spacing="10">
             <TextBlock Text="📂" VerticalAlignment="Center" />
@@ -48,21 +48,5 @@
                 </ListBox>
             </Grid>
         </Grid>
-
-        <!-- Actions Footer -->
-        <Border Grid.Row="2" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                <Button Command="{Binding RestoreBackupCommand}" Background="#E1F5FE">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                        <TextBlock Text="⬇️ Restore Backup" />
-                    </StackPanel>
-                </Button>
-                <Button Command="{Binding DeleteBackupCommand}" Background="#FFEBEE">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                        <TextBlock Text="🗑️ Delete Backup" />
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-        </Border>
     </Grid>
 </Window>

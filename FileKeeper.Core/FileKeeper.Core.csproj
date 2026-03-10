@@ -15,4 +15,10 @@
       <PackageReference Include="Dapper" Version="2.1.66" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="CommunityToolkit.Mvvm">
+        <HintPath>..\..\..\..\.nuget\packages\communitytoolkit.mvvm\8.2.1\lib\net6.0\CommunityToolkit.Mvvm.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
 </Project>

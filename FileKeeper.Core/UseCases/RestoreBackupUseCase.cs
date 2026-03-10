@@ -72,7 +72,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
                     fileToRecover.FileName,
                     finalDestinationName);
                 
-                return Error.Unexpected(description: $"Ocorreu um erro ao restaurar o arquivo '{fileToRecover.FileName}': {e.Message}");
+                return Error.Unexpected(description: $"An error has happened while trying to restore file '{fileToRecover.FileName}': {e.Message}");
             }
         }
         
@@ -96,7 +96,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         if (!_fileSystem.IsDirectoryEmpty(destinationFolder))
         {
             _logger.LogWarning("The destination directory '{DestinationFolder}' is not empty. Backup restoration requires an empty directory.", destinationFolder);
-            return Error.Failure(description: "O diretório de destino deve estar vazio para restaurar o backup.");
+            return Error.Failure(description: "The destination folder must be empty to restore the backup.");
         }
 
         return Result.Success;

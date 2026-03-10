@@ -34,19 +34,6 @@ public partial class FilesWindowViewModel : ViewModelBase
         // In real app, load files from this directory
     }
 
-    [RelayCommand]
-    private void DeleteBackup()
-    {
-        // Logic to delete backup
-    }
-
-    [RelayCommand]
-    private async Task RestoreBackup()
-    {
-        // Placeholder for FolderPicker logic
-        await Task.CompletedTask;
-    }
-
     partial void OnSelectedFileChanged(BackupedFileDM? value)
     {
         if (value != null)

@@ -1,25 +1,25 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
-using System.Linq;
 using Avalonia.Markup.Xaml;
-using FileKeeper.UI.ViewModels;
-using FileKeeper.UI.Views;
-using Microsoft.Extensions.DependencyInjection;
-using FileKeeper.Core.Interfaces.Services;
-using FileKeeper.Core.Services;
 using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Interfaces.UI;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Persistence;
 using FileKeeper.Core.Persistence.Repositories;
+using FileKeeper.Core.Services;
 using FileKeeper.Core.UseCases;
 using FileKeeper.UI.Infrastructure.Logging;
+using FileKeeper.UI.Services;
+using FileKeeper.UI.ViewModels;
+using FileKeeper.UI.Views;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 
 namespace FileKeeper.UI;
 
@@ -43,33 +43,26 @@ public partial class App : Application
                 logging.AddFileLogger("FileKeeper", LogLevel.Trace); // Se você tiver o FileLogger
                 logging.SetMinimumLevel(LogLevel.Information);
             })
-            .ConfigureServices((_, services) =>
-            {
-                ConfigureServices(services);
-            })
+            .ConfigureServices((_, services) => { ConfigureServices(services); })
             .Build();
-        
+
         Services = _host.Services;
 
         var logger = Services.GetRequiredService<ILogger<App>>();
         logger.LogInformation("========== Application Starting ==========");
-        
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             DisableAvaloniaDataAnnotationValidation();
-            
-            var mainWindow = new MainWindow();
-            
+
             var vm = Services.GetRequiredService<MainWindowViewModel>();
-            vm.InitializeAsync();
-            
+            _ = vm.InitializeAsync();
+
+            var mainWindow = new MainWindow();
             mainWindow.DataContext = vm;
             desktop.MainWindow = mainWindow;
-            
-            desktop.ShutdownRequested += (s, e) =>
-            {
-                logger.LogInformation("========== Application Closing ==========");
-            };
+
+            desktop.ShutdownRequested += (s, e) => { logger.LogInformation("========== Application Closing =========="); };
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -79,6 +72,7 @@ public partial class App : Application
     {
         // ViewModels
         services.AddTransient<MainWindowViewModel>();
+        services.AddTransient<BackupWindowViewModel>();
         services.AddTransient<ConfigurationWindowViewModel>();
         services.AddTransient<FilesWindowViewModel>();
 
@@ -87,13 +81,20 @@ public partial class App : Application
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<IDatabaseService, DatabaseService>();
-        
+        services.AddSingleton<IFolderPickerService, FolderPickerService>();
+
+        // UI Services
+        services.AddSingleton<IFolderPickerService, FolderPickerService>();
+
         // Repositories
         services.AddSingleton<IBackupRepository, BackupRepository>();
         services.AddSingleton<IFileRepository, FileRepository>();
-        
+
         // UseCases
         services.AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
+        services.AddSingleton<IDeleteBackupUseCase, DeleteBackupUseCase>();
+        services.AddSingleton<IRecycleOldBackupUseCase, RecycleOldBackupUseCase>();
+        services.AddSingleton<IRestoreBackupUseCase, RestoreBackupUseCase>();
     }
 
     private void DisableAvaloniaDataAnnotationValidation()
@@ -109,16 +110,18 @@ public partial class App : Application
 
     public static void ShowConfigurationWindow()
     {
-        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            var services = ((App)Current).Services;
-            
-            var vm = services?.GetRequiredService<ConfigurationWindowViewModel>();
-            vm.InitializeAsync();
-            
-            var window = new ConfigurationWindow(vm);
-            window.ShowDialog(desktop.MainWindow!);
-        }
+        if (Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+        
+        var services = ((App)Current).Services;
+        if (services is null)
+            return;
+        
+        var vm = services.GetRequiredService<ConfigurationWindowViewModel>();
+        _ = vm.InitializeAsync();
+
+        var window = new ConfigurationWindow(vm);
+        window.ShowDialog(desktop.MainWindow!);
     }
 
     public static void ShowFilesWindow()
@@ -136,13 +139,17 @@ public partial class App : Application
 
     public static void ShowBackupWindow(FileKeeper.Core.Models.Entities.Backup backup)
     {
-        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            var window = new BackupWindow
-            {
-                DataContext = new BackupWindowViewModel(backup)
-            };
-            window.ShowDialog(desktop.MainWindow!);
-        }
+        if (Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+        
+        var services = ((App)Current).Services;
+        if (services is null)
+            return;
+
+        var vm = services.GetRequiredService<BackupWindowViewModel>();
+        _ = vm.InitializeAsync();
+
+        var window = new BackupWindow(vm, backup);
+        window.ShowDialog(desktop.MainWindow!);
     }
 }

@@ -15,7 +15,7 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
     private readonly IConfigurationService? _configurationService;
     
     public event Action? RequestClose;
-    public event Func<Task<string?>>? RequestFolderPicker;
+    public event Func<Task<string?>>? RequestFolderPicker; // TODO: limar daqui!
 
     [ObservableProperty] private string _databaseLocation = string.Empty;
 
