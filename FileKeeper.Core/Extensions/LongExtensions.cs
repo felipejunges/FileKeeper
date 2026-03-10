@@ -17,6 +17,6 @@ public static class LongExtensions
             unitIndex++;
         }
 
-        return $"{size:F2} {units[unitIndex]}";
+        return $"{size.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} {units[unitIndex]}";
     }
 }
