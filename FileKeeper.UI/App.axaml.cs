@@ -81,7 +81,6 @@ public partial class App : Application
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<IDatabaseService, DatabaseService>();
-        services.AddSingleton<IFolderPickerService, FolderPickerService>();
 
         // UI Services
         services.AddSingleton<IFolderPickerService, FolderPickerService>();
