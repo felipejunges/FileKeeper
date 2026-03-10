@@ -26,14 +26,10 @@ public class FileLoggerProvider : ILoggerProvider
     {
         // Try to read LogLevel from config, fallback to parameter
         var configLogLevel = configuration.GetSection("Logging:FileLogger:LogLevel").Value;
-        if (Enum.TryParse<LogLevel>(configLogLevel, out var parsedLevel))
-        {
-            _minimumLevel = parsedLevel;
-        }
-        else
-        {
-            _minimumLevel = LogLevel.Information;
-        }
+        
+        _minimumLevel = Enum.TryParse<LogLevel>(configLogLevel, out var parsedLevel)
+            ? parsedLevel
+            : LogLevel.Information;
         
         _loggers = new ConcurrentDictionary<string, FileLoggerInstance>();
         
