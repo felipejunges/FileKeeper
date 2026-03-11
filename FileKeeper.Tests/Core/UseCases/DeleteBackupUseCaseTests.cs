@@ -381,18 +381,17 @@ public class DeleteBackupUseCaseTests
         var fileId = 1L;
         var backupId = 1L;
         var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
-
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
+        
         var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
         var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
 
         Mock_BackupRepository_GetByIdAsync(backupId, backup);
-        Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, Error.NotFound("Backup não localizado."));
+        Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
         Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
 
-        Mock_FileRepository_MoveVersionsToBackupAsync(
-            filesToMove,
+        MockCallback_FileRepository_MoveVersionsToBackupAsync(
             backupId + 1,
-            5,
             new InvocationAction(invocation =>
             {
                 var passedIds = invocation.Arguments[0] as List<long>;
@@ -401,6 +400,8 @@ public class DeleteBackupUseCaseTests
                 Assert.All(passedIds, id => Assert.Contains(id, filesToMove));
             }));
         
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, 8);
+        Mock_BackupRepository_RefreshTotalsAndSizeAsync(nextBackup.Id, nextBackup);
         Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId, 3);
         Mock_FileRepository_DeleteFilesWithoutVersionsAsync(0);
         Mock_BackupRepository_DeleteAsync(backupId, 1);
@@ -444,11 +445,10 @@ public class DeleteBackupUseCaseTests
             .ReturnsAsync(expectedResult);
     }
     
-    private void Mock_FileRepository_MoveVersionsToBackupAsync(List<long> idsVersionsToMove, long backupId, ErrorOr<int> expectedResult, InvocationAction callbackExpression)
+    private void MockCallback_FileRepository_MoveVersionsToBackupAsync(long backupId, InvocationAction callbackExpression)
     {
         _fileRepositoryMock
-            .Setup(s => s.MoveVersionsToBackupAsync(idsVersionsToMove, backupId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedResult)
+            .Setup(s => s.MoveVersionsToBackupAsync(It.IsAny<List<long>>(), backupId, It.IsAny<CancellationToken>()))
             .Callback(callbackExpression);
     }
 
