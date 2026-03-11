@@ -111,8 +111,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             await using var localFileStream = _fileSystem.GetReadFileStream(localFile);
             var localFileHash = await HasingHelpers.ComputeHashFromStreamAsync(localFileStream, token);
             
-            totalBackupSize += localFileStream.Length;
-
             var fileAction = ObtainFileAction(storedFile, localFileHash);
             
             _logger.LogDebug(
@@ -124,7 +122,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
             if (fileAction == FileAction.Create)
             {
-                var result = await AddNewFileToStorageAsync(backupPath, relativePath, fileName, localFileHash, newBackup.Id, localFileStream, token);
+                var result = await AddNewFileToStorageAsync(backupPath, relativePath, fileName, localFileHash, newBackup, localFileStream, token);
 
                 if (result.IsError)
                     return result.Errors;
@@ -133,7 +131,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             }
             else if (fileAction == FileAction.Update)
             {
-                var result = await AddNewVersionToFileInStorageAsync(storedFile!.Id, localFileHash, newBackup.Id, false, localFileStream, token);
+                var result = await AddNewVersionToFileInStorageAsync(storedFile!.Id, localFileHash, newBackup, false, localFileStream, token);
 
                 if (result.IsError)
                     return result.Errors;
@@ -146,8 +144,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
         await ValidateDeletedFilesAsync(storedFiles, relativePathsProcessados, newBackup, token);
 
-        newBackup.UpdateTotalSize(totalBackupSize);
-        
         await _backupRepository.UpdateAsync(newBackup, token);
         
         _logger.LogInformation(
@@ -188,7 +184,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         }
     }
 
-    private async Task<ErrorOr<long>> AddNewFileToStorageAsync(string backupPath, string relativePath, string fileName, string fileHash, long backupId, FileStream fileStream, CancellationToken token)
+    private async Task<ErrorOr<long>> AddNewFileToStorageAsync(string backupPath, string relativePath, string fileName, string fileHash, Backup backup, FileStream fileStream, CancellationToken token)
     {
         var file = FileModel.CreateNew(backupPath, relativePath, fileName);
 
@@ -197,18 +193,20 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         if (result.IsError)
             return result.Errors;
 
-        return await AddNewVersionToFileInStorageAsync(file.Id, fileHash, backupId, true, fileStream, token);
+        return await AddNewVersionToFileInStorageAsync(file.Id, fileHash, backup, true, fileStream, token);
     }
 
-    private async Task<ErrorOr<long>> AddNewVersionToFileInStorageAsync(long fileId, string fileHash, long backupId, bool isNew, FileStream fileStream, CancellationToken token)
+    private async Task<ErrorOr<long>> AddNewVersionToFileInStorageAsync(long fileId, string fileHash, Backup backup, bool isNew, FileStream fileStream, CancellationToken token)
     {
         var fileVersion = FileVersion.CreateNew(
             fileId,
-            backupId,
+            backup.Id,
             isNew,
             fileStream.Length,
             fileHash,
             await fileStream.ReadAllBytesAsync(token));
+        
+        backup.IncrementTotalSize(fileVersion.Size);
 
         return await _fileRepository.InsertVersionAsync(fileVersion, token);
     }

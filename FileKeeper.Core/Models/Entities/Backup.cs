@@ -62,8 +62,8 @@ public class Backup
         DeletedFiles += count;
     }
 
-    public void UpdateTotalSize(long totalSize)
+    public void IncrementTotalSize(long size)
     {
-        TotalSize = totalSize;
+        TotalSize += size;
     }
 }
