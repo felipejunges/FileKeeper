@@ -9,6 +9,5 @@ public class BackupProgress
     
     public double Percentage => TotalFiles > 0 ? (CurrentFileIndex / (double)TotalFiles) * 100 : 0;
     
-    public string Message => 
-        $"Processing: {CurrentFolder} ({CurrentFileIndex}/{TotalFiles}) - {CurrentFileName}";
+    public string Message => $"Processing: {CurrentFolder} ({CurrentFileIndex}/{TotalFiles}) - {CurrentFileName}";
 }

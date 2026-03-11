@@ -6,6 +6,7 @@ using FileKeeper.Core;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UI;
 using FileKeeper.Core.Interfaces.UseCases;
+using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DMs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.UI.Services;
@@ -36,6 +37,12 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
     
     [ObservableProperty]
     private string _deletedFilesTitle = "";
+    
+    [ObservableProperty] private string _statusMessage = string.Empty;
+
+    [ObservableProperty] private double _restoringProgress = 0;
+
+    [ObservableProperty] private bool _isRestoreInProgress = false;
     
     public event Action? RequestClose;
     private Window? _window;
@@ -125,15 +132,33 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
 
         if (!confirm)
             return;
+        
+        IsRestoreInProgress = true;
+        RestoringProgress = 0;
+        StatusMessage = "Restoring backup...";
 
-        var result = await _restoreBackupUseCase.ExecuteAsync(Backup.Id, destinationFolder, cancellationToken);
+        var progress = new Progress<RestoreProgress>(report =>
+        {
+            RestoringProgress = report.CurrentFileIndex;
+            StatusMessage = report.Message;
+        });
+
+        var result = await _restoreBackupUseCase.ExecuteAsync(Backup.Id, destinationFolder, progress, cancellationToken);
+        
+        IsRestoreInProgress = false;
 
         if (result.IsError)
         {
+            StatusMessage = "Backup failed.";
+            
             await DialogBuilder.CreateError()
                 .WithTitle("Error while restoring backup")
                 .WithMessage(result.FirstError.Description)
                 .ShowAsync(_window!);
+        }
+        else
+        {
+            StatusMessage = "Backup completed successfully!";
         }
     }
 

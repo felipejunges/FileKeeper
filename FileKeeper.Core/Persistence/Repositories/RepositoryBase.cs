@@ -94,31 +94,26 @@ public abstract class RepositoryBase
     /// <summary>
     /// Executes a query that streams results using IAsyncEnumerable.
     /// Useful for large result sets (e.g., BLOBs) to avoid loading everything into memory at once.
+    /// Validates connection upfront to catch errors immediately.
     /// </summary>
-    protected ErrorOr<IAsyncEnumerable<T>> StreamQueryAsync<T>(
+    protected Task<IAsyncEnumerable<T>> StreamQueryAsync<T>(
         string sql,
         object? param = null,
         CancellationToken token = default)
     {
-        try
+        // Validate connection upfront to catch errors immediately
+        var connection = DatabaseService.GetConnection();
+        
+        async IAsyncEnumerable<T> StreamResults()
         {
-            async IAsyncEnumerable<T> StreamResults()
+            var result = await connection.QueryAsync<T>(sql, param);
+            foreach (var item in result)
             {
-                var connection = DatabaseService.GetConnection();
-                var result = await connection.QueryAsync<T>(sql, param);
-                foreach (var item in result)
-                {
-                    token.ThrowIfCancellationRequested();
-                    yield return item;
-                }
+                token.ThrowIfCancellationRequested();
+                yield return item;
             }
+        }
 
-            IAsyncEnumerable<T> stream = StreamResults();
-            return stream;
-        }
-        catch (Exception ex)
-        {
-            return Error.Failure("repository.query_failed", $"Query execution failed: {ex.Message}");
-        }
+        return Task.FromResult(StreamResults());
     }
 }

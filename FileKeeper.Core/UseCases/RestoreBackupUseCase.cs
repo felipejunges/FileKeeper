@@ -23,7 +23,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         _logger = logger;
     }
 
-    public async Task<ErrorOr<Success>> ExecuteAsync(long backupId, string destinationFolder, CancellationToken token, IProgress<RestoreProgress>? progress = null)
+    public async Task<ErrorOr<Success>> ExecuteAsync(long backupId, string destinationFolder, IProgress<RestoreProgress>? progress, CancellationToken token)
     {
         _logger.LogInformation(
             "Initiating backup restoration process for backup ID {BackupId} to destination folder '{DestinationFolder}'.",
@@ -36,11 +36,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
             return directoryValidation.Errors;
 
         // recupera o backup do banco de dados com streaming (one file at a time)
-        var filesToRecoverResult = await _fileRepository.GetFilesToRecoverAsync(backupId, token);
-        if (filesToRecoverResult.IsError)
-            return filesToRecoverResult.Errors;
-
-        var filesToRecoverStream = filesToRecoverResult.Value;
+        var filesToRecoverStream = await _fileRepository.GetStreamOfFilesToRecoverAsync(backupId, token);
         var fileIndex = 0;
         
         _logger.LogInformation(
