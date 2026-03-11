@@ -6,13 +6,13 @@ namespace FileKeeper.Core.Interfaces.Repositories;
 public interface IBackupRepository
 {
     Task<ErrorOr<Backup>> GetByIdAsync(long id, CancellationToken token);
+    Task<ErrorOr<Backup>> GetOldestAsync(CancellationToken cancellationToken);
     Task<ErrorOr<int>> GetCountAsync(CancellationToken cancellationToken);
     Task<ErrorOr<Backup>> GetNextBackupByIdAsync(long backupId, CancellationToken token);
     Task<ErrorOr<IEnumerable<Backup>>> GetAllAsync(CancellationToken token);
     Task<ErrorOr<long>> GetAllBackupsTotalSizeAsync(CancellationToken token);
     Task<ErrorOr<long>> InsertAsync(Backup backup, CancellationToken token);
     Task UpdateAsync(Backup backup, CancellationToken token);
+    Task<ErrorOr<Backup>> RefreshTotalsAndSizeAsync(long backupId, CancellationToken token);
     Task<ErrorOr<int>> DeleteAsync(long backupId, CancellationToken token);
-    Task<ErrorOr<Backup>> GetOldestAsync(CancellationToken cancellationToken);
-    Task<ErrorOr<Success>> IncrementMovedFilesDataToBackupAsync(long backupId, IEnumerable<long> movedIds, CancellationToken token);
 }

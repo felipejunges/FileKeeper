@@ -14,6 +14,7 @@ public interface IFileRepository
     Task<ErrorOr<long>> InsertVersionAsync(FileVersion version, CancellationToken token);
     Task<ErrorOr<int>> MarkAsDeletedAsync(List<long> idsFilesToMarkAsDeleted, long backupId, CancellationToken token);
     Task<ErrorOr<int>> MoveVersionsToBackupAsync(List<long> idsVersionsToMove, long backupId, CancellationToken token);
+    Task<ErrorOr<int>> MoveDeletedFilesToNextBackupAsync(long sourceBackupId, long destinationBackupId, CancellationToken token);
     Task<ErrorOr<int>> DeleteAllVersionsInBackupAsync(long backupId, CancellationToken token);
     Task<ErrorOr<int>> DeleteFilesWithoutVersionsAsync(CancellationToken token);
 }

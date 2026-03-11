@@ -88,8 +88,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
     private async Task<ErrorOr<Success>> ExecuteBackupFromFolderAsync(string backupPath, Backup newBackup, CancellationToken token)
     {
-        long totalBackupSize = 0;
-        
         var localFiles = _fileSystem.GetFiles(backupPath, "*.*", SearchOption.AllDirectories);
         var storedFilesResult = await _fileRepository.GetFilesWithVersionAsync(backupPath, token);
 

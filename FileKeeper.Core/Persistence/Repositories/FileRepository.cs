@@ -188,6 +188,16 @@ public class FileRepository : RepositoryBase, IFileRepository
         return ExecuteAsync(sql, new { ids = idsVersionsToMove, backupId }, token);
     }
 
+    public Task<ErrorOr<int>> MoveDeletedFilesToNextBackupAsync(long sourceBackupId, long destinationBackupId, CancellationToken token)
+    {
+        const string sql = @"
+            UPDATE FILES
+            SET DeletedAt = @destinationBackupId
+            WHERE DeletedAt = @sourceBackupId;";
+
+        return ExecuteAsync(sql, new { sourceBackupId, destinationBackupId }, token);
+    }
+    
     public Task<ErrorOr<int>> DeleteAllVersionsInBackupAsync(long backupId, CancellationToken token)
     {
         const string sql = @"

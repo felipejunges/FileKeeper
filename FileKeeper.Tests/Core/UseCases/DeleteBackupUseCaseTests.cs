@@ -150,8 +150,69 @@ public class DeleteBackupUseCaseTests
         _databaseServiceMock.Verify(service => service.CommitTransaction(), Times.Never);
         _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Once);
     }
+    
+    [Fact(DisplayName = "06 - ExecuteAsync should fail when move deleted files to next backup fails")]
+    public async Task ExecuteAsync_ShouldFail_WhenMoveDeletedFilesToNextBackupFails()
+    {
+        // Arrange
+        var fileId = 1L;
+        var backupId = 1L;
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
 
-    [Fact(DisplayName = "06 - ExecuteAsync should fail when delete files in backup fails")]
+        var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
+        var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
+
+        Mock_BackupRepository_GetByIdAsync(backupId, backup);
+        Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
+        Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
+        Mock_FileRepository_MoveVersionsToBackupAsync(filesToMove, backupId + 1, 5);
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, Error.Unexpected(description: "Database error while moving deleted files to next backup."));
+
+        // Act
+        var result = await _sut.ExecuteAsync(backupId, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsError);
+        Assert.Equal("Database error while moving deleted files to next backup.", result.FirstError.Description);
+
+        _databaseServiceMock.Verify(service => service.BeginTransaction(), Times.Once);
+        _databaseServiceMock.Verify(service => service.CommitTransaction(), Times.Never);
+        _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Once);
+    }
+    
+    [Fact(DisplayName = "07 - ExecuteAsync should fail when refresh backup totals and size fails")]
+    public async Task ExecuteAsync_ShouldFail_WhenRefreshTotalsAndSizeFails()
+    {
+        // Arrange
+        var fileId = 1L;
+        var backupId = 1L;
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
+
+        var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
+        var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
+
+        Mock_BackupRepository_GetByIdAsync(backupId, backup);
+        Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
+        Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
+        Mock_FileRepository_MoveVersionsToBackupAsync(filesToMove, backupId + 1, 5);
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, 8);
+        Mock_BackupRepository_RefreshTotalsAndSizeAsync(nextBackup.Id, Error.Unexpected(description: "Database error while refreshing backup totals and size."));
+
+        // Act
+        var result = await _sut.ExecuteAsync(backupId, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsError);
+        Assert.Equal("Database error while refreshing backup totals and size.", result.FirstError.Description);
+
+        _databaseServiceMock.Verify(service => service.BeginTransaction(), Times.Once);
+        _databaseServiceMock.Verify(service => service.CommitTransaction(), Times.Never);
+        _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Once);
+    }
+    
+    [Fact(DisplayName = "08 - ExecuteAsync should fail when delete files in backup fails")]
     public async Task ExecuteAsync_ShouldFail_WhenDeleteFilesInBackupFails()
     {
         // Arrange
@@ -167,6 +228,8 @@ public class DeleteBackupUseCaseTests
         Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
         Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
         Mock_FileRepository_MoveVersionsToBackupAsync(filesToMove, backupId + 1, 5);
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, 8);
+        Mock_BackupRepository_RefreshTotalsAndSizeAsync(nextBackup.Id, nextBackup);
         Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId, Error.Unexpected(description: "Database error while deleting files from backup."));
 
         // Act
@@ -181,7 +244,7 @@ public class DeleteBackupUseCaseTests
         _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Once);
     }
 
-    [Fact(DisplayName = "07 - ExecuteAsync should fail when delete files without version fails")]
+    [Fact(DisplayName = "09 - ExecuteAsync should fail when delete files without version fails")]
     public async Task ExecuteAsync_ShouldFail_WhenDeleteFilesWithoutVersionFails()
     {
         // Arrange
@@ -197,6 +260,8 @@ public class DeleteBackupUseCaseTests
         Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
         Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
         Mock_FileRepository_MoveVersionsToBackupAsync(filesToMove, backupId + 1, 5);
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, 8);
+        Mock_BackupRepository_RefreshTotalsAndSizeAsync(nextBackup.Id, nextBackup);
         Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId, 3);
         Mock_FileRepository_DeleteFilesWithoutVersionsAsync(Error.Unexpected(description: "Database error while deleting files without versions."));
 
@@ -212,7 +277,7 @@ public class DeleteBackupUseCaseTests
         _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Once);
     }
     
-    [Fact(DisplayName = "08 - ExecuteAsync should fail when delete backup fails")]
+    [Fact(DisplayName = "10 - ExecuteAsync should fail when delete backup fails")]
     public async Task ExecuteAsync_ShouldFail_WhenDeleteBackupFails()
     {
         // Arrange
@@ -228,6 +293,8 @@ public class DeleteBackupUseCaseTests
         Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
         Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
         Mock_FileRepository_MoveVersionsToBackupAsync(filesToMove, backupId + 1, 5);
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, 8);
+        Mock_BackupRepository_RefreshTotalsAndSizeAsync(nextBackup.Id, nextBackup);
         Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId, 3);
         Mock_FileRepository_DeleteFilesWithoutVersionsAsync(0);
         Mock_BackupRepository_DeleteAsync(backupId, Error.Unexpected(description: "Database error while deleting backup."));
@@ -244,7 +311,7 @@ public class DeleteBackupUseCaseTests
         _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Once);
     }
 
-    [Fact(DisplayName = "09 - ExecuteAsync should succeed when backup has next backup")]
+    [Fact(DisplayName = "11 - ExecuteAsync should succeed when backup has next backup")]
     public async Task ExecuteAsync_ShouldSucceed_WhenBackupHasNextBackup()
     {
         // Arrange
@@ -260,6 +327,8 @@ public class DeleteBackupUseCaseTests
         Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
         Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
         Mock_FileRepository_MoveVersionsToBackupAsync(filesToMove, backupId + 1, 5);
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, 8);
+        Mock_BackupRepository_RefreshTotalsAndSizeAsync(nextBackup.Id, nextBackup);
         Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId, 3);
         Mock_FileRepository_DeleteFilesWithoutVersionsAsync(0);
         Mock_BackupRepository_DeleteAsync(backupId, 1);
@@ -275,7 +344,7 @@ public class DeleteBackupUseCaseTests
         _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Never);
     }
 
-    [Fact(DisplayName = "10 - ExecuteAsync should succeed when next backup returns NotFound")]
+    [Fact(DisplayName = "12 - ExecuteAsync should succeed when next backup returns NotFound")]
     public async Task ExecuteAsync_ShouldSucceed_WhenNextBackupReturnsNotFound()
     {
         // Arrange
@@ -300,6 +369,49 @@ public class DeleteBackupUseCaseTests
         // Assert
         Assert.False(result.IsError);
 
+        _databaseServiceMock.Verify(service => service.BeginTransaction(), Times.Once);
+        _databaseServiceMock.Verify(service => service.CommitTransaction(), Times.Once);
+        _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Never);
+    }
+    
+    [Fact(DisplayName = "13 - ExecuteAsync should succeed - Only move to next backup files it doesn't have")]
+    public async Task ExecuteAsync_ShouldSucceed_OnlyMoveToNextBackupFilesItDoesntHave()
+    {
+        // Arrange
+        var fileId = 1L;
+        var backupId = 1L;
+        var backup = new Backup(backupId, new DateTime(2026, 3, 4, 14, 17, 0, DateTimeKind.Utc), 10, 5, 2, 0);
+        var nextBackup = new Backup(backupId + 1, backup.CreatedAt.AddMinutes(1), 9, 4, 3, 0);
+        
+        var filesToDelete = CreateListOfFilesToDelete(fileId, backupId, 10);
+        var filesToMove = filesToDelete.Where(f => !f.ExistsInNextBackup).Select(f => f.Id).ToList();
+
+        Mock_BackupRepository_GetByIdAsync(backupId, backup);
+        Mock_BackupRepository_GetNextBackupByIdAsync(backup.Id, nextBackup);
+        Mock_FileRepository_GetFilesToDeleteAsync(backupId, filesToDelete);
+
+        MockCallback_FileRepository_MoveVersionsToBackupAsync(
+            backupId + 1,
+            new InvocationAction(invocation =>
+            {
+                var passedIds = invocation.Arguments[0] as List<long>;
+                Assert.NotNull(passedIds);
+                Assert.Equal(filesToMove.Count, passedIds.Count);
+                Assert.All(passedIds, id => Assert.Contains(id, filesToMove));
+            }));
+        
+        Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(backup.Id, nextBackup.Id, 8);
+        Mock_BackupRepository_RefreshTotalsAndSizeAsync(nextBackup.Id, nextBackup);
+        Mock_FileRepository_DeleteAllVersionsInBackupAsync(backupId, 3);
+        Mock_FileRepository_DeleteFilesWithoutVersionsAsync(0);
+        Mock_BackupRepository_DeleteAsync(backupId, 1);
+
+        // Act
+        var result = await _sut.ExecuteAsync(backupId, CancellationToken.None);
+
+        // Assert
+        Assert.False(result.IsError);
+        
         _databaseServiceMock.Verify(service => service.BeginTransaction(), Times.Once);
         _databaseServiceMock.Verify(service => service.CommitTransaction(), Times.Once);
         _databaseServiceMock.Verify(service => service.RollbackTransaction(), Times.Never);
@@ -332,11 +444,32 @@ public class DeleteBackupUseCaseTests
             .Setup(s => s.MoveVersionsToBackupAsync(idsVersionsToMove, backupId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
     }
+    
+    private void MockCallback_FileRepository_MoveVersionsToBackupAsync(long backupId, InvocationAction callbackExpression)
+    {
+        _fileRepositoryMock
+            .Setup(s => s.MoveVersionsToBackupAsync(It.IsAny<List<long>>(), backupId, It.IsAny<CancellationToken>()))
+            .Callback(callbackExpression);
+    }
 
     private void Mock_FileRepository_DeleteAllVersionsInBackupAsync(long backupId, ErrorOr<int> expectedResult)
     {
         _fileRepositoryMock
             .Setup(s => s.DeleteAllVersionsInBackupAsync(backupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+    }
+
+    private void Mock_FileRepository_MoveDeletedFilesToNextBackupAsync(long sourceBackupId, long destinationBackupId, ErrorOr<int> expectedResult)
+    {
+        _fileRepositoryMock
+            .Setup(s => s.MoveDeletedFilesToNextBackupAsync(sourceBackupId, destinationBackupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+    }
+
+    private void Mock_BackupRepository_RefreshTotalsAndSizeAsync(long backupId, ErrorOr<Backup> expectedResult)
+    {
+        _backupRepositoryMock
+            .Setup(s => s.RefreshTotalsAndSizeAsync(backupId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
     }
     
