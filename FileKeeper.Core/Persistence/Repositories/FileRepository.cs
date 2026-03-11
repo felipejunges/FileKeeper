@@ -75,10 +75,7 @@ public class FileRepository : RepositoryBase, IFileRepository
                 f.BackupPath,
                 f.RelativePath,
                 f.FileName,
-                fv.BackupId,
-                fv.Size,
-                fv.Hash,
-                fv.Content
+                fv.Size
             FROM Files f
             INNER JOIN FileVersions fv ON f.Id = fv.FileId
             WHERE (
@@ -94,6 +91,25 @@ public class FileRepository : RepositoryBase, IFileRepository
             ORDER BY f.BackupPath, f.RelativePath;";
         
         return await StreamQueryAsync<FileToRecoverDM>(sql, new { backupId }, token);
+    }
+
+    public async Task<ErrorOr<byte[]>> GetFileContentAsync(long fileVersionId, CancellationToken token)
+    {
+        try
+        {
+            const string sql = "SELECT Content FROM FileVersions WHERE Id = @id;";
+            
+            var result = await QuerySingleOrDefaultAsync<byte[]>(sql, new { id = fileVersionId }, token);
+            
+            if (result.IsError)
+                return result.Errors;
+
+            return result.Value ?? new byte[0];
+        }
+        catch (Exception ex)
+        {
+            return Error.Failure("repository.query_failed", $"Query execution failed: {ex.Message}");
+        }
     }
 
     public async Task<ErrorOr<IEnumerable<FileToDeleteDM>>> GetFilesToDeleteAsync(long backupId, long? nextBackupId, CancellationToken token)

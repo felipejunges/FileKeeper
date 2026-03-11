@@ -1,5 +1,3 @@
-using FileKeeper.Core.Helpers;
-
 namespace FileKeeper.Core.Models.DMs;
 
 public class FileToRecoverDM
@@ -8,8 +6,5 @@ public class FileToRecoverDM
     public string BackupPath { get; set; } = string.Empty;
     public string RelativePath { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
-    public long BackupId { get; set; }
     public long Size { get; set; }
-    public string Hash { get; set; } = string.Empty;
-    public byte[]? Content { get; set; }
 }
