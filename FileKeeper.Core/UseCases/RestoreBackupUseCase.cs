@@ -30,19 +30,24 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
             backupId,
             destinationFolder);
         
-        // se a pasta nao existe, criar
+        // create the folder, if it does not exist
         var directoryValidation = ValidateDestinationDirectory(destinationFolder);
         if (directoryValidation.IsError)
             return directoryValidation.Errors;
 
-        // recupera o backup do banco de dados com streaming (one file at a time)
-        var filesToRecoverStream = await _fileRepository.GetStreamOfFilesToRecoverAsync(backupId, token);
-        var fileIndex = 0;
-        
         _logger.LogInformation(
             "Starting backup restoration for backup ID {BackupId} to destination folder '{DestinationFolder}'.",
             backupId,
             destinationFolder);
+        
+        // recover the files to restore via stream
+        var filesToRecoverStream = await _fileRepository.GetStreamOfFilesToRecoverAsync(backupId, token);
+        
+        _logger.LogDebug(
+            "Retrieved stream of files to recover for backup ID {BackupId}. Beginning file restoration process.",
+            backupId);
+        
+        var fileIndex = 0;
 
         await foreach (var fileToRecover in filesToRecoverStream.WithCancellation(token))
         {

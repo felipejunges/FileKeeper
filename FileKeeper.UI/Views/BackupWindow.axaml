@@ -7,8 +7,8 @@
         WindowStartupLocation="CenterScreen"
         Width="600" Height="400">
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto">
-        <!-- Backup Progress -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <!-- Restoration Progress -->
         <Border Grid.Row="0"
                 Background="#F0F8FF"
                 IsVisible="{Binding IsRestoreInProgress}"
@@ -31,7 +31,7 @@
             <TextBlock Text="{Binding Backup.CreatedAt, StringFormat='Date: {0:yyyy-MM-dd HH:mm:ss}'}" />
         </StackPanel>
 
-        <TabControl Grid.Row="2" Margin="10">
+        <TabControl Grid.Row="2" Margin="0">
             <TabControl.Styles>
                 <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="14" />

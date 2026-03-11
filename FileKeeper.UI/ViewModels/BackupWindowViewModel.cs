@@ -40,9 +40,9 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
     
     [ObservableProperty] private string _statusMessage = string.Empty;
 
-    [ObservableProperty] private double _restoringProgress = 0;
+    [ObservableProperty] private double _restoringProgress;
 
-    [ObservableProperty] private bool _isRestoreInProgress = false;
+    [ObservableProperty] private bool _isRestoreInProgress;
     
     public event Action? RequestClose;
     private Window? _window;
@@ -149,7 +149,7 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
 
         if (result.IsError)
         {
-            StatusMessage = "Backup failed.";
+            StatusMessage = "Restoration failed.";
             
             await DialogBuilder.CreateError()
                 .WithTitle("Error while restoring backup")
@@ -158,7 +158,7 @@ public partial class BackupWindowViewModel : ViewModelBase, IInitializable
         }
         else
         {
-            StatusMessage = "Backup completed successfully!";
+            StatusMessage = "Restoration completed successfully!";
         }
     }
 
