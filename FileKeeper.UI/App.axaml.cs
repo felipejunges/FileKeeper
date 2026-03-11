@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
@@ -73,6 +74,10 @@ public partial class App : Application
             _ = vm.InitializeAsync();
 
             mainWindow.DataContext = vm;
+            
+            // Position window on the active monitor (where the mouse is)
+            PositionWindowOnActiveMonitor(mainWindow);
+            
             desktop.MainWindow = mainWindow;
 
             desktop.ShutdownRequested += (_, _) => { logger.LogInformation("========== Application Closing =========="); };
@@ -139,6 +144,38 @@ public partial class App : Application
         foreach (var plugin in dataValidationPluginsToRemove)
         {
             BindingPlugins.DataValidators.Remove(plugin);
+        }
+    }
+
+    private void PositionWindowOnActiveMonitor(Window window)
+    {
+        try
+        {
+            var screens = window.Screens;
+            var primaryScreen = screens.Primary;
+            
+            if (primaryScreen != null)
+            {
+                var bounds = primaryScreen.Bounds;
+                
+                // Calculate centered position on the primary screen
+                var x = bounds.X + (bounds.Width - window.Width) / 2;
+                var y = bounds.Y + (bounds.Height - window.Height) / 2;
+                
+                window.Position = new PixelPoint((int)x, (int)y);
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                var logger = Services.GetRequiredService<ILogger<App>>();
+                logger.LogWarning(ex, "Failed to position window on active monitor");
+            }
+            catch
+            {
+                // Silently fail if logger is not available
+            }
         }
     }
 
