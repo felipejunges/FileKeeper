@@ -22,6 +22,9 @@ public class Configuration
     [JsonPropertyName("enable_compression")]
     public bool EnableCompression { get; set; } = false; // TODO: consider this flag in the UseCases
     
+    [JsonPropertyName("ignore_folders")]
+    public string? IgnoreFolders { get; set; }
+    
     [JsonPropertyName("current_restore_destination")]
     public string? CurrentRestoreDestination { get; set; }
 

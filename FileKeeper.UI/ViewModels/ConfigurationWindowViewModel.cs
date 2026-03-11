@@ -28,6 +28,8 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
 
     [ObservableProperty] private long _maxDatabaseSizeMb;
 
+    [ObservableProperty] private string? _ignoreFolders;
+
     [ObservableProperty] private bool _enableCompression;
     
     [ObservableProperty] private string _errorMessage = string.Empty;
@@ -62,6 +64,7 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
         AutoBackupIntervalMinutes = configuration.AutoBackupIntervalMinutes;
         MaxDatabaseSizeMb = configuration.MaxDatabaseSizeMb;
         EnableCompression = configuration.EnableCompression;
+        IgnoreFolders = configuration.IgnoreFolders;
         
         MonitoredFolders.Clear();
         foreach (var folder in configuration.MonitoredFolders)
@@ -79,18 +82,19 @@ public partial class ConfigurationWindowViewModel : ViewModelBase, IInitializabl
         
         if (_configurationService == null) return;
 
-        var config = new Configuration
+        var configuration = new Configuration
         {
             DatabaseLocation = DatabaseLocation,
             VersionsToKeep = VersionsToKeep,
             AutoBackupIntervalMinutes = AutoBackupIntervalMinutes,
             MaxDatabaseSizeMb = MaxDatabaseSizeMb,
             EnableCompression = EnableCompression,
+            IgnoreFolders = IgnoreFolders,
             MonitoredFolders = MonitoredFolders.ToList(),
             CurrentRestoreDestination = _currentRestoreDestination
         };
 
-        var result = await _configurationService.ApplyConfigurationAsync(config, cancellationToken);
+        var result = await _configurationService.ApplyConfigurationAsync(configuration, cancellationToken);
 
         if (result.IsError)
         {
