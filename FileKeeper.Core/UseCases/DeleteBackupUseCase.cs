@@ -110,6 +110,8 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
                 return moveDeletedFilesResult.Errors;
             
             // TODO: add the DeletedCount to the next backup
+            //       maybe simply increment the DeletedCount by the number of deleted files moved to the next backup, which can be obtained from the `movedFiles` variable
+            var movedFiles = moveDeletedFilesResult.Value;
         }
 
         // 5. delete all the versions has is kept in the current backup
@@ -183,31 +185,15 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             return versionsMovedResult.Errors;
         }
         
-        var increementResult = await IncrementNewFilesCountInNextBackupAsync(nextBackupId, idsVersionsToMoveToNextBackup, token);
-        if (increementResult.IsError)
-        {
-            _logger.LogWarning(
-                "Failed to increment new files count in the next backup with id {NextBackupId}. Backup deletion aborted. Errors: {Errors}",
-                nextBackupId,
-                increementResult.Errors);
-            
-            return increementResult;
-        }
-
-        return Result.Success;
-    }
-
-    private async Task<ErrorOr<Success>> IncrementNewFilesCountInNextBackupAsync(long backupId, IEnumerable<long> idsVersionsToMoveToNextBackup, CancellationToken token)
-    {
         var incrementResult = await _backupRepository.IncrementMovedFilesDataToBackupAsync(backupId, idsVersionsToMoveToNextBackup, token);
         if (incrementResult.IsError)
         {
             _logger.LogWarning(
-                "Failed to increment new files count in the next backup with id {BackupId}. Backup deletion aborted. Errors: {Errors}",
-                backupId,
+                "Failed to increment new files count in the next backup with id {NextBackupId}. Backup deletion aborted. Errors: {Errors}",
+                nextBackupId,
                 incrementResult.Errors);
-
-            return incrementResult.Errors;
+            
+            return incrementResult;
         }
 
         return Result.Success;
