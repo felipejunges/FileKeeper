@@ -34,6 +34,31 @@ public class BackupRepository : RepositoryBase, IBackupRepository
 
         return result.Value;
     }
+    
+    public async Task<ErrorOr<Backup>> GetOldestAsync(CancellationToken cancellationToken)
+    {
+        const string sql = @$"
+            SELECT
+                {nameof(Backup.Id)},
+                {nameof(Backup.CreatedAt)},
+                {nameof(Backup.CreatedFiles)},
+                {nameof(Backup.UpdatedFiles)},
+                {nameof(Backup.DeletedFiles)},
+                {nameof(Backup.TotalSize)}
+            FROM Backups
+            ORDER BY CreatedAt ASC
+            LIMIT 1;";
+
+        var backupResult = await QuerySingleOrDefaultAsync<Backup>(sql, null, cancellationToken);
+
+        if (backupResult.IsError)
+            return backupResult.Errors;
+
+        if (backupResult.Value is null)
+            return Error.NotFound(description: "No backups found.");
+
+        return backupResult.Value;
+    }
 
     public Task<ErrorOr<int>> GetCountAsync(CancellationToken cancellationToken)
     {
@@ -87,10 +112,10 @@ public class BackupRepository : RepositoryBase, IBackupRepository
     public Task<ErrorOr<long>> GetAllBackupsTotalSizeAsync(CancellationToken token)
     {
         const string sql = "SELECT SUM(TotalSize) FROM Backups;";
-        
+
         return QuerySingleOrDefaultAsync<long>(sql, null, token);
     }
-    
+
     public async Task<ErrorOr<long>> InsertAsync(Backup backup, CancellationToken token)
     {
         const string sql = @$"
@@ -131,6 +156,36 @@ public class BackupRepository : RepositoryBase, IBackupRepository
         return ExecuteAsync(sql, backup, token);
     }
 
+    public async Task<ErrorOr<Backup>> RefreshTotalsAndSizeAsync(long backupId, CancellationToken token)
+    {
+        // TODO: think to move this to a service instead...
+        
+        var backupResult = await GetByIdAsync(backupId, token);
+        if (backupResult.IsError)
+            return backupResult.Errors;
+
+        var backup = backupResult.Value;
+        
+        const string versionsSql = "SELECT IsNew, Size FROM FileVersions WHERE BackupId = @backupId;";
+        const string filesSql = "SELECT Id FROM Files WHERE DeletedAt = @BackupId";
+
+        var versionsResult = await QueryAsync<(bool IsNew, long Size)>(versionsSql, new { backupId }, token);
+        var filesResult = await QueryAsync<int>(filesSql, new { backupId }, token);
+
+        var versions = versionsResult.Match(success => success.ToList(), _ => []);
+        var files = filesResult.Match(success => success.ToList(), _ => []);
+
+        backup.UpdateTotalsAndSize(
+            versions.Count(v => v.IsNew),
+            versions.Count(v => !v.IsNew),
+            files.Count,
+            versions.Sum(v => v.Size));
+
+        await UpdateAsync(backup, token);
+
+        return backup;
+    }
+
     public Task<ErrorOr<int>> DeleteAsync(long backupId, CancellationToken token)
     {
         const string sql = @"
@@ -138,56 +193,5 @@ public class BackupRepository : RepositoryBase, IBackupRepository
             WHERE Id = @backupId;";
 
         return ExecuteAsync(sql, new { backupId }, token);
-    }
-
-    public async Task<ErrorOr<Backup>> GetOldestAsync(CancellationToken cancellationToken)
-    {
-        const string sql = @$"
-            SELECT
-                {nameof(Backup.Id)},
-                {nameof(Backup.CreatedAt)},
-                {nameof(Backup.CreatedFiles)},
-                {nameof(Backup.UpdatedFiles)},
-                {nameof(Backup.DeletedFiles)},
-                {nameof(Backup.TotalSize)}
-            FROM Backups
-            ORDER BY CreatedAt ASC
-            LIMIT 1;";
-
-        var backupResult = await QuerySingleOrDefaultAsync<Backup>(sql, null, cancellationToken);
-
-        if (backupResult.IsError)
-            return backupResult.Errors;
-
-        if (backupResult.Value is null)
-            return Error.NotFound(description: "No backups found.");
-
-        return backupResult.Value;
-    }
-
-    public async Task<ErrorOr<Success>> IncrementMovedFilesDataToBackupAsync(long backupId, IEnumerable<long> movedIds, CancellationToken token)
-    {
-        const string sql = "SELECT IsNew, Size FROM FileVersions WHERE Id IN @movedIds;";
-
-        var newFilesResult = await QueryAsync<(bool IsNew, long Size)>(sql, new { movedIds }, token);
-        if (newFilesResult.IsError)
-            return newFilesResult.Errors;
-
-        var sizeToAdd = newFilesResult.Value.Sum(f => f.Size);
-        var createdFilesToAdd = newFilesResult.Value.Count(f => f.IsNew);
-        var updatedFilesToAdd = newFilesResult.Value.Count(f => !f.IsNew);
-
-        const string updateSql = @$"
-            UPDATE Backups
-            SET {nameof(Backup.CreatedFiles)} = {nameof(Backup.CreatedFiles)} + @createdFilesToAdd,
-                {nameof(Backup.UpdatedFiles)} = {nameof(Backup.UpdatedFiles)} + @updatedFilesToAdd,
-                {nameof(Backup.TotalSize)} = {nameof(Backup.TotalSize)} + @sizeToAdd
-            WHERE Id = @backupId;";
-
-        var updateResult = await ExecuteAsync(updateSql, new { backupId, createdFilesToAdd, updatedFilesToAdd, sizeToAdd }, token);
-        if (updateResult.IsError) 
-            return updateResult.Errors;
-
-        return Result.Success;
     }
 }

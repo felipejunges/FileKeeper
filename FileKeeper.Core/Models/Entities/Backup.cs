@@ -66,4 +66,12 @@ public class Backup
     {
         TotalSize += size;
     }
+
+    public void UpdateTotalsAndSize(int createdFiles, int updatedFiles, int deletedFiles, long totalSize)
+    {
+        CreatedFiles = createdFiles;
+        UpdatedFiles = updatedFiles;
+        DeletedFiles = deletedFiles;
+        TotalSize = totalSize;
+    }
 }

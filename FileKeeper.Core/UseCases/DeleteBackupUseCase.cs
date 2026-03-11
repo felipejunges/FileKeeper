@@ -4,7 +4,6 @@ using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models.DMs;
 using Microsoft.Extensions.Logging;
-using System.Runtime.ExceptionServices;
 
 namespace FileKeeper.Core.UseCases;
 
@@ -97,29 +96,31 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
 
         var filesVersions = filesVersionsResult.Value.ToList();
 
-        // 4. Move versions that do not exist in the next backup to the next backup (if it exists)
+        // 4. Move data to the next backup to the next backup (if it exists)
         if (nextBackup is not null)
         {
+            // 4.1. Move versions that do not exist in the next backup
             var moveVersionsResult = await MoveVersionsToNextBackupAsync(backupId, nextBackup.Id, filesVersions, token);
             if (moveVersionsResult.IsError)
                 return moveVersionsResult;
             
-            // TODO: need unit test
+            // 4.2. Move files marked as deleted in the old to the next backup
             var moveDeletedFilesResult = await _fileRepository.MoveDeletedFilesToNextBackupAsync(backupId, nextBackup.Id, token);
             if (moveDeletedFilesResult.IsError)
                 return moveDeletedFilesResult.Errors;
             
-            // TODO: add the DeletedCount to the next backup
-            //       maybe simply increment the DeletedCount by the number of deleted files moved to the next backup, which can be obtained from the `movedFiles` variable
-            var movedFiles = moveDeletedFilesResult.Value;
+            // 4.3. Refresh totals data from the next backup
+            var refreshNextTotalsResult = await _backupRepository.RefreshTotalsAndSizeAsync(nextBackup.Id, token);
+            if (refreshNextTotalsResult.IsError)
+                return refreshNextTotalsResult.Errors;
         }
 
-        // 5. delete all the versions has is kept in the current backup
+        // 5. delete all the versions has is kept in the current backup (already exists in the next or the next doesn't exist)
         var deleteVersionsResult = await DeleteVersionsKeptInCurrentBackupAsync(backupId, token);
         if (deleteVersionsResult.IsError)
             return deleteVersionsResult;
 
-        // 6. delete all files without versions (if any)
+        // 6. delete all files left without versions (if any)
         var filesDeletionResult = await _fileRepository.DeleteFilesWithoutVersionsAsync(token);
         if (filesDeletionResult.IsError)
         {
@@ -185,17 +186,6 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             return versionsMovedResult.Errors;
         }
         
-        var incrementResult = await _backupRepository.IncrementMovedFilesDataToBackupAsync(backupId, idsVersionsToMoveToNextBackup, token);
-        if (incrementResult.IsError)
-        {
-            _logger.LogWarning(
-                "Failed to increment new files count in the next backup with id {NextBackupId}. Backup deletion aborted. Errors: {Errors}",
-                nextBackupId,
-                incrementResult.Errors);
-            
-            return incrementResult;
-        }
-
         return Result.Success;
     }
 }
