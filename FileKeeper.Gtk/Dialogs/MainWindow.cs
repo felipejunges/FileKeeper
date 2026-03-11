@@ -543,7 +543,7 @@ public class MainWindow : Window
         var backupId = data.BackupId;
         var selectedDest = data.DestinationFolder;
 
-        var result = await _restoreBackupUseCase.ExecuteAsync(backupId, selectedDest, token);
+        var result = await _restoreBackupUseCase.ExecuteAsync(backupId, selectedDest, null, token);
         if (result.IsError)
         {
             new DialogBuilder()

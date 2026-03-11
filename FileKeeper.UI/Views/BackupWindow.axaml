@@ -7,13 +7,31 @@
         WindowStartupLocation="CenterScreen"
         Width="600" Height="400">
 
-    <Grid RowDefinitions="Auto,*,Auto">
-        <StackPanel Grid.Row="0" Margin="10" Spacing="5">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <!-- Restoration Progress -->
+        <Border Grid.Row="0"
+                Background="#F0F8FF"
+                IsVisible="{Binding IsRestoreInProgress}"
+                Padding="10"
+                Margin="10,5,10,5"
+                BorderBrush="#87CEEB"
+                BorderThickness="1"
+                CornerRadius="4">
+            <StackPanel Spacing="8">
+                <ProgressBar Value="{Binding RestoringProgress}" Maximum="100" Height="20" />
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="#1E90FF"
+                           FontSize="12"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+        
+        <StackPanel Grid.Row="1" Margin="10" Spacing="5">
             <TextBlock Text="Backup Details" FontSize="20" FontWeight="Bold" />
             <TextBlock Text="{Binding Backup.CreatedAt, StringFormat='Date: {0:yyyy-MM-dd HH:mm:ss}'}" />
         </StackPanel>
 
-        <TabControl Grid.Row="1" Margin="10">
+        <TabControl Grid.Row="2" Margin="0">
             <TabControl.Styles>
                 <Style Selector="TabItem">
                     <Setter Property="FontSize" Value="14" />
@@ -74,7 +92,7 @@
         </TabControl>
         
         <!-- Actions Footer -->
-        <Border Grid.Row="2" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
+        <Border Grid.Row="3" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
                 <Button Command="{Binding RestoreBackupCommand}" Background="#E1F5FE">
                     <StackPanel Orientation="Horizontal" Spacing="5">
