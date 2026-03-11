@@ -39,7 +39,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         _logger = logger;
     }
 
-    public async Task<ErrorOr<Backup>> ExecuteAsync(CancellationToken token)
+    public async Task<ErrorOr<Backup>> ExecuteAsync(IProgress<BackupProgress>? progress, CancellationToken token)
     {
         _logger.LogInformation("Starting backup creation process.");
         
@@ -72,7 +72,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         {
             _logger.LogInformation("Processing folder '{Folder}' for backup ID {BackupId}.", folder, newBackup.Id);
             
-            var folderBackup = await ExecuteBackupFromFolderAsync(folder, newBackup, configuration, token);
+            var folderBackup = await ExecuteBackupFromFolderAsync(folder, newBackup, progress, token);
 
             if (folderBackup.IsError)
             {
@@ -92,23 +92,38 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         return newBackup;
     }
 
-    private async Task<ErrorOr<Success>> ExecuteBackupFromFolderAsync(string backupPath, Backup newBackup, Configuration configuration, CancellationToken token)
+    private async Task<ErrorOr<Success>> ExecuteBackupFromFolderAsync(string backupPath, Backup newBackup, IProgress<BackupProgress>? progress, CancellationToken token)
     {
-        var localFiles = _fileSystem.GetFiles(backupPath, "*.*", SearchOption.AllDirectories);
+        var localFiles = _fileSystem.GetFiles(backupPath, "*.*", SearchOption.AllDirectories).ToList();
+        
         var storedFilesResult = await _fileRepository.GetFilesWithVersionAsync(backupPath, token);
 
         if (storedFilesResult.IsError)
             return storedFilesResult.Errors;
 
         var storedFiles = storedFilesResult.Value.ToList();
+        
+        var totalFiles = localFiles.Count;
+        var currentFileIndex = 0;
 
         var relativePathsProcessados = new List<(string RelativePath, string FileName)>();
 
         foreach (var localFile in localFiles)
         {
+            currentFileIndex++;
+            
             var pathOnly = Path.GetDirectoryName(localFile) ?? string.Empty;
             var fileName = Path.GetFileName(localFile);
             var relativePath = Path.GetRelativePath(backupPath, pathOnly);
+            
+            // Report progress
+            progress?.Report(new BackupProgress
+            {
+                CurrentFileIndex = currentFileIndex,
+                TotalFiles = totalFiles,
+                CurrentFileName = fileName,
+                CurrentFolder = pathOnly
+            });
             
             if (CheckShouldIgnoreFolder(pathOnly))
             {
@@ -118,7 +133,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     pathOnly,
                     newBackup.Id);
 
-                // TODO: Create UnitTest
                 continue;
             }
             

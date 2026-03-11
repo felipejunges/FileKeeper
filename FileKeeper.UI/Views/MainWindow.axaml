@@ -17,7 +17,7 @@
         <vm:MainWindowViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
         <!-- Error Message -->
         <Border Grid.Row="0"
                 Background="#FFE74C3C"
@@ -30,8 +30,26 @@
                        TextWrapping="Wrap" />
         </Border>
         
+        <!-- Backup Progress -->
+        <Border Grid.Row="1"
+                Background="#F0F8FF"
+                IsVisible="{Binding IsBackupInProgress}"
+                Padding="10"
+                Margin="10,5,10,5"
+                BorderBrush="#87CEEB"
+                BorderThickness="1"
+                CornerRadius="4">
+            <StackPanel Spacing="8">
+                <ProgressBar Value="{Binding BackupProgress}" Maximum="100" Height="20" />
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="#1E90FF"
+                           FontSize="12"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+        
         <!-- Backup List -->
-        <ScrollViewer Grid.Row="1" Margin="10"
+        <ScrollViewer Grid.Row="2" Margin="10"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding Backups}">
@@ -94,7 +112,7 @@
         </ScrollViewer>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
+        <Border Grid.Row="3" Background="#F3F3F3" Padding="10" BorderThickness="0,1,0,0" BorderBrush="LightGray">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="20">
                     <TextBlock Text="{Binding BackupCountText}" FontWeight="SemiBold" />

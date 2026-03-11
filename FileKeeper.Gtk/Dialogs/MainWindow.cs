@@ -429,7 +429,7 @@ public class MainWindow : Window
             // Run the backup operation on a background thread
             await Task.Run(async () =>
             {
-                result = await _createBackupUseCase.ExecuteAsync(token);
+                result = await _createBackupUseCase.ExecuteAsync(null, token);
             }, token);
 
             Sensitive = true;

@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using FileKeeper.Core;
 using FileKeeper.Core.Extensions;
 using FileKeeper.Core.Interfaces.Persistence;
+using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
@@ -31,6 +32,12 @@ public partial class MainWindowViewModel
     [ObservableProperty] private string _errorMessage = string.Empty;
 
     [ObservableProperty] private bool _isErrorVisible;
+
+    [ObservableProperty] private string _statusMessage = string.Empty;
+
+    [ObservableProperty] private double _backupProgress = 0;
+
+    [ObservableProperty] private bool _isBackupInProgress = false;
 
     private readonly IBackupRepository _backupRepository = null!;
 
@@ -131,13 +138,29 @@ public partial class MainWindowViewModel
     private async Task CreateBackup(CancellationToken cancellationToken)
     {
         IsErrorVisible = false;
+        IsBackupInProgress = true;
+        BackupProgress = 0;
+        StatusMessage = "Initializing backup...";
 
-        var result = await _createBackupUseCase.ExecuteAsync(cancellationToken);
+        var progress = new Progress<BackupProgress>(report =>
+        {
+            BackupProgress = report.Percentage;
+            StatusMessage = report.Message;
+        });
+
+        var result = await _createBackupUseCase.ExecuteAsync(progress, cancellationToken);
+
+        IsBackupInProgress = false;
 
         if (result.IsError)
         {
             ErrorMessage = $"Failed to create new backup: {result.FirstError.Description}";
             IsErrorVisible = true;
+            StatusMessage = "Backup failed.";
+        }
+        else
+        {
+            StatusMessage = "Backup completed successfully!";
         }
 
         await UpdateBackupListAsync(cancellationToken);
