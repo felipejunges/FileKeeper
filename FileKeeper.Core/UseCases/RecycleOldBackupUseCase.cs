@@ -79,6 +79,8 @@ public class RecycleOldBackupUseCase : IRecycleOldBackupUseCase
             configuration.VersionsToKeep,
             configuration.MaxDatabaseSizeMb);
         
+        int backupsCount = 0;
+        
         if (configuration.VersionsToKeep > 0)
         {
             var backupsCountResult = await _backupRepository.GetCountAsync(cancellationToken);
@@ -88,7 +90,7 @@ public class RecycleOldBackupUseCase : IRecycleOldBackupUseCase
                 return backupsCountResult.Errors;
             }
 
-            var backupsCount = backupsCountResult.Value;
+            backupsCount = backupsCountResult.Value;
             
             if (backupsCount > configuration.VersionsToKeep)
             {
@@ -101,7 +103,7 @@ public class RecycleOldBackupUseCase : IRecycleOldBackupUseCase
             }
         }
 
-        if (configuration.MaxDatabaseSizeMb > 0)
+        if (backupsCount > 1 && configuration.MaxDatabaseSizeMb > 0)
         {
             var backupsTotalSizeResult = await _backupRepository.GetAllBackupsTotalSizeAsync(cancellationToken);
             if (backupsTotalSizeResult.IsError)
