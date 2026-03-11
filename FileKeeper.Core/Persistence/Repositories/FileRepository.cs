@@ -68,7 +68,7 @@ public class FileRepository : RepositoryBase, IFileRepository
         return await QueryAsync<FileVersionDM>(sql, new { backupPath }, token);
     }
 
-    public async Task<ErrorOr<IEnumerable<FileToRecoverDM>>> GetFilesToRecoverAsync(long backupId, CancellationToken token)
+    public async Task<ErrorOr<IAsyncEnumerable<FileToRecoverDM>>> GetFilesToRecoverAsync(long backupId, CancellationToken token)
     {
         const string sql = @"SELECT 
                 f.Id,
@@ -93,7 +93,7 @@ public class FileRepository : RepositoryBase, IFileRepository
             )
             ORDER BY f.BackupPath, f.RelativePath;";
         
-        return await QueryAsync<FileToRecoverDM>(sql, new { backupId }, token);
+        return StreamQueryAsync<FileToRecoverDM>(sql, new { backupId }, token);
     }
 
     public async Task<ErrorOr<IEnumerable<FileToDeleteDM>>> GetFilesToDeleteAsync(long backupId, long? nextBackupId, CancellationToken token)

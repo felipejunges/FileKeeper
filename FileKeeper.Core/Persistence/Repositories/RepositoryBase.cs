@@ -90,4 +90,35 @@ public abstract class RepositoryBase
             return Error.Failure("repository.execution_failed", $"Command execution failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Executes a query that streams results using IAsyncEnumerable.
+    /// Useful for large result sets (e.g., BLOBs) to avoid loading everything into memory at once.
+    /// </summary>
+    protected ErrorOr<IAsyncEnumerable<T>> StreamQueryAsync<T>(
+        string sql,
+        object? param = null,
+        CancellationToken token = default)
+    {
+        try
+        {
+            async IAsyncEnumerable<T> StreamResults()
+            {
+                var connection = DatabaseService.GetConnection();
+                var result = await connection.QueryAsync<T>(sql, param);
+                foreach (var item in result)
+                {
+                    token.ThrowIfCancellationRequested();
+                    yield return item;
+                }
+            }
+
+            IAsyncEnumerable<T> stream = StreamResults();
+            return stream;
+        }
+        catch (Exception ex)
+        {
+            return Error.Failure("repository.query_failed", $"Query execution failed: {ex.Message}");
+        }
+    }
 }

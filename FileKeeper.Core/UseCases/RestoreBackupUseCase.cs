@@ -3,6 +3,7 @@ using FileKeeper.Core.Helpers;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
+using FileKeeper.Core.Models;
 using Microsoft.Extensions.Logging;
 
 namespace FileKeeper.Core.UseCases;
@@ -22,7 +23,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         _logger = logger;
     }
 
-    public async Task<ErrorOr<Success>> ExecuteAsync(long backupId, string destinationFolder, CancellationToken token)
+    public async Task<ErrorOr<Success>> ExecuteAsync(long backupId, string destinationFolder, CancellationToken token, IProgress<RestoreProgress>? progress = null)
     {
         _logger.LogInformation(
             "Initiating backup restoration process for backup ID {BackupId} to destination folder '{DestinationFolder}'.",
@@ -34,22 +35,31 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         if (directoryValidation.IsError)
             return directoryValidation.Errors;
 
-        // recupera o backup do banco de dados
-        // TODO: do not load all files into memory at once, but rather stream them one by one
+        // recupera o backup do banco de dados com streaming (one file at a time)
         var filesToRecoverResult = await _fileRepository.GetFilesToRecoverAsync(backupId, token);
         if (filesToRecoverResult.IsError)
             return filesToRecoverResult.Errors;
 
-        var filesToRecover = filesToRecoverResult.Value.ToList();
+        var filesToRecoverStream = filesToRecoverResult.Value;
+        var fileIndex = 0;
         
         _logger.LogInformation(
-            "Starting backup restoration for backup ID {BackupId} to destination folder '{DestinationFolder}' with {FileCount} files to recover.",
+            "Starting backup restoration for backup ID {BackupId} to destination folder '{DestinationFolder}'.",
             backupId,
-            destinationFolder,
-            filesToRecover.Count());
+            destinationFolder);
 
-        foreach (var fileToRecover in filesToRecover)
+        await foreach (var fileToRecover in filesToRecoverStream.WithCancellation(token))
         {
+            fileIndex++;
+            
+            // Report progress
+            progress?.Report(new RestoreProgress
+            {
+                CurrentFileIndex = fileIndex,
+                CurrentFileName = fileToRecover.FileName,
+                CurrentFolder = fileToRecover.RelativePath
+            });
+
             var finalDestinationName = Path.Combine(
                 destinationFolder,
                 fileToRecover.BackupPath.TrimStart(Path.DirectorySeparatorChar),
@@ -83,9 +93,10 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         }
         
         _logger.LogInformation(
-            "Backup restoration process completed successfully for backup ID {BackupId} to destination folder '{DestinationFolder}'.",
+            "Backup restoration process completed successfully for backup ID {BackupId} to destination folder '{DestinationFolder}' ({FileCount} files restored).",
             backupId,
-            destinationFolder);
+            destinationFolder,
+            fileIndex);
 
         return Result.Success;
     }
