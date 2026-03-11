@@ -12,6 +12,4 @@ public class FileToRecoverDM
     public long Size { get; set; }
     public string Hash { get; set; } = string.Empty;
     public byte[]? Content { get; set; }
-    
-    public byte[] DecompressedContent => Content == null ? [] : CompressionHelper.Decompress(Content);
 }

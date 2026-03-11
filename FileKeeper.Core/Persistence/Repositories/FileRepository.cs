@@ -155,7 +155,7 @@ public class FileRepository : RepositoryBase, IFileRepository
                 {nameof(FileVersion.Size)},
                 {nameof(FileVersion.Hash)},
                 {nameof(FileVersion.Content)})
-            VALUES (@FileId, @BackupId, @IsNew, @Size, @Hash, @CompressedContent);
+            VALUES (@FileId, @BackupId, @IsNew, @Size, @Hash, @Content);
             SELECT last_insert_rowid() AS Id;";
 
         var result = await QuerySingleOrDefaultAsync<long>(sql, version, token);

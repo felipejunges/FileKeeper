@@ -226,13 +226,16 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
     private async Task<ErrorOr<long>> AddNewVersionToFileInStorageAsync(long fileId, string fileHash, Backup backup, bool isNew, FileStream fileStream, CancellationToken token)
     {
+        var fileBytes = await fileStream.ReadAllBytesAsync(token);
+        var compressedContent = await CompressionHelper.CompressAsync(fileBytes, token);
+        
         var fileVersion = FileVersion.CreateNew(
             fileId,
             backup.Id,
             isNew,
-            fileStream.Length,
+            compressedContent.Length,
             fileHash,
-            await fileStream.ReadAllBytesAsync(token));
+            compressedContent);
         
         backup.IncrementTotalSize(fileVersion.Size);
 

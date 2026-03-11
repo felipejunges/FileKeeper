@@ -1,5 +1,3 @@
-using FileKeeper.Core.Helpers;
-
 namespace FileKeeper.Core.Models.Entities;
 
 public class FileVersion
@@ -12,8 +10,6 @@ public class FileVersion
     public string Hash { get; private set; } = null!;
     public byte[]? Content { get; private set; }
     
-    public byte[] CompressedContent => Content == null ? [] : CompressionHelper.Compress(Content);
-
     private FileVersion()
     {
     }

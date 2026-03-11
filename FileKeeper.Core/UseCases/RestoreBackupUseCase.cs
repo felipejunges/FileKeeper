@@ -1,4 +1,5 @@
 using ErrorOr;
+using FileKeeper.Core.Helpers;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
@@ -62,9 +63,12 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
                     _fileSystem.CreateDirectory(directory);
                 
                 _logger.LogInformation("Restoring file '{FileName}' to '{FinalDestinationName}'.", fileToRecover.FileName, finalDestinationName);
+
+                var bytes = fileToRecover.Content ?? [];
+                var decompressed = await CompressionHelper.DecompressAsync(bytes, token);
                 
                 await using var fileStream = new FileStream(finalDestinationName, FileMode.Create, FileAccess.Write);
-                await fileStream.WriteAsync(fileToRecover.DecompressedContent, token);
+                await fileStream.WriteAsync(decompressed, token);
             }
             catch (Exception e)
             {
