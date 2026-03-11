@@ -109,8 +109,10 @@
                 <TextBlock Grid.Row="2" Text="Folders to monitor for automatic backups" FontSize="11" Foreground="Gray" />
             </Grid>
             
-            <StackPanel Grid.Row="2">
-                <TextBlock Text="oi"></TextBlock>
+            <StackPanel Grid.Row="2" Spacing="5" Margin="0,8,0,0">
+                <TextBlock Text="Ignore Folders" FontWeight="SemiBold" />
+                <TextBox Text="{Binding IgnoreFolders}" Watermark="Enter folder paths separated by semicolons" />
+                <TextBlock Text="Enter folder paths to exclude from backups, separated by semicolons (;)" FontSize="11" Foreground="Gray" />
             </StackPanel>
         </Grid>
 

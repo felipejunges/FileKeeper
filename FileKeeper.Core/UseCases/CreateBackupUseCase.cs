@@ -5,6 +5,7 @@ using FileKeeper.Core.Interfaces.Persistence;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
+using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DMs;
 using FileKeeper.Core.Models.Entities;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     private readonly IDatabaseService _databaseService;
     private readonly IConfigurationService _configurationService;
     private readonly ILogger<CreateBackupUseCase> _logger;
+
+    private string[]? _ignoreFolders;
 
     public CreateBackupUseCase(
         IFileSystem fileSystem,
@@ -47,6 +50,9 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             return Error.Failure(description: "At least one monitored folder must be configured to create a backup.");
         }
         
+        if (!string.IsNullOrEmpty(configuration.IgnoreFolders))
+            _ignoreFolders = configuration.IgnoreFolders.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        
         _databaseService.BeginTransaction();
 
         var newBackup = Backup.CreateNew();
@@ -66,7 +72,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         {
             _logger.LogInformation("Processing folder '{Folder}' for backup ID {BackupId}.", folder, newBackup.Id);
             
-            var folderBackup = await ExecuteBackupFromFolderAsync(folder, newBackup, token);
+            var folderBackup = await ExecuteBackupFromFolderAsync(folder, newBackup, configuration, token);
 
             if (folderBackup.IsError)
             {
@@ -86,7 +92,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         return newBackup;
     }
 
-    private async Task<ErrorOr<Success>> ExecuteBackupFromFolderAsync(string backupPath, Backup newBackup, CancellationToken token)
+    private async Task<ErrorOr<Success>> ExecuteBackupFromFolderAsync(string backupPath, Backup newBackup, Configuration configuration, CancellationToken token)
     {
         var localFiles = _fileSystem.GetFiles(backupPath, "*.*", SearchOption.AllDirectories);
         var storedFilesResult = await _fileRepository.GetFilesWithVersionAsync(backupPath, token);
@@ -104,6 +110,18 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             var fileName = Path.GetFileName(localFile);
             var relativePath = Path.GetRelativePath(backupPath, pathOnly);
             
+            if (CheckShouldIgnoreFolder(pathOnly))
+            {
+                _logger.LogDebug(
+                    "Skipping file '{FileName}' in folder '{Folder}' for backup ID {BackupId} because it is in an ignored folder.",
+                    fileName,
+                    pathOnly,
+                    newBackup.Id);
+
+                // TODO: Create UnitTest
+                continue;
+            }
+            
             var storedFile = storedFiles.FirstOrDefault(f => f.RelativePath == relativePath && f.FileName == fileName);
 
             await using var localFileStream = _fileSystem.GetReadFileStream(localFile);
@@ -114,7 +132,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             _logger.LogDebug(
                 "File '{FileName}' in folder '{Folder}' determined to be '{FileAction}' for backup ID {BackupId}.",
                 fileName,
-                backupPath,
+                pathOnly,
                 fileAction,
                 newBackup.Id);
 
@@ -153,6 +171,18 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             newBackup.DeletedFiles);
 
         return Result.Success;
+    }
+
+    private bool CheckShouldIgnoreFolder(string relativePath)
+    {
+        if (_ignoreFolders is null)
+            return false;
+
+        var pathComponents = relativePath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+
+        return _ignoreFolders.Any(ignoreFolder =>
+            pathComponents.Any(component =>
+                component.Equals(ignoreFolder, StringComparison.OrdinalIgnoreCase)));
     }
 
     private FileAction ObtainFileAction(FileVersionDM? storedFile, string localFileHash)
