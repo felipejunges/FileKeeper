@@ -75,11 +75,41 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
                 
                 _logger.LogInformation("Restoring file '{FileName}' to '{FinalDestinationName}'.", fileToRecover.FileName, finalDestinationName);
 
-                var bytes = fileToRecover.Content ?? [];
-                var decompressed = await CompressionHelper.DecompressAsync(bytes, token);
-                
-                await using var fileStream = new FileStream(finalDestinationName, FileMode.Create, FileAccess.Write);
-                await fileStream.WriteAsync(decompressed, token);
+                // Fetch content SEPARATELY for this file only (not from the stream which loads all)
+                var contentResult = await _fileRepository.GetFileContentAsync(fileToRecover.Id, token);
+                if (contentResult.IsError)
+                    return contentResult.Errors;
+
+                byte[] bytes = contentResult.Value;
+                if (bytes.Length == 0)
+                {
+                    _logger.LogWarning("File '{FileName}' has no content. Skipping restoration for this file.", fileToRecover.FileName);
+                    continue;
+                }
+
+                byte[] decompressed = null!;
+                try
+                {
+                    decompressed = await CompressionHelper.DecompressAsync(bytes, token);
+                    
+                    await using var fileStream = new FileStream(finalDestinationName, FileMode.Create, FileAccess.Write);
+                    await fileStream.WriteAsync(decompressed, token);
+                }
+                finally
+                {
+                    // Clear arrays immediately after use
+                    Array.Clear(bytes);
+                    if (decompressed.Length > 0)
+                        Array.Clear(decompressed);
+                    
+                    // Force garbage collection only when necessary (large files or memory pressure)
+                    // In .NET 10+, the GC is more efficient, so be selective about forcing collections
+                    if (fileIndex % 50 == 0 || fileToRecover.Size > 50_000_000)
+                    {
+                        // Only collect if memory usage justifies it
+                        GC.Collect(generation: 1, mode: GCCollectionMode.Optimized);
+                    }
+                }
             }
             catch (Exception e)
             {
