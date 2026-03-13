@@ -75,18 +75,21 @@ public class FileRepository : RepositoryBase, IFileRepository
                 f.BackupPath,
                 f.RelativePath,
                 f.FileName,
-                fv.Size
+                fv.Size,
+                fv.BackupId AS VersionBackupId,
+                fv.Id AS VersionId
             FROM Files f
-            INNER JOIN FileVersions fv ON f.Id = fv.FileId
+            LEFT JOIN FileVersions fv ON fv.Id = (
+                SELECT Id 
+                FROM FileVersions 
+                WHERE FileId = f.Id
+                AND BackupId <= @backupId
+                ORDER BY BackupId DESC 
+                LIMIT 1
+            )
             WHERE (
                 f.IsDeleted = 0
                 OR f.IsDeleted = 1 AND f.DeletedAt > @backupId
-            )
-            AND fv.BackupId = (
-                SELECT MAX(fv2.BackupId)
-                FROM FileVersions fv2
-                WHERE fv2.FileId = f.Id
-                    AND fv2.BackupId <= @backupId
             )
             ORDER BY f.BackupPath, f.RelativePath;";
         

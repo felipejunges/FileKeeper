@@ -72,11 +72,15 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
                 var directory = Path.GetDirectoryName(finalDestinationName)!;
                 if (!_fileSystem.DirectoryExists(directory))
                     _fileSystem.CreateDirectory(directory);
-                
-                _logger.LogInformation("Restoring file '{FileName}' to '{FinalDestinationName}'.", fileToRecover.FileName, finalDestinationName);
+
+                _logger.LogInformation(
+                    "Restoring file '{FileName}' to '{FinalDestinationName}' from Backup {BackupId}.",
+                    fileToRecover.FileName,
+                    finalDestinationName,
+                    fileToRecover.VersionBackupId);
 
                 // Fetch content SEPARATELY for this file only (not from the stream which loads all)
-                var contentResult = await _fileRepository.GetFileContentAsync(fileToRecover.Id, token);
+                var contentResult = await _fileRepository.GetFileContentAsync(fileToRecover.VersionId, token);
                 if (contentResult.IsError)
                     return contentResult.Errors;
 
