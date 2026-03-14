@@ -6,5 +6,5 @@ namespace FileKeeper.Core.Interfaces.Services;
 public interface IConfigurationService
 {
     Task<Configuration> GetConfigurationAsync(CancellationToken token);
-    Task<ErrorOr<Success>> ApplyConfigurationAsync(Configuration config, CancellationToken token);
+    Task<ErrorOr<Success>> ApplyConfigurationAsync(Configuration configuration, CancellationToken token);
 }

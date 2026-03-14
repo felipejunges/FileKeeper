@@ -1,3 +1,5 @@
+using FileKeeper.Core.Extensions;
+
 namespace FileKeeper.Core.Models.DMs;
 
 public class FileInBackupDM
@@ -10,6 +12,7 @@ public class FileInBackupDM
     public required string FileHash { get; init; }
     public required bool IsNew { get; init; }
     public required bool IsDeleted { get; init; }
-    
+
+    public string HumanReadableSize => FileSize.ToHumanReadableSize();
     public string FullFileName => Path.Combine(BackupPath, RelativePath, FileName);
 }

@@ -50,7 +50,7 @@
                                 <StackPanel Spacing="2">
                                     <TextBlock Text="{Binding FullFileName}" FontWeight="SemiBold" />
                                     <StackPanel Orientation="Horizontal" Spacing="15" Opacity="0.7">
-                                        <TextBlock Text="{Binding FileSize, StringFormat='Size: {0:N0} bytes'}" FontSize="12" />
+                                        <TextBlock Text="{Binding HumanReadableSize}" FontSize="12" />
                                         <TextBlock Text="{Binding FileHash, StringFormat='Hash: {0}'}" FontSize="11" FontFamily="Courier New" />
                                     </StackPanel>
                                 </StackPanel>
@@ -67,7 +67,7 @@
                                 <StackPanel Spacing="2">
                                     <TextBlock Text="{Binding FullFileName}" FontWeight="SemiBold" />
                                     <StackPanel Orientation="Horizontal" Spacing="15" Opacity="0.7">
-                                        <TextBlock Text="{Binding FileSize, StringFormat='Size: {0:N0} bytes'}" FontSize="12" />
+                                        <TextBlock Text="{Binding HumanReadableSize}" FontSize="12" />
                                         <TextBlock Text="{Binding FileHash, StringFormat='Hash: {0}'}" FontSize="11" FontFamily="Courier New" />
                                     </StackPanel>
                                 </StackPanel>

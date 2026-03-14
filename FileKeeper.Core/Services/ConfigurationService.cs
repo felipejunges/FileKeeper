@@ -64,15 +64,16 @@ public class ConfigurationService : IConfigurationService
         return await _store.LoadConfigurationAsync(token);
     }
     
-    public async Task<ErrorOr<Success>> ApplyConfigurationAsync(Configuration config, CancellationToken token)
+    public async Task<ErrorOr<Success>> ApplyConfigurationAsync(Configuration configuration, CancellationToken token)
     {
-        var validationResult = ValidateConfiguration(config);
+        var validationResult = ValidateConfiguration(configuration);
         if (validationResult.IsError)
             return validationResult.Errors;
 
-        config.LastModified = DateTime.Now;
+        configuration.LastModified = DateTime.Now;
+        configuration.MonitoredFolders.Sort();
         
-        await _store.SaveConfigurationAsync(config, token);
+        await _store.SaveConfigurationAsync(configuration, token);
         
         return Result.Success;
     }
