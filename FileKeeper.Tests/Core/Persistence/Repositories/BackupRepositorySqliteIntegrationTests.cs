@@ -14,7 +14,13 @@ public class BackupRepositorySqliteIntegrationTests
         await CreateBackupsTableAsync(databaseService.GetConnection());
 
         var sut = new BackupRepository(databaseService);
-        var backup = new Backup(0, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
+        var backup = new Backup(
+            0,
+            new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 
+            20, 
+            17, 
+            15, 
+            2851);
 
         var insertResult = await sut.InsertAsync(backup, CancellationToken.None);
 
@@ -26,9 +32,11 @@ public class BackupRepositorySqliteIntegrationTests
 
         Assert.False(fetched.IsError);
         Assert.Equal(backup.Id, fetched.Value.Id);
+        Assert.Equal(backup.CreatedAt.ToUniversalTime(), fetched.Value.CreatedAt.ToUniversalTime());
         Assert.Equal(backup.CreatedFiles, fetched.Value.CreatedFiles);
         Assert.Equal(backup.UpdatedFiles, fetched.Value.UpdatedFiles);
         Assert.Equal(backup.DeletedFiles, fetched.Value.DeletedFiles);
+        Assert.Equal(backup.TotalSize, fetched.Value.TotalSize);
     }
 
     [Fact(DisplayName = "02 - GetByIdAsync should return NotFound when backup does not exist")]
@@ -53,8 +61,8 @@ public class BackupRepositorySqliteIntegrationTests
 
         var sut = new BackupRepository(databaseService);
 
-        var older = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
-        var newer = new Backup(0, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 3, 1, 1, 0);
+        var older = new Backup(1, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var newer = new Backup(2, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 3, 1, 1, 0);
 
         await sut.InsertAsync(older, CancellationToken.None);
         await sut.InsertAsync(newer, CancellationToken.None);
@@ -76,18 +84,18 @@ public class BackupRepositorySqliteIntegrationTests
 
         var sut = new BackupRepository(databaseService);
 
-        var first = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
-        var second = new Backup(0, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
-        var third = new Backup(0, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 3, 1, 1, 0);
+        var first = new Backup(1, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var second = new Backup(2, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
+        var third = new Backup(3, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 3, 1, 1, 0);
 
         await sut.InsertAsync(first, CancellationToken.None);
         await sut.InsertAsync(second, CancellationToken.None);
         await sut.InsertAsync(third, CancellationToken.None);
 
-        var result = await sut.GetNextBackupByIdAsync(first.Id, CancellationToken.None);
+        var result = await sut.GetNextBackupByIdAsync(second.Id, CancellationToken.None);
 
         Assert.False(result.IsError);
-        Assert.Equal(second.Id, result.Value.Id);
+        Assert.Equal(third.Id, result.Value.Id);
     }
 
     [Fact(DisplayName = "05 - GetNextBackupByIdAsync should return NotFound when there is no newer backup")]
@@ -97,7 +105,7 @@ public class BackupRepositorySqliteIntegrationTests
         await CreateBackupsTableAsync(databaseService.GetConnection());
 
         var sut = new BackupRepository(databaseService);
-        var backup = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var backup = new Backup(1, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
         await sut.InsertAsync(backup, CancellationToken.None);
 
         var result = await sut.GetNextBackupByIdAsync(backup.Id, CancellationToken.None);
@@ -114,19 +122,39 @@ public class BackupRepositorySqliteIntegrationTests
 
         var sut = new BackupRepository(databaseService);
 
-        var older = new Backup(0, new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
-        var newer = new Backup(0, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
+        var first = new Backup(1, new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var second = new Backup(2, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
 
-        await sut.InsertAsync(newer, CancellationToken.None);
-        await sut.InsertAsync(older, CancellationToken.None);
+        await sut.InsertAsync(first, CancellationToken.None);
+        await sut.InsertAsync(second, CancellationToken.None);
 
         var result = await sut.GetOldestAsync(CancellationToken.None);
 
         Assert.False(result.IsError);
-        Assert.Equal(older.Id, result.Value.Id);
+        Assert.Equal(first.Id, result.Value.Id);
+    }
+    
+    [Fact(DisplayName = "07 - GetOldestAsync should return oldest backup by CreatedAt - Even with invered Id")]
+    public async Task GetOldestAsync_ShouldReturnOldestBackupEvenWithInvertedId()
+    {
+        await using var databaseService = new InMemorySqliteDatabaseService();
+        await CreateBackupsTableAsync(databaseService.GetConnection());
+
+        var sut = new BackupRepository(databaseService);
+
+        var first = new Backup(1, new DateTime(2026, 3, 5, 11, 0, 0, DateTimeKind.Utc), 1, 0, 0, 0);
+        var second = new Backup(2, new DateTime(2026, 3, 5, 10, 0, 0, DateTimeKind.Utc), 2, 1, 0, 0);
+
+        await sut.InsertAsync(first, CancellationToken.None);
+        await sut.InsertAsync(second, CancellationToken.None);
+
+        var result = await sut.GetOldestAsync(CancellationToken.None);
+
+        Assert.False(result.IsError);
+        Assert.Equal(second.Id, result.Value.Id);
     }
 
-    [Fact(DisplayName = "07 - GetOldestAsync should return NotFound when table is empty")]
+    [Fact(DisplayName = "08 - GetOldestAsync should return NotFound when table is empty")]
     public async Task GetOldestAsync_ShouldReturnNotFound_WhenEmpty()
     {
         await using var databaseService = new InMemorySqliteDatabaseService();
