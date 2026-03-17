@@ -1,0 +1,15 @@
+[Unit]
+Description=FileKeeper UI (user session)
+After=graphical-session.target network.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/opt/filekeeper/publish
+ExecStart=%h/.local/opt/filekeeper/publish/FileKeeper.UI
+Environment=LD_LIBRARY_PATH=%h/.local/opt/filekeeper/publish
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
