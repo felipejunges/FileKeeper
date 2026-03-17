@@ -2,7 +2,7 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Persistence;
 using System.Data.SQLite;
 
-namespace FileKeeper.Tests.Core.Persistence.TestDoubles;
+namespace FileKeeper.Tests.Integrations.Core.Persistence.TestDoubles;
 
 internal sealed class InMemorySqliteDatabaseService : IDatabaseService
 {
