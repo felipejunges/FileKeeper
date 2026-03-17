@@ -68,6 +68,8 @@ APP_DIR="$HOME/.local/opt/filekeeper/publish"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 APPLICATIONS_DIR="$HOME/.local/share/applications"
 UI_PROJECT="$PROJECT_ROOT/FileKeeper.UI/FileKeeper.UI.csproj"
+ICON_SOURCE="$PROJECT_ROOT/appicon/filekeeper_edited.ico"
+ICON_TARGET="$APP_DIR/filekeeper_edited.ico"
 
 if [[ "$DO_PUBLISH" == "yes" ]]; then
   if ! command -v dotnet >/dev/null 2>&1; then
@@ -91,6 +93,10 @@ cp -a "$PUBLISH_DIR/." "$APP_DIR/"
 chmod +x "$APP_DIR/FileKeeper.UI"
 find "$APP_DIR" -maxdepth 1 -type f -name '*.so' -exec chmod +x {} \;
 
+if [[ -f "$ICON_SOURCE" ]]; then
+  cp -f "$ICON_SOURCE" "$ICON_TARGET"
+fi
+
 install -m 0644 "$SCRIPT_DIR/filekeeper-user.service" "$SYSTEMD_USER_DIR/filekeeper.service"
 
 cat > "$APPLICATIONS_DIR/filekeeper.desktop" <<EOF
@@ -101,6 +107,7 @@ Name=FileKeeper
 Comment=Backup and restore manager
 Exec=env LD_LIBRARY_PATH=$APP_DIR $APP_DIR/FileKeeper.UI
 Path=$APP_DIR
+Icon=$ICON_TARGET
 Terminal=false
 Categories=Utility;
 StartupNotify=true
