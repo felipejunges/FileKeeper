@@ -9,6 +9,7 @@
     <FileVersion>0.0.1</FileVersion>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <ApplicationIcon>Assets/filekeeper_edited.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

@@ -46,6 +46,61 @@ AvaloniaUI enables cross-platform desktop builds. You can publish a single-file 
 dotnet publish -c Release -o publish -r linux-x64 --self-contained true FileKeeper.UI/FileKeeper.UI.csproj
 ```
 
+## Install on Linux (local machine)
+
+Use the installer script to publish and install the app to your user folder:
+
+```bash
+./deploy/linux-mint/install-local.sh
+```
+
+This script:
+
+- Publishes `FileKeeper.UI` to `./publish` (by default)
+- Installs files to `~/.local/opt/filekeeper/publish`
+- Creates a desktop launcher in `~/.local/share/applications/filekeeper.desktop`
+- Optionally enables a user service (`systemd --user`)
+
+### Installer options
+
+```bash
+./deploy/linux-mint/install-local.sh --help
+```
+
+Available options:
+
+- `--enable-service` enable and start user service after install
+- `--no-service` skip service enable/start
+- `--publish` run `dotnet publish` before install (default)
+- `--no-publish` skip publish and use existing `publish` folder
+- `--configuration=<VALUE>` publish configuration (default: `Release`)
+- `--runtime=<RID>` publish runtime RID (default: `linux-x64`)
+
+Examples:
+
+```bash
+./deploy/linux-mint/install-local.sh --no-service
+./deploy/linux-mint/install-local.sh --configuration=Debug --runtime=linux-x64
+./deploy/linux-mint/install-local.sh --no-publish --enable-service
+```
+
+### Run after install
+
+From the menu: open **FileKeeper**.
+
+Or from terminal:
+
+```bash
+cd "$HOME/.local/opt/filekeeper/publish"
+LD_LIBRARY_PATH="$PWD" ./FileKeeper.UI
+```
+
+### Uninstall
+
+```bash
+./deploy/linux-mint/uninstall-local.sh
+```
+
 Optionally, you can configure the binary in the system `bin` folder:
 ```bash
 sudo cp publish/libe_sqlite3.so /usr/local/lib/

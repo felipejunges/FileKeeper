@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=FileKeeper
+Comment=Backup and restore manager
+Exec=env LD_LIBRARY_PATH=/home/USER/.local/opt/filekeeper/publish /home/USER/.local/opt/filekeeper/publish/FileKeeper.UI
+Path=/home/USER/.local/opt/filekeeper/publish
+Icon=/home/USER/.local/opt/filekeeper/publish/filekeeper_edited.ico
+Terminal=false
+Categories=Utility;
+StartupNotify=true
