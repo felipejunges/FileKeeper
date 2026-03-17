@@ -26,4 +26,8 @@
       <ProjectReference Include="..\FileKeeper.Core\FileKeeper.Core.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Integrations\Core\" />
+    </ItemGroup>
+
 </Project>

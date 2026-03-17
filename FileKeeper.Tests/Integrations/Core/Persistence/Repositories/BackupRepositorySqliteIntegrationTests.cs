@@ -1,9 +1,9 @@
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Persistence.Repositories;
-using FileKeeper.Tests.Core.Persistence.TestDoubles;
+using FileKeeper.Tests.Integrations.Core.Persistence.TestDoubles;
 using System.Data.SQLite;
 
-namespace FileKeeper.Tests.Core.Persistence.Repositories;
+namespace FileKeeper.Tests.Integrations.Core.Persistence.Repositories;
 
 public class BackupRepositorySqliteIntegrationTests
 {
