@@ -6,34 +6,82 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PUBLISH_DIR="$PROJECT_ROOT/publish"
 
 ENABLE_SERVICE="ask"
-if [[ $# -gt 1 ]]; then
-  echo "Usage: $0 [--enable-service|--no-service]"
-  exit 1
-fi
+DO_PUBLISH="yes"
+PUBLISH_CONFIGURATION="Release"
+PUBLISH_RUNTIME="linux-x64"
 
-if [[ $# -eq 1 ]]; then
-  case "$1" in
+print_help() {
+  cat <<EOF
+Usage: $0 [options]
+
+Options:
+  --enable-service           Enable and start user service after install
+  --no-service               Do not enable service (default asks interactively)
+  --publish                  Run dotnet publish before install (default)
+  --no-publish               Skip publish and use existing publish folder
+  --configuration=<VALUE>    Publish configuration (default: Release)
+  --runtime=<RID>            Publish runtime RID (default: linux-x64)
+  -h, --help                 Show this help message
+
+Examples:
+  $0
+  $0 --no-service
+  $0 --configuration=Debug --runtime=linux-x64
+  $0 --no-publish --enable-service
+EOF
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      print_help
+      exit 0
+      ;;
     --enable-service)
       ENABLE_SERVICE="yes"
       ;;
     --no-service)
       ENABLE_SERVICE="no"
       ;;
+    --no-publish)
+      DO_PUBLISH="no"
+      ;;
+    --publish)
+      DO_PUBLISH="yes"
+      ;;
+    --configuration=*)
+      PUBLISH_CONFIGURATION="${arg#*=}"
+      ;;
+    --runtime=*)
+      PUBLISH_RUNTIME="${arg#*=}"
+      ;;
     *)
-      echo "Unknown option: $1"
-      echo "Usage: $0 [--enable-service|--no-service]"
+      echo "Unknown option: $arg"
+      echo
+      print_help
       exit 1
       ;;
   esac
-fi
+done
 
 APP_DIR="$HOME/.local/opt/filekeeper/publish"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 APPLICATIONS_DIR="$HOME/.local/share/applications"
+UI_PROJECT="$PROJECT_ROOT/FileKeeper.UI/FileKeeper.UI.csproj"
+
+if [[ "$DO_PUBLISH" == "yes" ]]; then
+  if ! command -v dotnet >/dev/null 2>&1; then
+    echo "dotnet SDK is required to publish. Install it or run with --no-publish."
+    exit 1
+  fi
+
+  echo "Publishing FileKeeper.UI ($PUBLISH_CONFIGURATION, $PUBLISH_RUNTIME)..."
+  dotnet publish "$UI_PROJECT" -c "$PUBLISH_CONFIGURATION" -r "$PUBLISH_RUNTIME" --self-contained true -o "$PUBLISH_DIR"
+fi
 
 if [[ ! -f "$PUBLISH_DIR/FileKeeper.UI" ]]; then
   echo "Missing publish output at: $PUBLISH_DIR"
-  echo "Build and publish first, then run this installer again."
+  echo "Run this installer without --no-publish, or publish manually first."
   exit 1
 fi
 
