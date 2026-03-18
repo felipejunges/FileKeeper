@@ -1,6 +1,6 @@
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Persistence.Repositories;
-using FileKeeper.Tests.Integrations.Core.Persistence.TestDoubles;
+using FileKeeper.Tests.Integrations.TestDoubles;
 using System.Data.SQLite;
 
 namespace FileKeeper.Tests.Integrations.Core.Persistence.Repositories;
@@ -585,6 +585,8 @@ public class FilesRepositorySqliteIntegrationTests
 
     private static async Task CreateTablesAsync(SQLiteConnection connection)
     {
+        // TODO: use DatabaseService.Initialize() (and fix the failing tests, possibly because of the Backup table and the FK) - maybe, do not create all objects, only those needed by this test. Or not! 
+        
         const string sql = @"
             CREATE TABLE IF NOT EXISTS Files (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,6 +1,6 @@
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Persistence.Repositories;
-using FileKeeper.Tests.Integrations.Core.Persistence.TestDoubles;
+using FileKeeper.Tests.Integrations.TestDoubles;
 using System.Data.SQLite;
 
 namespace FileKeeper.Tests.Integrations.Core.Persistence.Repositories;
@@ -170,6 +170,8 @@ public class BackupRepositorySqliteIntegrationTests
 
     private static async Task CreateBackupsTableAsync(SQLiteConnection connection)
     {
+        // TODO: use DatabaseService.Initialize()
+        
         const string sql = @"
             CREATE TABLE Backups (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,

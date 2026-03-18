@@ -32,4 +32,10 @@ public class FileModel
 
         Id = id;
     }
+
+    public void UpdateDeletedAt(long deletedAt)
+    {
+        IsDeleted = true;
+        DeletedAt = deletedAt;
+    }
 }
