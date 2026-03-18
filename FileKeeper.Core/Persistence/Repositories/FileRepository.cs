@@ -12,6 +12,30 @@ public class FileRepository : RepositoryBase, IFileRepository
     {
     }
 
+    public async Task<ErrorOr<FileModel>> GetByIdAsync(long id, CancellationToken token)
+    {
+        const string sql = @$"
+            SELECT
+                {nameof(FileModel.Id)},
+                {nameof(FileModel.BackupPath)},
+                {nameof(FileModel.RelativePath)},
+                {nameof(FileModel.FileName)},
+                {nameof(FileModel.IsDeleted)},
+                {nameof(FileModel.DeletedAt)}
+            FROM Files
+            WHERE Id = @id;";
+
+        var result = await QuerySingleOrDefaultAsync<FileModel>(sql, new { id }, token);
+
+        if (result.IsError)
+            return result.Errors;
+
+        if (result.Value is null)
+            return Error.NotFound(description: "File not found.");
+
+        return result.Value;
+    }
+
     public async Task<ErrorOr<IEnumerable<FileInBackupDM>>> GetFilesInBackupAsync(long backupId, CancellationToken token)
     {
         const string sql = @"
@@ -195,6 +219,16 @@ public class FileRepository : RepositoryBase, IFileRepository
             WHERE Id IN @ids;";
 
         return await ExecuteAsync(sql, new { ids = idsFilesToMarkAsDeleted, backupId }, token);
+    }
+
+    public async Task<ErrorOr<int>> UnmarkAsDeletedAsync(long deletedAt, CancellationToken token)
+    {
+        const string sql = @"
+            UPDATE Files
+            SET IsDeleted = 0, DeletedAt = NULL
+            WHERE DeletedAt = @deletedAt;";
+
+        return await ExecuteAsync(sql, new { deletedAt }, token);
     }
 
     public Task<ErrorOr<int>> MoveVersionsToBackupAsync(List<long> idsVersionsToMove, long backupId, CancellationToken token)

@@ -134,7 +134,7 @@ public class DeleteBackupUseCaseIntegrationTests
     }
     
     [Fact]
-    public async Task ExecuteAsync_WithNoNextBackup_WithAddedUpdatedDeletedFiles_ShouldWork()
+    public async Task ExecuteAsync_WithNoNextBackup_DeletedFileShouldBeMarkedAsNotDeleted()
     {
         // Arrange
         var cancellationToken = CancellationToken.None;
@@ -145,9 +145,12 @@ public class DeleteBackupUseCaseIntegrationTests
         var file1 = FileModel.CreateNew("/backup", ".", "file1.txt");
         var file2 = FileModel.CreateNew("/backup", ".", "file2.txt");
         
+        // this file is deleted in the backup being deleted, so he will be marked as not deleted
         var deletedFile1 = FileModel.CreateNew("/backup", ".", "file3.txt");
         deletedFile1.UpdateId(3);
         deletedFile1.UpdateDeletedAt(backup2.Id);
+        // TODO: neste caso, como o backup2 (que é onde o aequivo foi marcado como deletado) está sendo excluído
+        //       e não tem nextBackup, ele deve ser DESMARCADO como deletado
 
         var file1Version1 = FileVersion.CreateNew(1, backup1.Id, true, 512, "hash1", []);
         var file2Version1 = FileVersion.CreateNew(2, backup1.Id, true, 512, "hash2", []);
@@ -170,10 +173,68 @@ public class DeleteBackupUseCaseIntegrationTests
         // Act
         var result = await _sut.ExecuteAsync(backup2.Id, cancellationToken);
         var deletedBackup = await _backupRepository.GetByIdAsync(backup2.Id, cancellationToken);
+        var notAnymoreDeletedFile = await _fileRepository.GetByIdAsync(deletedFile1.Id, cancellationToken);
 
         // Assert
         Assert.False(result.IsError);
         Assert.True(deletedBackup.IsError);
         Assert.Equal(ErrorType.NotFound, deletedBackup.FirstError.Type);
+        
+        // deleted file should be marked as not deleted
+        Assert.False(notAnymoreDeletedFile.Value.IsDeleted);
+    }
+    
+    [Fact]
+    public async Task ExecuteAsync_WithNextBackup_DeletedFileShouldBeMovedToTheNextOne()
+    {
+        // Arrange
+        var cancellationToken = CancellationToken.None;
+        var currentTime = DateTime.UtcNow;
+        var backup1 = new Backup(1, currentTime, 2, 0, 0, 2048);
+        var backup2 = new Backup(2, currentTime, 2, 0, 0, 2048);
+        var backup3 = new Backup(3, currentTime, 2, 0, 0, 2048);
+
+        var file1 = FileModel.CreateNew("/backup", ".", "file1.txt");
+        var file2 = FileModel.CreateNew("/backup", ".", "file2.txt");
+        
+        // this file is deleted in the backup being deleted, so he will be moved to backup 3
+        var deletedFile1 = FileModel.CreateNew("/backup", ".", "file3.txt");
+        deletedFile1.UpdateId(3);
+        deletedFile1.UpdateDeletedAt(backup2.Id);
+        // TODO: neste caso, como o backup2 (que é onde o aequivo foi marcado como deletado) está sendo excluído
+        //       e não tem nextBackup, ele deve ser DESMARCADO como deletado
+
+        var file1Version1 = FileVersion.CreateNew(1, backup1.Id, true, 512, "hash1", []);
+        var file2Version1 = FileVersion.CreateNew(2, backup1.Id, true, 512, "hash2", []);
+        var file1Version2 = FileVersion.CreateNew(1, backup2.Id, false, 512, "hash1", []); // Same file, different backup
+
+        var deletedFileVersion1 = FileVersion.CreateNew(deletedFile1.Id, 1, true, 512, "hash1", []);
+
+        await _backupRepository.InsertAsync(backup1, cancellationToken);
+        await _backupRepository.InsertAsync(backup2, cancellationToken);
+        await _backupRepository.InsertAsync(backup3, cancellationToken);
+        
+        await _fileRepository.InsertAsync(file1, cancellationToken);
+        await _fileRepository.InsertAsync(file2, cancellationToken);
+        await _fileRepository.InsertAsync(deletedFile1, cancellationToken);
+        
+        await _fileRepository.InsertVersionAsync(file1Version1, cancellationToken);
+        await _fileRepository.InsertVersionAsync(file2Version1, cancellationToken);
+        await _fileRepository.InsertVersionAsync(file1Version2, cancellationToken);
+        await _fileRepository.InsertVersionAsync(deletedFileVersion1, cancellationToken);
+
+        // Act
+        var result = await _sut.ExecuteAsync(backup2.Id, cancellationToken);
+        var deletedBackup = await _backupRepository.GetByIdAsync(backup2.Id, cancellationToken);
+        var fileDeletedMoved = await _fileRepository.GetByIdAsync(deletedFile1.Id, cancellationToken);
+
+        // Assert
+        Assert.False(result.IsError);
+        Assert.True(deletedBackup.IsError);
+        Assert.Equal(ErrorType.NotFound, deletedBackup.FirstError.Type);
+        
+        // deleted file should be moved as deleted in the next one
+        Assert.True(fileDeletedMoved.Value.IsDeleted);
+        Assert.Equal(backup3.Id, fileDeletedMoved.Value.DeletedAt);
     }
 }

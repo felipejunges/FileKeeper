@@ -114,13 +114,18 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             if (refreshNextTotalsResult.IsError)
                 return refreshNextTotalsResult.Errors;
         }
-
+        
         // 5. delete all the versions has is kept in the current backup (already exists in the next or the next doesn't exist)
         var deleteVersionsResult = await DeleteVersionsKeptInCurrentBackupAsync(backupId, token);
         if (deleteVersionsResult.IsError)
             return deleteVersionsResult;
 
-        // 6. delete all files left without versions (if any)
+        // 6. undelete all files still marked as deleted in the current backup (not moved because there is no next backup)
+        var unmarkDeletedResult = await _fileRepository.UnmarkAsDeletedAsync(backupId, token);
+        if (unmarkDeletedResult.IsError)
+            return unmarkDeletedResult.Errors;
+        
+        // 7. delete all files left without versions (if any)
         var filesDeletionResult = await _fileRepository.DeleteFilesWithoutVersionsAsync(token);
         if (filesDeletionResult.IsError)
         {
@@ -132,7 +137,7 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             return filesDeletionResult.Errors;
         }
 
-        // 7. delete the backup record
+        // 8. delete the backup record
         var backupDeletionResult = await _backupRepository.DeleteAsync(backupId, token);
         if (backupDeletionResult.IsError)
         {

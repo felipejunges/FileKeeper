@@ -6,6 +6,7 @@ namespace FileKeeper.Core.Interfaces.Repositories;
 
 public interface IFileRepository
 {
+    Task<ErrorOr<FileModel>> GetByIdAsync(long id, CancellationToken token);
     Task<ErrorOr<IEnumerable<FileInBackupDM>>> GetFilesInBackupAsync(long backupId, CancellationToken token);
     Task<ErrorOr<IEnumerable<FileVersionDM>>> GetFilesWithVersionAsync(string backupPath, CancellationToken token);
     Task<IAsyncEnumerable<FileToRecoverDM>> GetStreamOfFilesToRecoverAsync(long backupId, CancellationToken token);
@@ -14,6 +15,7 @@ public interface IFileRepository
     Task<ErrorOr<long>> InsertAsync(FileModel fileModel, CancellationToken token);
     Task<ErrorOr<long>> InsertVersionAsync(FileVersion version, CancellationToken token);
     Task<ErrorOr<int>> MarkAsDeletedAsync(List<long> idsFilesToMarkAsDeleted, long backupId, CancellationToken token);
+    Task<ErrorOr<int>> UnmarkAsDeletedAsync(long deletedAt, CancellationToken token);
     Task<ErrorOr<int>> MoveVersionsToBackupAsync(List<long> idsVersionsToMove, long backupId, CancellationToken token);
     Task<ErrorOr<int>> MoveDeletedFilesToNextBackupAsync(long sourceBackupId, long destinationBackupId, CancellationToken token);
     Task<ErrorOr<int>> DeleteAllVersionsInBackupAsync(long backupId, CancellationToken token);
