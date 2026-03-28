@@ -1,6 +1,8 @@
+using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.Wrappers;
+using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.UseCases;
 using Moq;
 
@@ -43,8 +45,21 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Test_Placeholder()
+    public async Task ExecuteAsync_ShouldFail_IfGetLastSnapshotReturnsError()
     {
-        Assert.True(true);
+        // Arrange
+        _snapshotRepository
+            .Setup(s => s.GetLastSnapshotAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Error.Failure(description: "Error getting last snapshot"));
+
+        // Act
+        var result = await _sut.ExecuteAsync(null, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsError);
+        Assert.Equal("Error getting last snapshot", result.FirstError.Description);
+
+        _snapshotRepository
+            .Verify(v => v.AddSnapshotAsync(It.IsAny<Snapshot>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
