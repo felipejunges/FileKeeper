@@ -85,7 +85,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 if (token.IsCancellationRequested) break;
 
                 var compressResult =
-                    await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.Stream, fileToSave.StoredPath, token);
+                    await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.FullPath, fileToSave.StoredPath, token);
+                
                 if (compressResult.IsError)
                     return compressResult.Errors;
 
