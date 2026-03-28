@@ -1,19 +1,28 @@
+using System.Text.Json.Serialization;
+
 namespace FileKeeper.Core.Models.Entities;
 
 public class FileEntry
 {
+    [JsonInclude]
     public Guid Id { get; private set; }
 
+    [JsonInclude]
     public string RelativePath { get; private set; } = string.Empty;
 
+    [JsonInclude]
     public string StoredPath { get; private set; } = string.Empty;
 
+    [JsonInclude]
     public string Hash { get; private set; } = string.Empty;
 
+    [JsonInclude]
     public long Size { get; private set; }
 
+    [JsonInclude]
     public DateTime LastModified { get; private set; }
 
+    [JsonInclude]
     public string FoundInSnapshot { get; private set; } = string.Empty;
 
     public FileEntry()

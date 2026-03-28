@@ -21,7 +21,7 @@ public class Snapshot
     {
     }
 
-    public Snapshot(Guid id, DateTime createdAtUtc, int fileCount, long totalSize, FileEntry[] files)
+    public Snapshot(Guid id, DateTime createdAtUtc, FileEntry[] files)
     {
         Id = id;
         CreatedAtUtc = createdAtUtc;
@@ -33,8 +33,6 @@ public class Snapshot
         return new Snapshot(
             Guid.CreateVersion7(),
             DateTime.UtcNow,
-            0,
-            0,
             Array.Empty<FileEntry>());
     }
 

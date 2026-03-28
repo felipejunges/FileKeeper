@@ -15,6 +15,4 @@ public class FileToSave
     public DateTime LastModified { get; private set; }
 
     public string FoundInSnapshot { get; set; } = string.Empty;
-
-    public Stream Stream { get; private set; }
 }

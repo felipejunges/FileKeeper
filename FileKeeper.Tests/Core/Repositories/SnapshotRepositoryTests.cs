@@ -15,13 +15,22 @@ public class SnapshotRepositoryTests
     [Fact]
     public async Task GetSnapshotAsync_WhenFileExistsAndJsonIsValid_ReturnsSnapshot()
     {
-        var id = Guid.NewGuid();
+        var id = Guid.CreateVersion7();
         var expected = new Snapshot(
             id,
             DateTime.UtcNow,
-            1,
-            42,
-            [new FileEntry(Guid.CreateVersion7(), "docs/readme.txt", "abc/abcdef", "abc123", 42, DateTime.UtcNow, id.ToString())]);
+            [
+                new FileEntry(
+                    Guid.CreateVersion7(),
+                    "docs/readme.txt",
+                    "abc/abcdef",
+                    "abc123",
+                    42,
+                    DateTime.UtcNow,
+                    id.ToString()
+                )
+            ]
+        );
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(expected)));
 

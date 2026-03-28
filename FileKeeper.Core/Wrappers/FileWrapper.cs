@@ -13,7 +13,12 @@ public class FileWrapper : IFileWrapper
     {
         return File.OpenRead(path);
     }
-    
+
+    public Stream Create(string path)
+    {
+        return File.Create(path);
+    }
+
     public string[] GetFiles(string path, string searchPattern, SearchOption searchOption) =>
         Directory.GetFiles(path, searchPattern, searchOption);
 }
