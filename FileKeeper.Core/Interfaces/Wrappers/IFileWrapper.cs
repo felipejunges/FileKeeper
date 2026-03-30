@@ -6,4 +6,5 @@ public interface IFileWrapper
     Stream OpenRead(string path);
     Stream Create(string path);
     string[] GetFiles(string path, string searchPattern, SearchOption searchOption);
+    Task<(long Size, DateTime LastModified, string Hash)> GetFileMetadataAsync(string path, CancellationToken token);
 }

@@ -1,18 +1,12 @@
 namespace FileKeeper.Core.Models.DTOs;
 
-public class FileToSave
+public class FileToSave()
 {
-    public string FullPath { get; private set; } = string.Empty;
-    
-    public string RelativePath { get; private set; } = string.Empty;
-    
-    public string StoredPath { get; private set; } = string.Empty;
-
-    public string Hash { get; private set; } = string.Empty;
-
-    public long Size { get; private set; }
-
-    public DateTime LastModified { get; private set; }
-
+    public required string FullPath { get; init; }
+    public required string RelativePath { get; init; }
+    public required string StoredPath { get; init; }
+    public required string Hash { get; init; }
+    public required long Size { get; init; }
+    public required DateTime LastModified { get; init; }
     public string FoundInSnapshot { get; set; } = string.Empty;
 }

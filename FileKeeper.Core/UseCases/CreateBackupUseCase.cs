@@ -13,19 +13,16 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 {
     private readonly ISnapshotRepository _snapshotRepository;
     private readonly IFileWrapper _fileWrapper;
-    private readonly IFilesService _filesService;
     private readonly ICompressedEncryptedFileWriter _compressedEncryptedFileWriter;
     private readonly IConfigurationService _configurationService;
 
     public CreateBackupUseCase(
         ISnapshotRepository snapshotRepository,
         IFileWrapper fileWrapper,
-        IFilesService filesService,
         ICompressedEncryptedFileWriter compressedEncryptedFileWriter, IConfigurationService configurationService)
     {
         _snapshotRepository = snapshotRepository;
         _fileWrapper = fileWrapper;
-        _filesService = filesService;
         _compressedEncryptedFileWriter = compressedEncryptedFileWriter;
         _configurationService = configurationService;
     }
@@ -33,7 +30,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     public async Task<ErrorOr<Snapshot>> ExecuteAsync(IProgress<BackupProgress>? progress, CancellationToken token)
     {
         var configuration = await _configurationService.GetConfigurationAsync(token);
-        
+
         var lastSnapshotResult = await _snapshotRepository.GetLastSnapshotAsync(token);
         if (lastSnapshotResult.IsError && lastSnapshotResult.FirstError.Type != ErrorType.NotFound)
         {
@@ -51,12 +48,15 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             var filesOnDisk = _fileWrapper.GetFiles(sourceDirectory, "*.*", SearchOption.AllDirectories);
 
             var filesToSave = new List<FileToSave>();
+            var filesToMantain = new List<FileToSave>();
+
+            // TODO: think about Parallel
 
             foreach (var fileOnDisk in filesOnDisk)
             {
                 if (token.IsCancellationRequested) break;
-                
-                var fileToSave = _filesService.CreateFileToSave(fileOnDisk);
+
+                var fileToSave = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
 
                 var existingFile =
                     lastSnapshot?.Files.FirstOrDefault(f => f.RelativePath == fileToSave.RelativePath);
@@ -77,6 +77,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 {
                     // CASO: O arquivo já existe, e o hash é o mesmo: então podemos reaproveitar o arquivo do backup anterior
                     fileToSave.FoundInSnapshot = existingFile.FoundInSnapshot;
+                    filesToMantain.Add(fileToSave);
                 }
             }
 
@@ -86,7 +87,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
                 var compressResult =
                     await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.FullPath, fileToSave.StoredPath, token);
-                
+
                 if (compressResult.IsError)
                     return compressResult.Errors;
 
@@ -99,6 +100,18 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                         fileToSave.LastModified,
                         fileToSave.FoundInSnapshot));
             }
+
+            foreach (var fileToMantain in filesToMantain)
+            {
+                newSnapshot.AddFile(
+                    FileEntry.Create(
+                        fileToMantain.RelativePath,
+                        fileToMantain.StoredPath,
+                        fileToMantain.Hash,
+                        fileToMantain.Size,
+                        fileToMantain.LastModified,
+                        fileToMantain.FoundInSnapshot));
+            }
         }
 
         if (token.IsCancellationRequested) return Error.Unexpected(description: "Operation cancelled");
@@ -108,5 +121,25 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             return addSnapshotResult.Errors;
 
         return newSnapshot;
+    }
+
+    private async Task<FileToSave> CreateFileToSaveAsync(string fileOnDisk, string sourceDirectory, CancellationToken token)
+    {
+        var relativePath = Path.GetRelativePath(sourceDirectory, fileOnDisk);
+
+        var guid = Guid.NewGuid().ToString("N");
+        var storedPath = $"{guid[..8]}/{guid}";
+
+        var fileInfo = await _fileWrapper.GetFileMetadataAsync(fileOnDisk, token);
+
+        return new FileToSave()
+        {
+            FullPath = fileOnDisk,
+            StoredPath = storedPath,
+            RelativePath = relativePath,
+            Hash = fileInfo.Hash,
+            Size = fileInfo.Size,
+            LastModified = fileInfo.LastModified
+        };
     }
 }
