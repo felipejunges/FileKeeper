@@ -58,8 +58,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
                 var fileToSave = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
 
-                var existingFile =
-                    lastSnapshot?.Files.FirstOrDefault(f => f.RelativePath == fileToSave.RelativePath);
+                var existingFile = lastSnapshot?.Files.FirstOrDefault(f => f.RelativePath == fileToSave.RelativePath);
 
                 if (existingFile == null)
                 {
