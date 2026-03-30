@@ -1,13 +1,39 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:FileKeeper.UI.ViewModels"
+        xmlns:entities="clr-namespace:FileKeeper.Core.Models.Entities;assembly=FileKeeper.Core"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="500"
         x:Class="FileKeeper.UI.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="FileKeeper.UI">
+        Title="FileKeeper">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="28" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <Style Selector="TextBlock.muted">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="#6B7280" />
+        </Style>
+
+        <Style Selector="ListBox.snapshot-list">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style Selector="ListBox.snapshot-list > ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </Window.Styles>
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
@@ -15,6 +41,48 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <Grid RowDefinitions="Auto,*" Margin="24,20">
+        <Border Background="#F5F7FB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="page-title" Text="Snapshots" />
+                <Border Grid.Row="0" Grid.Column="1" Background="#E8F0FF" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Snapshots.Count, StringFormat='Total: {0}'}"
+                               FontWeight="SemiBold"
+                               Foreground="#1D4ED8" />
+                </Border>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Classes="muted" Margin="0,6,0,0"
+                           Text="Recent backup snapshots with file count and stored size." />
+            </Grid>
+        </Border>
+
+        <ListBox Grid.Row="1" Classes="snapshot-list" ItemsSource="{Binding Snapshots}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="entities:Snapshot">
+                    <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="14,12">
+                        <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <TextBlock Grid.Column="0" Text="{Binding SnapshotName}" FontSize="16" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1" Classes="muted"
+                                           Text="{Binding CreatedAtUtc, StringFormat='Created {0:yyyy-MM-dd HH:mm}'}" />
+                            </Grid>
+
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                                <Border Background="#EEF2FF" CornerRadius="999" Padding="10,4">
+                                    <TextBlock Text="{Binding FileCount, StringFormat='Files: {0}'}"
+                                               Foreground="#3730A3"
+                                               FontWeight="SemiBold" />
+                                </Border>
+                                <Border Background="#ECFEF3" CornerRadius="999" Padding="10,4">
+                                    <TextBlock Text="{Binding TotalSize, StringFormat='Bytes: {0:N0}'}"
+                                               Foreground="#166534"
+                                               FontWeight="SemiBold" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
 
 </Window>
