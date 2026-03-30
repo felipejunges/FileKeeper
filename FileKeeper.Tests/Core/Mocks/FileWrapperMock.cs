@@ -45,7 +45,19 @@ public class FileWrapperMock : IFileWrapper, IDisposable, IAsyncDisposable
 
     public string[] GetFiles(string path, string searchPattern, SearchOption searchOption)
     {
-        return _files.Keys.Where(k => k.StartsWith(path) && k.Contains(searchPattern)).ToArray();
+        return _files.Keys.Where(k => k.StartsWith(path)).ToArray();
+    }
+
+    public Task<(long Size, DateTime LastModified, string Hash)> GetFileMetadataAsync(string path, CancellationToken token)
+    {
+        if (!_files.TryGetValue(path, out var content))
+            throw new FileNotFoundException($"File not found: {path}");
+
+        var size = content.Length;
+        var lastModified = DateTime.UtcNow; // For testing purposes, we can use the current time
+        var hash = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(content));
+
+        return Task.FromResult<(long Size, DateTime LastModified, string Hash)>((size, lastModified, hash));
     }
 
     public void Dispose()

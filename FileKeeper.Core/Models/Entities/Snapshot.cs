@@ -11,7 +11,7 @@ public class Snapshot
     public DateTime CreatedAtUtc { get; private set; }
 
     [JsonInclude]
-    public ICollection<FileEntry> Files { get; private set; } = Array.Empty<FileEntry>();
+    public IList<FileEntry> Files { get; private set; } = [];
 
     public string SnapshotName => Id.ToString()[..8];
     public long TotalSize => Files.Sum(f => f.Size);
@@ -21,7 +21,7 @@ public class Snapshot
     {
     }
 
-    public Snapshot(Guid id, DateTime createdAtUtc, FileEntry[] files)
+    public Snapshot(Guid id, DateTime createdAtUtc, IList<FileEntry> files)
     {
         Id = id;
         CreatedAtUtc = createdAtUtc;
@@ -33,7 +33,7 @@ public class Snapshot
         return new Snapshot(
             Guid.CreateVersion7(),
             DateTime.UtcNow,
-            Array.Empty<FileEntry>());
+            new List<FileEntry>());
     }
 
     public void AddFile(FileEntry file)
