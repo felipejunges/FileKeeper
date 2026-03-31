@@ -1,14 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:FileKeeper.UI.ViewModels"
-        xmlns:entities="clr-namespace:FileKeeper.Core.Models.Entities;assembly=FileKeeper.Core"
+        xmlns:dtos="clr-namespace:FileKeeper.UI.Models;assembly=FileKeeper.UI"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="500"
         x:Class="FileKeeper.UI.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="FileKeeper">
+        Title="{Binding WindowTitle}">
 
     <Window.Styles>
         <Style Selector="TextBlock.page-title">
@@ -33,56 +33,99 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
         </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#1D4ED8" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#60A5FA" />
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1E40AF" />
+        </Style>
     </Window.Styles>
 
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel/>
-    </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*" Margin="24,20">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24,20">
+        <!-- ...existing header border... -->
         <Border Background="#F5F7FB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="page-title" Text="Snapshots" />
                 <Border Grid.Row="0" Grid.Column="1" Background="#E8F0FF" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Snapshots.Count, StringFormat='Total: {0}'}"
-                               FontWeight="SemiBold"
-                               Foreground="#1D4ED8" />
+                    <Grid>
+                        <TextBlock Text="{Binding Snapshots.Count, StringFormat='Total: {0}'}"
+                                   FontWeight="SemiBold"
+                                   Foreground="#1D4ED8"
+                                   IsVisible="{Binding !IsLoading}" />
+                        <TextBlock Text="Loading..."
+                                   FontWeight="SemiBold"
+                                   Foreground="#1D4ED8"
+                                   IsVisible="{Binding IsLoading}" />
+                    </Grid>
                 </Border>
                 <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Classes="muted" Margin="0,6,0,0"
                            Text="Recent backup snapshots with file count and stored size." />
             </Grid>
         </Border>
 
-        <ListBox Grid.Row="1" Classes="snapshot-list" ItemsSource="{Binding Snapshots}">
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="entities:Snapshot">
-                    <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="14,12">
-                        <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <TextBlock Grid.Column="0" Text="{Binding SnapshotName}" FontSize="16" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="1" Classes="muted"
-                                           Text="{Binding CreatedAtUtc, StringFormat='Created {0:yyyy-MM-dd HH:mm}'}" />
-                            </Grid>
+        <!-- ...existing list... -->
+        <Grid Grid.Row="1">
+            <ListBox Classes="snapshot-list" ItemsSource="{Binding Snapshots}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="dtos:SnapshotDto">
+                        <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="14,12">
+                            <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Classes="muted"
+                                               Text="{Binding CreatedAtUtc, StringFormat='Created {0:yyyy-MM-dd HH:mm}'}" />
+                                </Grid>
 
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-                                <Border Background="#EEF2FF" CornerRadius="999" Padding="10,4">
-                                    <TextBlock Text="{Binding FileCount, StringFormat='Files: {0}'}"
-                                               Foreground="#3730A3"
-                                               FontWeight="SemiBold" />
-                                </Border>
-                                <Border Background="#ECFEF3" CornerRadius="999" Padding="10,4">
-                                    <TextBlock Text="{Binding TotalSize, StringFormat='Bytes: {0:N0}'}"
-                                               Foreground="#166534"
-                                               FontWeight="SemiBold" />
-                                </Border>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                                    <Border Background="#EEF2FF" CornerRadius="999" Padding="10,4">
+                                        <TextBlock Text="{Binding FileCount, StringFormat='Files: {0}'}"
+                                                   Foreground="#3730A3"
+                                                   FontWeight="SemiBold" />
+                                    </Border>
+                                    <Border Background="#ECFEF3" CornerRadius="999" Padding="10,4">
+                                        <TextBlock Text="{Binding FormattedTotalSize, StringFormat='Bytes: {0:N0}'}"
+                                                   Foreground="#166534"
+                                                   FontWeight="SemiBold" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Border Background="#AAFFFFFF"
+                    CornerRadius="10"
+                    IsVisible="{Binding IsLoading}">
+                <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ProgressBar Width="220" IsIndeterminate="True" />
+                    <TextBlock Classes="muted" HorizontalAlignment="Center" Text="Loading snapshots..." />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,10,0,0">
+            <Button Classes="primary"
+                    HorizontalAlignment="Right"
+                    Command="{Binding CreateSnapshotCommand}"
+                    CornerRadius="8"
+                    Padding="16,10"
+                    Cursor="Hand">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <PathIcon Width="16" Height="16"
+                              Foreground="White"
+                              Data="M20,5H16.83L15,3H9L7.17,5H4A2,2 0 0,0 2,7V19A2,2 0 0,0 4,21H20A2,2 0 0,0 22,19V7A2,2 0 0,0 20,5M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z" />
+                    <TextBlock Text="Create new snapshot" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Border>
     </Grid>
 
 </Window>

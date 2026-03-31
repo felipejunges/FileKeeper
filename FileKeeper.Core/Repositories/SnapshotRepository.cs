@@ -27,7 +27,72 @@ public class SnapshotRepository : ISnapshotRepository
 
     public Task<IEnumerable<Snapshot>> GetAllSnapshotsAsync(CancellationToken token)
     {
-        throw new NotImplementedException();
+        token.ThrowIfCancellationRequested();
+
+        string[] snapshotFiles;
+        try
+        {
+            snapshotFiles = _fileWrapper.GetFiles(_snapshotsDirectory, "*.json", SearchOption.TopDirectoryOnly);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            _logger.LogInformation("Snapshots directory '{SnapshotsDirectory}' was not found.", _snapshotsDirectory);
+            return Task.FromResult<IEnumerable<Snapshot>>([]);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to list snapshot files under '{SnapshotsDirectory}'.", _snapshotsDirectory);
+            return Task.FromResult<IEnumerable<Snapshot>>([]);
+        }
+
+        return LoadSnapshotsAsync(snapshotFiles, token);
+    }
+
+    private async Task<IEnumerable<Snapshot>> LoadSnapshotsAsync(string[] snapshotFiles, CancellationToken token)
+    {
+        var snapshots = new List<Snapshot>(snapshotFiles.Length);
+
+        foreach (var snapshotFile in snapshotFiles)
+        {
+            token.ThrowIfCancellationRequested();
+
+            Stream? stream = null;
+            try
+            {
+                stream = _fileWrapper.OpenRead(snapshotFile);
+                var snapshot = await JsonSerializer.DeserializeAsync<Snapshot>(stream, cancellationToken: token);
+                if (snapshot == null)
+                {
+                    _logger.LogWarning("Snapshot file '{SnapshotPath}' deserialized to null and will be skipped.", snapshotFile);
+                    continue;
+                }
+
+                snapshots.Add(snapshot);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Snapshot file '{SnapshotPath}' contains invalid JSON and will be skipped.", snapshotFile);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read snapshot file '{SnapshotPath}'. File will be skipped.", snapshotFile);
+            }
+            finally
+            {
+                if (stream is not null)
+                {
+                    await stream.DisposeAsync();
+                }
+            }
+        }
+
+        return snapshots
+            .OrderByDescending(s => s.CreatedAtUtc)
+            .ToList();
     }
 
     public Task<ErrorOr<Snapshot>> GetLastSnapshotAsync(CancellationToken token)
