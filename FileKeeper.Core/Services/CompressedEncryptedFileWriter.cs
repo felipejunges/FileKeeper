@@ -56,7 +56,7 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
         }
         catch (Exception ex)
         {
-            return Error.Failure($"Failed to encrypt and compress file: {ex.Message}");
+            return Error.Failure(description: $"Failed to encrypt and compress file: {ex.Message}");
         }
     }
 
@@ -76,12 +76,12 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
             byte[] salt = new byte[SaltSizeBytes];
             int saltBytesRead = await fileStream.ReadAsync(salt, 0, salt.Length, token);
             if (saltBytesRead != salt.Length)
-                return Error.Failure("Failed to read salt from encrypted file");
+                return Error.Failure(description: "Failed to read salt from encrypted file");
 
             byte[] iv = new byte[AesIvSizeBytes];
             int ivBytesRead = await fileStream.ReadAsync(iv, 0, iv.Length, token);
             if (ivBytesRead != iv.Length)
-                return Error.Failure("Failed to read IV from encrypted file");
+                return Error.Failure(description: "Failed to read IV from encrypted file");
 
             // Derive the same key using the stored salt
             var encryptionKey = DeriveKeyFromPassphraseWithSalt(DefaultPassPhrase, salt);
@@ -102,7 +102,7 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
         }
         catch (Exception ex)
         {
-            return Error.Failure($"Failed to decompress and decrypt file: {ex.Message}");
+            return Error.Failure(description: $"Failed to decompress and decrypt file: {ex.Message}");
         }
     }
 

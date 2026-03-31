@@ -11,6 +11,7 @@ using FileKeeper.Core.Repositories;
 using FileKeeper.Core.Services;
 using FileKeeper.Core.UseCases;
 using FileKeeper.Core.Wrappers;
+using FileKeeper.Core.Models.Options;
 using FileKeeper.UI.Infrastructure.Logging;
 using FileKeeper.UI.ViewModels;
 using FileKeeper.UI.Views;
@@ -19,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
 
 namespace FileKeeper.UI;
 
@@ -35,10 +37,14 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        var userSettingsPath = GetUserSettingsPath();
+        EnsureUserSettingsFileExists(userSettingsPath);
+
         _host = Host.CreateDefaultBuilder()
             .ConfigureAppConfiguration((context, config) =>
             {
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                config.AddJsonFile(userSettingsPath, optional: true, reloadOnChange: true);
             })
             .ConfigureLogging((context, logging) =>
             {
@@ -47,7 +53,7 @@ public partial class App : Application
                 logging.AddConfiguration(context.Configuration.GetSection("Logging"));
                 logging.AddFileLogger(context.Configuration);
             })
-            .ConfigureServices((_, services) => { ConfigureServices(services); })
+            .ConfigureServices((context, services) => { ConfigureServices(context, services, userSettingsPath); })
             .Build();
         
         Services = _host.Services ?? throw new NullReferenceException("Unable to initialize HostServices");
@@ -74,8 +80,11 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private void ConfigureServices(IServiceCollection services)
+    private void ConfigureServices(HostBuilderContext context, IServiceCollection services, string userSettingsPath)
     {
+        services.Configure<UserSettingsOptions>(
+            context.Configuration.GetSection(UserSettingsOptions.SectionName));
+
         // UI - ViewModels
         services
             .AddTransient<MainWindowViewModel>();
@@ -83,7 +92,7 @@ public partial class App : Application
         // Services
         services
             .AddSingleton<ICompressedEncryptedFileWriter, CompressedEncryptedFileWriter>()
-            .AddSingleton<IConfigurationService, ConfigurationService>();
+            .AddSingleton<IUserSettingsWriter>(_ => new UserSettingsWriter(userSettingsPath));
 
         // Repositories
         services
@@ -109,5 +118,39 @@ public partial class App : Application
         {
             BindingPlugins.DataValidators.Remove(plugin);
         }
+    }
+
+    private static string GetUserSettingsPath()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDirectory = Path.Combine(appData, "FileKeeper");
+        return Path.Combine(appDirectory, "user-settings.json");
+    }
+
+    private static void EnsureUserSettingsFileExists(string userSettingsPath)
+    {
+        var parentDirectory = Path.GetDirectoryName(userSettingsPath);
+        if (!string.IsNullOrWhiteSpace(parentDirectory) && !Directory.Exists(parentDirectory))
+        {
+            Directory.CreateDirectory(parentDirectory);
+        }
+
+        if (File.Exists(userSettingsPath))
+        {
+            return;
+        }
+
+        const string defaultSettings = """
+                                       {
+                                         "FileKeeper": {
+                                           "SourceDirectories": [
+                                                "/home/felipe/Documentos/Obsidian"
+                                           ],
+                                           "StorageDirectory": "/home/felipe/.local/share/FileKeeper/storage"
+                                         }
+                                       }
+                                       """;
+
+        File.WriteAllText(userSettingsPath, defaultSettings);
     }
 }

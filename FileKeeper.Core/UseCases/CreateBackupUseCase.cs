@@ -6,6 +6,8 @@ using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
+using FileKeeper.Core.Models.Options;
+using Microsoft.Extensions.Options;
 
 namespace FileKeeper.Core.UseCases;
 
@@ -14,23 +16,24 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     private readonly ISnapshotRepository _snapshotRepository;
     private readonly IFileWrapper _fileWrapper;
     private readonly ICompressedEncryptedFileWriter _compressedEncryptedFileWriter;
-    private readonly IConfigurationService _configurationService;
+    private readonly IOptions<UserSettingsOptions> _userSettingsOptions;
 
     public CreateBackupUseCase(
         ISnapshotRepository snapshotRepository,
         IFileWrapper fileWrapper,
-        ICompressedEncryptedFileWriter compressedEncryptedFileWriter, IConfigurationService configurationService)
+        ICompressedEncryptedFileWriter compressedEncryptedFileWriter,
+        IOptions<UserSettingsOptions> userSettingsOptions)
     {
         _snapshotRepository = snapshotRepository;
         _fileWrapper = fileWrapper;
         _compressedEncryptedFileWriter = compressedEncryptedFileWriter;
-        _configurationService = configurationService;
+        _userSettingsOptions = userSettingsOptions;
     }
 
     public async Task<ErrorOr<Snapshot>> ExecuteAsync(IProgress<BackupProgress>? progress, CancellationToken token)
     {
-        var configuration = await _configurationService.GetConfigurationAsync(token);
-
+        var configuration = _userSettingsOptions.Value;
+        
         var lastSnapshotResult = await _snapshotRepository.GetLastSnapshotAsync(token);
         if (lastSnapshotResult.IsError && lastSnapshotResult.FirstError.Type != ErrorType.NotFound)
         {
@@ -84,8 +87,12 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             {
                 if (token.IsCancellationRequested) break;
 
+                var fullPath = Path.Combine(configuration.StorageDirectory, "data", fileToSave.StoredPath);
+                var dir = Path.GetDirectoryName(fullPath);
+                _fileWrapper.CreateDirectoryIfNotExists(dir!);
+                
                 var compressResult =
-                    await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.FullPath, fileToSave.StoredPath, token);
+                    await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.FullPath, fullPath, token);
 
                 if (compressResult.IsError)
                     return compressResult.Errors;
@@ -126,7 +133,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     {
         var relativePath = Path.GetRelativePath(sourceDirectory, fileOnDisk);
 
-        var guid = Guid.NewGuid().ToString("N");
+        var guid = Guid.CreateVersion7().ToString("N");
         var storedPath = $"{guid[..8]}/{guid}";
 
         var fileInfo = await _fileWrapper.GetFileMetadataAsync(fileOnDisk, token);

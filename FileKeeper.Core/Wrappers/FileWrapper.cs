@@ -36,4 +36,10 @@ public class FileWrapper : IFileWrapper
             LastModified: info.LastWriteTimeUtc,
             Hash: hash);
     }
+
+    public void CreateDirectoryIfNotExists(string dir)
+    {
+        if (!Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+    }
 }

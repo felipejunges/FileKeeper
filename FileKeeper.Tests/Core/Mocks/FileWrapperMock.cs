@@ -60,6 +60,11 @@ public class FileWrapperMock : IFileWrapper, IDisposable, IAsyncDisposable
         return Task.FromResult<(long Size, DateTime LastModified, string Hash)>((size, lastModified, hash));
     }
 
+    public void CreateDirectoryIfNotExists(string dir)
+    {
+        // nothing to do here!
+    }
+
     public void Dispose()
     {
         _files.Clear();

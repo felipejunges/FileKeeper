@@ -2,26 +2,32 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models.Entities;
+using FileKeeper.Core.Models.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace FileKeeper.Core.Repositories;
 
 public class SnapshotRepository : ISnapshotRepository
 {
-    private readonly string _snapshotsDirectory;
+    private static readonly JsonSerializerOptions SnapshotWriteOptions = new()
+    {
+        WriteIndented = true
+    };
+
     private readonly IFileWrapper _fileWrapper;
-    
+    private readonly IOptions<UserSettingsOptions> _userSettingsOptions;
     private readonly ILogger<SnapshotRepository> _logger;
 
     public SnapshotRepository(
-        ILogger<SnapshotRepository> logger,
         IFileWrapper fileWrapper,
-        string? snapshotsDirectory = null)
+        IOptions<UserSettingsOptions> userSettingsOptions,
+        ILogger<SnapshotRepository> logger)
     {
-        _logger = logger;
         _fileWrapper = fileWrapper;
-        _snapshotsDirectory = snapshotsDirectory ?? Path.Combine(AppContext.BaseDirectory, "snapshots");
+        _userSettingsOptions = userSettingsOptions;
+        _logger = logger;
     }
 
     public Task<IEnumerable<Snapshot>> GetAllSnapshotsAsync(CancellationToken token)
@@ -31,16 +37,16 @@ public class SnapshotRepository : ISnapshotRepository
         string[] snapshotFiles;
         try
         {
-            snapshotFiles = _fileWrapper.GetFiles(_snapshotsDirectory, "*.json", SearchOption.TopDirectoryOnly);
+            snapshotFiles = _fileWrapper.GetFiles(_userSettingsOptions.Value.StorageDirectory, "*.json", SearchOption.TopDirectoryOnly);
         }
         catch (DirectoryNotFoundException)
         {
-            _logger.LogWarning("Snapshots directory '{SnapshotsDirectory}' was not found.", _snapshotsDirectory);
+            _logger.LogWarning("Snapshots directory '{SnapshotsDirectory}' was not found.", _userSettingsOptions.Value.StorageDirectory);
             return Task.FromResult<IEnumerable<Snapshot>>([]);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to list snapshot files under '{SnapshotsDirectory}'.", _snapshotsDirectory);
+            _logger.LogError(ex, "Failed to list snapshot files under '{SnapshotsDirectory}'.", _userSettingsOptions.Value.StorageDirectory);
             return Task.FromResult<IEnumerable<Snapshot>>([]);
         }
 
@@ -96,14 +102,28 @@ public class SnapshotRepository : ISnapshotRepository
 
     public Task<ErrorOr<Snapshot>> GetLastSnapshotAsync(CancellationToken token)
     {
-        throw new NotImplementedException();
+        token.ThrowIfCancellationRequested();
+        return GetLastSnapshotInternalAsync(token);
+    }
+
+    private async Task<ErrorOr<Snapshot>> GetLastSnapshotInternalAsync(CancellationToken token)
+    {
+        var snapshots = await GetAllSnapshotsAsync(token);
+        var latestSnapshot = snapshots.FirstOrDefault();
+
+        if (latestSnapshot is null)
+        {
+            return Error.NotFound("No snapshots were found.");
+        }
+
+        return latestSnapshot;
     }
 
     public async Task<ErrorOr<Snapshot>> GetSnapshotAsync(Guid id, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
 
-        var snapshotPath = Path.Combine(_snapshotsDirectory, $"{id}.json");
+        var snapshotPath = Path.Combine(_userSettingsOptions.Value.StorageDirectory, $"{id}.json");
 
         if (!_fileWrapper.Exists(snapshotPath))
         {
@@ -119,7 +139,7 @@ public class SnapshotRepository : ISnapshotRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open snapshot file '{SnapshotPath}' for reading.", snapshotPath);
-            return Error.Failure($"Failed to open snapshot file for id '{id}'.");
+            return Error.Failure(description: $"Failed to open snapshot file for id '{id}'.");
         }
 
         try
@@ -127,7 +147,7 @@ public class SnapshotRepository : ISnapshotRepository
             var snapshot = await JsonSerializer.DeserializeAsync<Snapshot>(stream, cancellationToken: token);
             if (snapshot == null)
             {
-                return Error.Failure($"Snapshot file '{snapshotPath}' deserialized to null.");
+                return Error.Failure(description: $"Snapshot file '{snapshotPath}' deserialized to null.");
             }
 
             return snapshot;
@@ -135,7 +155,7 @@ public class SnapshotRepository : ISnapshotRepository
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Failed to deserialize snapshot file '{SnapshotPath}' due to invalid JSON.", snapshotPath);
-            return Error.Failure($"Snapshot file '{snapshotPath}' contains invalid JSON.");
+            return Error.Failure(description: $"Snapshot file '{snapshotPath}' contains invalid JSON.");
         }
         finally
         {
@@ -145,6 +165,49 @@ public class SnapshotRepository : ISnapshotRepository
 
     public Task<ErrorOr<Success>> AddSnapshotAsync(Snapshot snapshot, CancellationToken token)
     {
-        throw new NotImplementedException();
+        token.ThrowIfCancellationRequested();
+
+        var snapshotPath = Path.Combine(_userSettingsOptions.Value.StorageDirectory, $"{snapshot.Id}.json");
+
+        try
+        {
+            Directory.CreateDirectory(_userSettingsOptions.Value.StorageDirectory);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create snapshots directory '{SnapshotsDirectory}'.", _userSettingsOptions.Value.StorageDirectory);
+            return Task.FromResult<ErrorOr<Success>>(Error.Failure(description: $"Failed to create snapshots directory '{_userSettingsOptions.Value.StorageDirectory}'."));
+        }
+
+        return SaveSnapshotAsync(snapshot, snapshotPath, token);
+    }
+
+    private async Task<ErrorOr<Success>> SaveSnapshotAsync(Snapshot snapshot, string snapshotPath, CancellationToken token)
+    {
+        Stream? stream = null;
+        try
+        {
+            stream = _fileWrapper.Create(snapshotPath);
+            await JsonSerializer.SerializeAsync(stream, snapshot, SnapshotWriteOptions, token);
+            await stream.FlushAsync(token);
+
+            return Result.Success;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save snapshot '{SnapshotId}' into '{SnapshotPath}'.", snapshot.Id, snapshotPath);
+            return Error.Failure(description: $"Failed to save snapshot '{snapshot.Id}'.");
+        }
+        finally
+        {
+            if (stream is not null)
+            {
+                await stream.DisposeAsync();
+            }
+        }
     }
 }

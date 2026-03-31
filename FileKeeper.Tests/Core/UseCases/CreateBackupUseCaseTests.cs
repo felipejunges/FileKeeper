@@ -2,33 +2,40 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Models.Entities;
+using FileKeeper.Core.Models.Options;
 using FileKeeper.Core.UseCases;
 using FileKeeper.Tests.Core.Mocks;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace FileKeeper.Tests.Core.UseCases;
 
 public class CreateBackupUseCaseTests : IAsyncLifetime
 {
-    private CreateBackupUseCase _sut;
+    private readonly CreateBackupUseCase _sut;
 
     private readonly Mock<ISnapshotRepository> _snapshotRepository;
     private readonly FileWrapperMock _fileWrapper;
     private readonly Mock<ICompressedEncryptedFileWriter> _compressedEncryptedFileWriter;
-    private readonly Mock<IConfigurationService> _configurationService;
+    private readonly IOptions<UserSettingsOptions> _userSettingsOptions;
 
     public CreateBackupUseCaseTests()
     {
         _snapshotRepository = new Mock<ISnapshotRepository>();
         _fileWrapper = new FileWrapperMock();
         _compressedEncryptedFileWriter = new Mock<ICompressedEncryptedFileWriter>();
-        _configurationService = new Mock<IConfigurationService>();
+        
+        _userSettingsOptions = Options.Create(new UserSettingsOptions
+        {
+            SourceDirectories = new[] { "/home/felipe" },
+            StorageDirectory = "/var"
+        });
 
         _sut = new CreateBackupUseCase(
             _snapshotRepository.Object,
             _fileWrapper,
             _compressedEncryptedFileWriter.Object,
-            _configurationService.Object);
+            _userSettingsOptions);
     }
 
     public Task InitializeAsync()
@@ -64,12 +71,6 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenNoLastSnapshot_With3FilesOnDisk_ShouldGenerate3Files()
     {
         // Arrange
-        _configurationService
-            .Setup(s => s.GetConfigurationAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Configuration(
-                sourceDirectories: new[] { "/home/felipe" },
-                storageDirectory: "/var"));
-        
         _snapshotRepository
             .Setup(s => s.GetLastSnapshotAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Error.NotFound(description: "No snapshot found"));
@@ -100,12 +101,6 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenCleanSnapshot_With3FilesOnDisk_ShouldGenerate3Files()
     {
         // Arrange
-        _configurationService
-            .Setup(s => s.GetConfigurationAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Configuration(
-                sourceDirectories: new[] { "/home/felipe" },
-                storageDirectory: "/var"));
-        
         _snapshotRepository
             .Setup(s => s.GetLastSnapshotAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Snapshot(Guid.CreateVersion7(), DateTime.UtcNow, new List<FileEntry>()));
@@ -138,12 +133,6 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenSnapshotWith2Files_With3FilesOnDisk_ShouldGenerate1NewFile()
     {
         // Arrange
-        _configurationService
-            .Setup(s => s.GetConfigurationAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Configuration(
-                sourceDirectories: new[] { "/home/felipe" },
-                storageDirectory: "/var"));
-
         var currentSnapshotId = Guid.CreateVersion7();
         var currentSnapshotName = currentSnapshotId.ToString("N")[..8];
         
@@ -206,12 +195,6 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenSnapshotWith2Files_With3FilesOnDisk_OneDifferent_ShouldGenerate2NewFiles()
     {
         // Arrange
-        _configurationService
-            .Setup(s => s.GetConfigurationAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Configuration(
-                sourceDirectories: new[] { "/home/felipe" },
-                storageDirectory: "/var"));
-
         var currentSnapshotId = Guid.CreateVersion7();
         var currentSnapshotName = currentSnapshotId.ToString("N")[..8];
         
@@ -274,12 +257,6 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenSnapshotWith3Files_With3FilesOnDisk_AllTheSame_ShouldNotGenerateNewFiles()
     {
         // Arrange
-        _configurationService
-            .Setup(s => s.GetConfigurationAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Configuration(
-                sourceDirectories: new[] { "/home/felipe" },
-                storageDirectory: "/var"));
-
         var currentSnapshotId = Guid.CreateVersion7();
         var currentSnapshotName = currentSnapshotId.ToString("N")[..8];
         
