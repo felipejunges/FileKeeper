@@ -1,12 +1,11 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileKeeper.Core.Interfaces.Repositories;
-using System;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using FileKeeper.UI.Models;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace FileKeeper.UI.ViewModels;
 
@@ -32,16 +31,22 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task InitializeAsync()
     {
         IsLoading = true;
-        var snapshots = await _snapshotRepository.GetAllSnapshotsAsync(CancellationToken.None);
-        foreach (var dto in snapshots.Select(SnapshotDto.FromEntity))
-            Snapshots.Add(dto);
+        
+        await LoadSnapshotsAsync();
 
         IsLoading = false;
     }
 
-    [RelayCommand]
-    private void CreateSnapshot()
+    private async Task LoadSnapshotsAsync()
     {
-        // TODO: implement create snapshot logic
+        var snapshots = await _snapshotRepository.GetAllSnapshotsAsync(CancellationToken.None);
+        foreach (var dto in snapshots.Select(SnapshotDto.FromEntity))
+            Snapshots.Add(dto);
+    }
+
+    [RelayCommand]
+    private async Task CreateSnapshot()
+    {
+        await LoadSnapshotsAsync();
     }
 }

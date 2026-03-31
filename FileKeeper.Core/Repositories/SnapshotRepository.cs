@@ -36,7 +36,7 @@ public class SnapshotRepository : ISnapshotRepository
         }
         catch (DirectoryNotFoundException)
         {
-            _logger.LogInformation("Snapshots directory '{SnapshotsDirectory}' was not found.", _snapshotsDirectory);
+            _logger.LogWarning("Snapshots directory '{SnapshotsDirectory}' was not found.", _snapshotsDirectory);
             return Task.FromResult<IEnumerable<Snapshot>>([]);
         }
         catch (Exception ex)
