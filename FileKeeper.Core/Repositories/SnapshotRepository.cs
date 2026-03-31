@@ -2,7 +2,6 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models.Entities;
-using FileKeeper.Core.Wrappers;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -17,11 +16,11 @@ public class SnapshotRepository : ISnapshotRepository
 
     public SnapshotRepository(
         ILogger<SnapshotRepository> logger,
-        IFileWrapper? fileWrapper = null,
+        IFileWrapper fileWrapper,
         string? snapshotsDirectory = null)
     {
         _logger = logger;
-        _fileWrapper = fileWrapper ?? new FileWrapper();
+        _fileWrapper = fileWrapper;
         _snapshotsDirectory = snapshotsDirectory ?? Path.Combine(AppContext.BaseDirectory, "snapshots");
     }
 

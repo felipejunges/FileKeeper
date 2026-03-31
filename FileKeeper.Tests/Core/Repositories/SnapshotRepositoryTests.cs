@@ -115,7 +115,9 @@ public class SnapshotRepositoryTests
     [Fact]
     public async Task GetSnapshotAsync_WhenTokenIsCanceled_ThrowsOperationCanceledException()
     {
-        var sut = new SnapshotRepository(new NullLogger<SnapshotRepository>());
+        var fileWrapper = new Mock<IFileWrapper>();
+        
+        var sut = new SnapshotRepository(new NullLogger<SnapshotRepository>(), fileWrapper.Object);
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
