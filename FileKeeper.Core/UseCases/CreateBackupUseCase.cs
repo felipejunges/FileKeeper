@@ -55,9 +55,23 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
             // TODO: think about Parallel
 
+            var currentFileIndex = 0;
+            var totalFiles = filesOnDisk.Length;
+
             foreach (var fileOnDisk in filesOnDisk)
             {
                 if (token.IsCancellationRequested) break;
+                
+                currentFileIndex++;
+                
+                // Report progress
+                progress?.Report(new BackupProgress
+                {
+                    CurrentFileIndex = currentFileIndex,
+                    TotalFiles = totalFiles,
+                    CurrentFileName = fileOnDisk,
+                    CurrentFolder = sourceDirectory
+                });
 
                 var fileToSave = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
 

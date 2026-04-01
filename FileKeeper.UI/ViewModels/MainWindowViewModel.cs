@@ -2,7 +2,9 @@
 using CommunityToolkit.Mvvm.Input;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
+using FileKeeper.Core.Models;
 using FileKeeper.UI.Models;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -15,6 +17,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ISnapshotRepository _snapshotRepository;
     private readonly ICreateBackupUseCase _createBackupUseCase;
 
+    [ObservableProperty] private double _backupProgress;
+    [ObservableProperty] private bool _isBackupInProgress;
+    [ObservableProperty] private string _statusMessage = string.Empty;
+    
+    [ObservableProperty] private string _errorMessage = string.Empty;
+    [ObservableProperty] private bool _isErrorVisible;
+    
     [ObservableProperty] private string _windowTitle;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private SnapshotDto? _selectedSnapshot;
@@ -67,7 +76,31 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var ct = new CancellationTokenSource().Token;
         
-        await _createBackupUseCase.ExecuteAsync(null, ct);
+        IsErrorVisible = false;
+        IsBackupInProgress = true;
+        BackupProgress = 0;
+        StatusMessage = "Initializing backup...";
+        
+        var progress = new Progress<BackupProgress>(report =>
+        {
+            BackupProgress = report.Percentage;
+            StatusMessage = report.Message;
+        });
+        
+        var result = await _createBackupUseCase.ExecuteAsync(progress, ct);
+        
+        IsBackupInProgress = false;
+        
+        if (result.IsError)
+        {
+            ErrorMessage = $"Failed to create new backup: {result.FirstError.Description}";
+            IsErrorVisible = true;
+            StatusMessage = "Backup failed.";
+        }
+        else
+        {
+            StatusMessage = "Backup completed successfully!";
+        }
 
         await LoadSnapshotsAsync(ct);
     }

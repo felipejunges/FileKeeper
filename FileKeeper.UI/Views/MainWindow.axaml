@@ -47,9 +47,40 @@
     </Window.Styles>
 
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24,20">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="24,20">
+        
+        <!-- Error Message -->
+        <Border Grid.Row="0"
+                Background="#FFE74C3C"
+                IsVisible="{Binding IsErrorVisible}"
+                Padding="8"
+                CornerRadius="4"
+                Margin="0,0,0,8">
+            <TextBlock Text="{Binding ErrorMessage}"
+                       Foreground="White"
+                       TextWrapping="Wrap" />
+        </Border>
+        
+        <!-- Backup Progress -->
+        <Border Grid.Row="1"
+                Background="#F0F8FF"
+                IsVisible="{Binding IsBackupInProgress}"
+                Padding="8"
+                Margin="0,0,0,8"
+                BorderBrush="#87CEEB"
+                BorderThickness="1"
+                CornerRadius="4">
+            <StackPanel Spacing="8">
+                <ProgressBar Value="{Binding BackupProgress}" Maximum="100" Height="20" />
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="#1E90FF"
+                           FontSize="12"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+        
         <!-- ...existing header border... -->
-        <Border Background="#F5F7FB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+        <Border Grid.Row="2" Background="#F5F7FB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,16">
             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="page-title" Text="Snapshots" />
                 <Border Grid.Row="0" Grid.Column="1" Background="#E8F0FF" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
@@ -70,7 +101,7 @@
         </Border>
 
         <!-- ...existing list... -->
-        <Grid Grid.Row="1" ColumnDefinitions="3*,4*" ColumnSpacing="16">
+        <Grid Grid.Row="3" ColumnDefinitions="3*,4*" ColumnSpacing="16">
             <Grid Grid.Column="0">
                 <ListBox Classes="snapshot-list"
                          ItemsSource="{Binding Snapshots}"
@@ -92,7 +123,7 @@
                                                        FontWeight="SemiBold" />
                                         </Border>
                                         <Border Background="#ECFEF3" CornerRadius="999" Padding="10,4">
-                                            <TextBlock Text="{Binding FormattedTotalSize, StringFormat='Bytes: {0:N0}'}"
+                                            <TextBlock Text="{Binding FormattedTotalSize, StringFormat='Size: {0:N0}'}"
                                                        Foreground="#166534"
                                                        FontWeight="SemiBold" />
                                         </Border>
@@ -117,7 +148,7 @@
         </Grid>
 
         <!-- Footer -->
-        <Border Grid.Row="2" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,10,0,0">
+        <Border Grid.Row="4" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,10,0,0">
             <Button Classes="primary"
                     HorizontalAlignment="Right"
                     Command="{Binding CreateSnapshotCommand}"
