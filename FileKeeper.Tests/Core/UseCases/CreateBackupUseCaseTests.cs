@@ -133,11 +133,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenSnapshotWith2Files_With3FilesOnDisk_ShouldGenerate1NewFile()
     {
         // Arrange
-        var currentSnapshotId = Guid.CreateVersion7();
-        var currentSnapshotName = currentSnapshotId.ToString("N")[..8];
+        var currentSnapshotId = Guid.Parse("019d493a-6a89-7080-93a1-815dd62ea950");
+        var currentSnapshotName = currentSnapshotId.ToString("N")[..12];
         
         var snapshot = new Snapshot(
-            Guid.CreateVersion7(),
+            currentSnapshotId,
             DateTime.UtcNow, 
             new List<FileEntry>()
             {
@@ -177,9 +177,10 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         Assert.False(result.IsError);
         Assert.Equal(3, result.Value.FileCount);
         
-        Assert.Equal(currentSnapshotName, result.Value.Files.ElementAt(0).FoundInSnapshot);
-        Assert.Equal(currentSnapshotName, result.Value.Files.ElementAt(1).FoundInSnapshot);
-        Assert.Equal(result.Value.SnapshotName, result.Value.Files.ElementAt(2).FoundInSnapshot);
+        // kept files
+        Assert.Equal(2, result.Value.Files.Count(f => f.FoundInSnapshot == currentSnapshotName));
+        // new files
+        Assert.Equal(1, result.Value.Files.Count(f => f.FoundInSnapshot == result.Value.SnapshotName));
 
         _snapshotRepository.Verify(s =>
                 s.AddSnapshotAsync(It.IsAny<Snapshot>(), It.IsAny<CancellationToken>()),
@@ -195,11 +196,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenSnapshotWith2Files_With3FilesOnDisk_OneDifferent_ShouldGenerate2NewFiles()
     {
         // Arrange
-        var currentSnapshotId = Guid.CreateVersion7();
-        var currentSnapshotName = currentSnapshotId.ToString("N")[..8];
+        var currentSnapshotId = Guid.Parse("019d493a-6a89-7080-93a1-815dd62ea950");
+        var currentSnapshotName = currentSnapshotId.ToString("N")[..12];
         
         var snapshot = new Snapshot(
-            Guid.CreateVersion7(),
+            currentSnapshotId,
             DateTime.UtcNow, 
             new List<FileEntry>()
             {
@@ -239,9 +240,10 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         Assert.False(result.IsError);
         Assert.Equal(3, result.Value.FileCount);
         
-        Assert.Equal(currentSnapshotName, result.Value.Files.ElementAt(0).FoundInSnapshot);
-        Assert.Equal(result.Value.SnapshotName, result.Value.Files.ElementAt(1).FoundInSnapshot);
-        Assert.Equal(result.Value.SnapshotName, result.Value.Files.ElementAt(2).FoundInSnapshot);
+        // kept files
+        Assert.Equal(1, result.Value.Files.Count(f => f.FoundInSnapshot == currentSnapshotName));
+        // new files
+        Assert.Equal(2, result.Value.Files.Count(f => f.FoundInSnapshot == result.Value.SnapshotName));
 
         _snapshotRepository.Verify(s =>
                 s.AddSnapshotAsync(It.IsAny<Snapshot>(), It.IsAny<CancellationToken>()),
@@ -257,11 +259,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenSnapshotWith3Files_With3FilesOnDisk_AllTheSame_ShouldNotGenerateNewFiles()
     {
         // Arrange
-        var currentSnapshotId = Guid.CreateVersion7();
-        var currentSnapshotName = currentSnapshotId.ToString("N")[..8];
+        var currentSnapshotId = Guid.Parse("019d493a-6a89-7080-93a1-815dd62ea950");
+        var currentSnapshotName = currentSnapshotId.ToString("N")[..12];
         
         var snapshot = new Snapshot(
-            Guid.CreateVersion7(),
+            currentSnapshotId,
             DateTime.UtcNow, 
             new List<FileEntry>()
             {
@@ -309,9 +311,10 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         Assert.False(result.IsError);
         Assert.Equal(3, result.Value.FileCount);
         
-        Assert.Equal(currentSnapshotName, result.Value.Files.ElementAt(0).FoundInSnapshot);
-        Assert.Equal(currentSnapshotName, result.Value.Files.ElementAt(1).FoundInSnapshot);
-        Assert.Equal(currentSnapshotName, result.Value.Files.ElementAt(2).FoundInSnapshot);
+        // kept files
+        Assert.Equal(3, result.Value.Files.Count(f => f.FoundInSnapshot == currentSnapshotName));
+        // new files
+        Assert.Equal(0, result.Value.Files.Count(f => f.FoundInSnapshot == result.Value.SnapshotName));
 
         _snapshotRepository.Verify(s =>
                 s.AddSnapshotAsync(It.IsAny<Snapshot>(), It.IsAny<CancellationToken>()),

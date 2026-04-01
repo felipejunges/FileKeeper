@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileKeeper.UI.ViewModels"
+             xmlns:dtos="clr-namespace:FileKeeper.UI.Models;assembly=FileKeeper.UI"
+             x:Class="FileKeeper.UI.Views.SnapshotView"
+             x:DataType="vm:SnapshotViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="TextBlock.secondary">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#6B7280" />
+        </Style>
+
+        <Style Selector="ListBox.file-list">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style Selector="ListBox.file-list > ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="16">
+        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2">
+                    <TextBlock Classes="section-title" Text="Files in Snapshot" />
+                    <TextBlock Classes="secondary" Text="{Binding SnapshotName}" />
+                </StackPanel>
+                <Border Grid.Column="1" Background="#EEF2FF" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
+                    <TextBlock Foreground="#3730A3"
+                               FontWeight="SemiBold"
+                               Text="{Binding FileEntries.Count, StringFormat='Total files: {0}'}" />
+                </Border>
+            </Grid>
+
+            <ListBox Grid.Row="1" Classes="file-list" ItemsSource="{Binding FileEntries}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="dtos:FileEntryDto">
+                        <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                <Border Width="32" Height="32" Background="#DBEAFE" CornerRadius="6" VerticalAlignment="Center">
+                                    <TextBlock HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontWeight="Bold"
+                                               FontSize="11"
+                                               Foreground="#1E3A8A"
+                                               Text="{Binding FileExtension}" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="13" />
+                                    <TextBlock Classes="secondary" FontSize="11" Text="{Binding RelativePath}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right">
+                                    <Border Background="#ECFEF3" CornerRadius="999" Padding="8,2" HorizontalAlignment="Right">
+                                        <TextBlock Foreground="#166534"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="11"
+                                                   Text="{Binding FormattedSize}" />
+                                    </Border>
+                                    <TextBlock Classes="secondary"
+                                               FontSize="10"
+                                               HorizontalAlignment="Right"
+                                               Text="{Binding LastModifiedDisplay, StringFormat='Modified: {0}'}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Border>
+</UserControl>
+

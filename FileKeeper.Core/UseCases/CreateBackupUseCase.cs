@@ -78,7 +78,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 else
                 {
                     // CASO: O arquivo já existe, e o hash é o mesmo: então podemos reaproveitar o arquivo do backup anterior
-                    fileToSave.FoundInSnapshot = existingFile.FoundInSnapshot;
+                    fileToSave.FoundInSnapshot = lastSnapshot!.SnapshotName;
                     filesToMantain.Add(fileToSave);
                 }
             }

@@ -13,7 +13,7 @@ public class Snapshot
     [JsonInclude]
     public ICollection<FileEntry> Files { get; private set; } = [];
 
-    public string SnapshotName => Id.ToString()[..8];
+    public string SnapshotName => Id.ToString("N")[..12];
     public long TotalSize => Files.Sum(f => f.Size);
     public int FileCount => Files.Count();
 
