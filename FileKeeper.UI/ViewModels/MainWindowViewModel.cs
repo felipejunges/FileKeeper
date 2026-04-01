@@ -84,6 +84,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void OpenSettings()
     {
+        SelectedSnapshot = null;
         CurrentDetailView = SettingsView;
     }
 
