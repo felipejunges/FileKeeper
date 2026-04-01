@@ -13,6 +13,7 @@ using FileKeeper.Core.UseCases;
 using FileKeeper.Core.Wrappers;
 using FileKeeper.Core.Models.Options;
 using FileKeeper.UI.Infrastructure.Logging;
+using FileKeeper.UI.Infrastructure.Services;
 using FileKeeper.UI.ViewModels;
 using FileKeeper.UI.Views;
 using Microsoft.Extensions.Configuration;
@@ -87,11 +88,14 @@ public partial class App : Application
 
         // UI - ViewModels
         services
-            .AddTransient<MainWindowViewModel>();
+            .AddTransient<MainWindowViewModel>()
+            .AddTransient<SnapshotViewModel>()
+            .AddTransient<SettingsViewModel>();
         
         // Services
         services
             .AddSingleton<ICompressedEncryptedFileWriter, CompressedEncryptedFileWriter>()
+            .AddSingleton<IFolderPickerService, AvaloniaFolderPickerService>()
             .AddSingleton<IUserSettingsWriter>(_ => new UserSettingsWriter(userSettingsPath));
 
         // Repositories
