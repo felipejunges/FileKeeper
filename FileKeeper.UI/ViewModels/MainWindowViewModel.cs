@@ -17,6 +17,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty] private string _windowTitle;
     [ObservableProperty] private bool _isLoading;
+    [ObservableProperty] private SnapshotDto? _selectedSnapshot;
+
+    public SnapshotViewModel SnapshotView { get; } = new();
 
     public ObservableCollection<SnapshotDto> Snapshots { get; } = [];
 
@@ -50,6 +53,13 @@ public partial class MainWindowViewModel : ViewModelBase
         var snapshots = await _snapshotRepository.GetAllSnapshotsAsync(cancellationToken);
         foreach (var dto in snapshots.Select(SnapshotDto.FromEntity))
             Snapshots.Add(dto);
+
+        SelectedSnapshot = Snapshots.FirstOrDefault();
+    }
+
+    partial void OnSelectedSnapshotChanged(SnapshotDto? value)
+    {
+        SnapshotView.SetSnapshot(value);
     }
 
     [RelayCommand]
