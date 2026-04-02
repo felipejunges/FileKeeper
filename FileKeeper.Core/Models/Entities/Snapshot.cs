@@ -44,7 +44,8 @@ public class Snapshot
     public void SortFiles()
     {
         Files = Files
-            .OrderBy(f => f.RelativePath)
+            .OrderBy(f => f.SourceDirectory)
+            .ThenBy(f => f.RelativePath)
             .ToList();
     }
 }

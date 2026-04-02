@@ -21,6 +21,7 @@ public record SnapshotDto(
             FormattedTotalSize: FormatSize(snapshot.TotalSize),
             Files: snapshot.Files
                 .Select(f => new FileEntryDto(
+                    SourceDirectory: f.SourceDirectory,
                     RelativePath: f.RelativePath,
                     Hash: f.Hash,
                     Size: f.Size,

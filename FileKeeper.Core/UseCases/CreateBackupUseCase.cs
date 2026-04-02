@@ -132,6 +132,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
                 newSnapshot.AddFile(
                     FileEntry.Create(
+                        sourceDirectory,
                         fileToSave.RelativePath,
                         fileToSave.StoredPath,
                         fileToSave.Hash,
@@ -144,6 +145,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             {
                 newSnapshot.AddFile(
                     FileEntry.Create(
+                        sourceDirectory,
                         fileToMantain.RelativePath,
                         fileToMantain.StoredPath,
                         fileToMantain.Hash,

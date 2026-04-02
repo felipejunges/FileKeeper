@@ -360,6 +360,7 @@ public class SnapshotRepositoryTests : IDisposable
             [
                 new FileEntry(
                     Guid.CreateVersion7(),
+                    "/home/felipe",
                     relativePath,
                     $"stored/{Path.GetFileName(relativePath)}",
                     "abc123",

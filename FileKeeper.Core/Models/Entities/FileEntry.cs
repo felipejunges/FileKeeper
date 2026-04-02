@@ -8,6 +8,9 @@ public class FileEntry
     public Guid Id { get; private set; }
 
     [JsonInclude]
+    public string SourceDirectory { get; private set; } = string.Empty;
+    
+    [JsonInclude]
     public string RelativePath { get; private set; } = string.Empty;
 
     [JsonInclude]
@@ -29,9 +32,10 @@ public class FileEntry
     {
     }
 
-    public FileEntry(Guid id, string relativePath, string storedPath, string hash, long size, DateTime lastModified, string foundInSnapshot)
+    public FileEntry(Guid id, string sourceDirectory, string relativePath, string storedPath, string hash, long size, DateTime lastModified, string foundInSnapshot)
     {
         Id = id;
+        SourceDirectory = sourceDirectory;
         RelativePath = relativePath;
         StoredPath = storedPath;
         Hash = hash;
@@ -40,10 +44,11 @@ public class FileEntry
         FoundInSnapshot = foundInSnapshot;
     }
 
-    public static FileEntry Create(string relativePath, string storedPath, string hash, long size, DateTime lastModified, string snapshotId)
+    public static FileEntry Create(string sourceDirectory, string relativePath, string storedPath, string hash, long size, DateTime lastModified, string snapshotId)
     {
         return new FileEntry(
             Guid.CreateVersion7(),
+            sourceDirectory,
             relativePath,
             storedPath,
             hash,

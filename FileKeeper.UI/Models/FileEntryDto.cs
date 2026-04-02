@@ -4,6 +4,7 @@ using System.IO;
 namespace FileKeeper.UI.Models;
 
 public record FileEntryDto(
+    string SourceDirectory,
     string RelativePath,
     string Hash,
     long Size,

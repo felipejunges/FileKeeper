@@ -152,6 +152,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             {
                 new FileEntry(
                     id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
                     relativePath: "file1.txt",
                     storedPath: "abcd/abcdefghijkl1",
                     "k8vfVcLU9Ts4e9YMT9IEpukdcL877GL+UIiRWC+Qi40=", // same hash as '"Content of file 1"'
@@ -160,6 +161,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
                     currentSnapshotName),
                 new FileEntry(
                     id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
                     relativePath: "file2.txt",
                     storedPath: "abcd/abcdefghijkl2",
                     "UqQm+33HyANVVbmXykthdNWI1PIAFWLuGjt9oHeVsp0=", // same hash as '"Content of file 2"'
@@ -215,6 +217,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             {
                 new FileEntry(
                     id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
                     relativePath: "file1.txt",
                     storedPath: "abcd/abcdefghijkl1",
                     "k8vfVcLU9Ts4e9YMT9IEpukdcL877GL+UIiRWC+Qi40=", // same hash as '"Content of file 1"'
@@ -223,6 +226,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
                     currentSnapshotName),
                 new FileEntry(
                     id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
                     relativePath: "file2.txt",
                     storedPath: "abcd/abcdefghijkl2",
                     "UqQm+33HyANVVbmXykthdNWI1PIAFWLuGjt9oHeVsp0=AAAAA", // different hash than '"Content of file 2"'
@@ -278,6 +282,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             {
                 new FileEntry(
                     id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
                     relativePath: "file1.txt",
                     storedPath: "abcd/abcdefghijkl1",
                     "k8vfVcLU9Ts4e9YMT9IEpukdcL877GL+UIiRWC+Qi40=", // same hash as '"Content of file 1"'
@@ -286,6 +291,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
                     currentSnapshotName),
                 new FileEntry(
                     id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
                     relativePath: "file2.txt",
                     storedPath: "abcd/abcdefghijkl2",
                     "UqQm+33HyANVVbmXykthdNWI1PIAFWLuGjt9oHeVsp0=", // same hash than '"Content of file 2"'
@@ -294,6 +300,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
                     currentSnapshotName),
                 new FileEntry(
                     id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
                     relativePath: "file3.txt",
                     storedPath: "abcd/abcdefghijkl3",
                     "h6eMybwiDWPJtaKnHzYBWS2cKCoNB9jy9X6dryvK4Rc=", // same hash than '"Content of file 3"'
