@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FileKeeper.Core.Application;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models;
@@ -27,19 +28,27 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _windowTitle;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private SnapshotDto? _selectedSnapshot;
+    [ObservableProperty] private ViewModelBase _currentDetailView;
 
-    public SnapshotViewModel SnapshotView { get; } = new();
+    public SnapshotViewModel SnapshotView { get; }
+    public SettingsViewModel SettingsView { get; }
 
     public ObservableCollection<SnapshotDto> Snapshots { get; } = [];
 
     public MainWindowViewModel(
         ISnapshotRepository snapshotRepository,
-        ICreateBackupUseCase createBackupUseCase)
+        ICreateBackupUseCase createBackupUseCase,
+        SnapshotViewModel snapshotView,
+        SettingsViewModel settingsView)
     {
         _snapshotRepository = snapshotRepository;
         _createBackupUseCase = createBackupUseCase;
+        SnapshotView = snapshotView;
+        SettingsView = settingsView;
+        CurrentDetailView = SnapshotView;
 
-        WindowTitle = "FileKeeper - Backups Manager";
+        var version = ApplicationInfo.GetAppVersion();
+        WindowTitle = $"FileKeeper v{version} - Backups Manager";
 
         // Constructors can't be async — fire-and-forget is the standard pattern here.
         // The underscore discards the Task intentionally; exceptions are caught inside.
@@ -69,6 +78,14 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnSelectedSnapshotChanged(SnapshotDto? value)
     {
         SnapshotView.SetSnapshot(value);
+        CurrentDetailView = SnapshotView;
+    }
+
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        SelectedSnapshot = null;
+        CurrentDetailView = SettingsView;
     }
 
     [RelayCommand]
