@@ -40,4 +40,11 @@ public class Snapshot
     {
         Files.Add(file);
     }
+
+    public void SortFiles()
+    {
+        Files = Files
+            .OrderBy(f => f.RelativePath)
+            .ToList();
+    }
 }

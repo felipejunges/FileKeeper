@@ -8,8 +8,8 @@ public record FileEntryDto(
     string Hash,
     long Size,
     string FormattedSize,
-    DateTime LastModified
-)
+    DateTime LastModified,
+    string FoundInSnapshot)
 {
     public string FileName => Path.GetFileName(RelativePath);
 
