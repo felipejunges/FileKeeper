@@ -16,23 +16,29 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     private readonly ISnapshotRepository _snapshotRepository;
     private readonly IFileWrapper _fileWrapper;
     private readonly ICompressedEncryptedFileWriter _compressedEncryptedFileWriter;
-    private readonly IOptions<UserSettingsOptions> _userSettingsOptions;
+    private readonly IOptionsMonitor<UserSettingsOptions> _userSettingsOptions;
 
     public CreateBackupUseCase(
         ISnapshotRepository snapshotRepository,
         IFileWrapper fileWrapper,
         ICompressedEncryptedFileWriter compressedEncryptedFileWriter,
-        IOptions<UserSettingsOptions> userSettingsOptions)
+        IOptionsMonitor<UserSettingsOptions> userSettingsOptions)
     {
         _snapshotRepository = snapshotRepository;
         _fileWrapper = fileWrapper;
         _compressedEncryptedFileWriter = compressedEncryptedFileWriter;
         _userSettingsOptions = userSettingsOptions;
+
+        _userSettingsOptions.OnChange(_ =>
+        {
+            // Handle UserSettings changes here if needed
+            // For example, log or notify about changes
+        });
     }
 
     public async Task<ErrorOr<Snapshot>> ExecuteAsync(IProgress<BackupProgress>? progress, CancellationToken token)
     {
-        var configuration = _userSettingsOptions.Value;
+        var configuration = _userSettingsOptions.CurrentValue;
         
         var lastSnapshotResult = await _snapshotRepository.GetLastSnapshotAsync(token);
         if (lastSnapshotResult.IsError && lastSnapshotResult.FirstError.Type != ErrorType.NotFound)

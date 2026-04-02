@@ -10,6 +10,11 @@ using Moq;
 
 namespace FileKeeper.Tests.Core.UseCases;
 
+internal class MockDisposable : IDisposable
+{
+    public void Dispose() { }
+}
+
 public class CreateBackupUseCaseTests : IAsyncLifetime
 {
     private readonly CreateBackupUseCase _sut;
@@ -17,7 +22,6 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
     private readonly Mock<ISnapshotRepository> _snapshotRepository;
     private readonly FileWrapperMock _fileWrapper;
     private readonly Mock<ICompressedEncryptedFileWriter> _compressedEncryptedFileWriter;
-    private readonly IOptions<UserSettingsOptions> _userSettingsOptions;
 
     public CreateBackupUseCaseTests()
     {
@@ -25,17 +29,22 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         _fileWrapper = new FileWrapperMock();
         _compressedEncryptedFileWriter = new Mock<ICompressedEncryptedFileWriter>();
         
-        _userSettingsOptions = Options.Create(new UserSettingsOptions
+        var userSettings = new UserSettingsOptions
         {
             SourceDirectories = new[] { "/home/felipe" },
             StorageDirectory = "/var"
-        });
+        };
+        
+        var userSettingsOptions = new Mock<IOptionsMonitor<UserSettingsOptions>>();
+        userSettingsOptions.Setup(x => x.CurrentValue).Returns(userSettings);
+        userSettingsOptions.Setup(x => x.OnChange(It.IsAny<Action<UserSettingsOptions, string?>>()))
+            .Returns(new MockDisposable());
 
         _sut = new CreateBackupUseCase(
             _snapshotRepository.Object,
             _fileWrapper,
             _compressedEncryptedFileWriter.Object,
-            _userSettingsOptions);
+            userSettingsOptions.Object);
     }
 
     public Task InitializeAsync()

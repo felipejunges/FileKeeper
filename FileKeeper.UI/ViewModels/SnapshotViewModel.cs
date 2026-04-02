@@ -36,7 +36,7 @@ public partial class SnapshotViewModel : ViewModelBase
         ApplyFilter();
     }
 
-    partial void OnOnlyNewFilesChanged(bool _)
+    partial void OnOnlyNewFilesChanged(bool value)
     {
         OnPropertyChanged(nameof(ToggleOnlyNewFilesButtonText));
         ApplyFilter();
