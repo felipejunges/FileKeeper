@@ -32,6 +32,7 @@ public partial class SettingsViewModel : ViewModelBase
         _userSettingsWriter = userSettingsWriter;
         _folderPickerService = folderPickerService;
         _userSettings = userSettings;
+        
         LoadFromOptions(userSettings.CurrentValue);
     }
 

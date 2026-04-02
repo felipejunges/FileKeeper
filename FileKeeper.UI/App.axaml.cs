@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
+using FileKeeper.Core.Application;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
@@ -21,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace FileKeeper.UI;
@@ -30,7 +32,6 @@ public partial class App : Application
     public IServiceProvider Services { get; private set; } = null!;
     private IHost? _host;
 
-    
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -39,7 +40,6 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         var userSettingsPath = GetUserSettingsPath();
-        EnsureUserSettingsFileExists(userSettingsPath);
 
         _host = Host.CreateDefaultBuilder()
             .ConfigureAppConfiguration((context, config) =>
@@ -56,25 +56,25 @@ public partial class App : Application
             })
             .ConfigureServices((context, services) => { ConfigureServices(context, services, userSettingsPath); })
             .Build();
-        
+
         Services = _host.Services ?? throw new NullReferenceException("Unable to initialize HostServices");
-        
+
         var logger = Services.GetRequiredService<ILogger<App>>();
         logger.LogInformation("========== Application Starting ==========");
-        
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
-            
+
             var mainWindow = new MainWindow();
             var vm = Services.GetRequiredService<MainWindowViewModel>();
-            
+
             mainWindow.DataContext = vm;
-            
+
             desktop.MainWindow = mainWindow;
-            
+
             desktop.ShutdownRequested += (_, _) => { logger.LogInformation("========== Application Closing =========="); };
         }
 
@@ -91,7 +91,7 @@ public partial class App : Application
             .AddTransient<MainWindowViewModel>()
             .AddTransient<SnapshotViewModel>()
             .AddTransient<SettingsViewModel>();
-        
+
         // Services
         services
             .AddSingleton<ICompressedEncryptedFileWriter, CompressedEncryptedFileWriter>()
@@ -101,11 +101,11 @@ public partial class App : Application
         // Repositories
         services
             .AddSingleton<ISnapshotRepository, SnapshotRepository>();
-        
+
         // Wrappers
         services
             .AddSingleton<IFileWrapper, FileWrapper>();
-        
+
         // UseCases
         services
             .AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>();
@@ -126,35 +126,16 @@ public partial class App : Application
 
     private static string GetUserSettingsPath()
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var appDirectory = Path.Combine(appData, "FileKeeper");
-        return Path.Combine(appDirectory, "user-settings.json");
-    }
-
-    private static void EnsureUserSettingsFileExists(string userSettingsPath)
-    {
-        var parentDirectory = Path.GetDirectoryName(userSettingsPath);
-        if (!string.IsNullOrWhiteSpace(parentDirectory) && !Directory.Exists(parentDirectory))
+        var paths = new List<string>
         {
-            Directory.CreateDirectory(parentDirectory);
-        }
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "FileKeeper",
+            "user-settings.json"
+        };
 
-        if (File.Exists(userSettingsPath))
-        {
-            return;
-        }
+        if (ApplicationInfo.IsDebug)
+            paths.Insert(2, "debug");
 
-        const string defaultSettings = """
-                                       {
-                                         "FileKeeper": {
-                                           "SourceDirectories": [
-                                                "/home/felipe/Documentos/Obsidian"
-                                           ],
-                                           "StorageDirectory": "/home/felipe/.local/share/FileKeeper/storage"
-                                         }
-                                       }
-                                       """;
-
-        File.WriteAllText(userSettingsPath, defaultSettings);
+        return Path.Combine(paths.ToArray());
     }
 }
