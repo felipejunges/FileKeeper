@@ -25,7 +25,8 @@ public record SnapshotDto(
                     Hash: f.Hash,
                     Size: f.Size,
                     FormattedSize: FormatSize(f.Size),
-                    LastModified: f.LastModified))
+                    LastModified: f.LastModified,
+                    FoundInSnapshot: f.FoundInSnapshot))
                 .ToList()
         );
 

@@ -64,13 +64,13 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 
                 currentFileIndex++;
                 
-                // Report progress
                 progress?.Report(new BackupProgress
                 {
                     CurrentFileIndex = currentFileIndex,
                     TotalFiles = totalFiles,
                     CurrentFileName = fileOnDisk,
-                    CurrentFolder = sourceDirectory
+                    CurrentFolder = sourceDirectory,
+                    Type = BackupProgress.ProcessType.Processing
                 });
 
                 var fileToSave = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
@@ -97,8 +97,21 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 }
             }
 
+            currentFileIndex = 0;
+
             foreach (var fileToSave in filesToSave)
             {
+                currentFileIndex++;
+                
+                progress?.Report(new BackupProgress
+                {
+                    CurrentFileIndex = currentFileIndex,
+                    TotalFiles = totalFiles,
+                    CurrentFileName = fileToSave.RelativePath,
+                    CurrentFolder = sourceDirectory,
+                    Type = BackupProgress.ProcessType.Compressing
+                });
+                
                 if (token.IsCancellationRequested) break;
 
                 var fullPath = Path.Combine(configuration.StorageDirectory, "data", fileToSave.StoredPath);
@@ -133,8 +146,10 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                         fileToMantain.FoundInSnapshot));
             }
         }
-
+        
         if (token.IsCancellationRequested) return Error.Unexpected(description: "Operation cancelled");
+        
+        newSnapshot.SortFiles();
 
         var addSnapshotResult = await _snapshotRepository.AddSnapshotAsync(newSnapshot, token);
         if (addSnapshotResult.IsError)

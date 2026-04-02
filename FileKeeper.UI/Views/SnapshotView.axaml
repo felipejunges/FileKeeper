@@ -28,28 +28,54 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
         </Style>
+
+        <Style Selector="Button.link-button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="#4F46E5" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.link-button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#6D62F5" />
+        </Style>
+        <Style Selector="Button.link-button:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#3730A3" />
+        </Style>
     </UserControl.Styles>
 
     <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="16">
         <Grid RowDefinitions="Auto,*" RowSpacing="14">
             <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Spacing="2">
+                <StackPanel Grid.Column="0" Spacing="2">
                     <TextBlock Classes="section-title" Text="Files in Snapshot" />
                     <TextBlock Classes="secondary" Text="{Binding SnapshotName}" />
                 </StackPanel>
-                <Border Grid.Column="1" Background="#EEF2FF" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
-                    <TextBlock Foreground="#3730A3"
-                               FontWeight="SemiBold"
-                               Text="{Binding FileEntries.Count, StringFormat='Total files: {0}'}" />
-                </Border>
+                <StackPanel Grid.Column="1" Spacing="2">
+                    <Border Background="#EEF2FF" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
+                        <TextBlock Foreground="#3730A3"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding FileEntries.Count, StringFormat='Total files: {0}'}" />
+                    </Border>
+
+                    <Button Classes="link-button"
+                            HorizontalAlignment="Right"
+                            Command="{Binding ToggleOnlyNewFilesCommand}"
+                            Content="{Binding ToggleOnlyNewFilesButtonText}" />
+                </StackPanel>
             </Grid>
 
             <ListBox Grid.Row="1" Classes="file-list" ItemsSource="{Binding FileEntries}">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="dtos:FileEntryDto">
-                        <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10" Padding="8">
+                        <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10"
+                                Padding="8">
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                <Border Width="32" Height="32" Background="#DBEAFE" CornerRadius="6" VerticalAlignment="Center">
+                                <Border Width="32" Height="32" Background="#DBEAFE" CornerRadius="6"
+                                        VerticalAlignment="Center">
                                     <TextBlock HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
                                                FontWeight="Bold"
@@ -64,7 +90,8 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right">
-                                    <Border Background="#ECFEF3" CornerRadius="999" Padding="8,2" HorizontalAlignment="Right">
+                                    <Border Background="#ECFEF3" CornerRadius="999" Padding="8,2"
+                                            HorizontalAlignment="Right">
                                         <TextBlock Foreground="#166534"
                                                    FontWeight="SemiBold"
                                                    FontSize="11"
@@ -83,4 +110,3 @@
         </Grid>
     </Border>
 </UserControl>
-
