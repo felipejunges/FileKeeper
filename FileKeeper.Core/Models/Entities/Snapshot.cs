@@ -12,10 +12,13 @@ public class Snapshot
 
     [JsonInclude]
     public ICollection<FileEntry> Files { get; private set; } = [];
-
+    
     public string SnapshotName => Id.ToString("N")[..12];
     public long TotalSize => Files.Sum(f => f.Size);
     public int FileCount => Files.Count();
+
+    public long NewTotalSize => Files.Where(f => f.FoundInSnapshot == SnapshotName).Sum(f => f.Size);
+    public int NewFileCount => Files.Count(f => f.FoundInSnapshot == SnapshotName);
 
     public Snapshot()
     {

@@ -8,7 +8,7 @@ namespace FileKeeper.UI.Models;
 public record SnapshotDto(
     string Name,
     DateTime CreatedAtUtc,
-    int FileCount,
+    int NewFileCount,
     string FormattedTotalSize,
     IReadOnlyList<FileEntryDto> Files
 )
@@ -17,8 +17,8 @@ public record SnapshotDto(
         new(
             Name: snapshot.SnapshotName,
             CreatedAtUtc: snapshot.CreatedAtUtc,
-            FileCount: snapshot.FileCount,
-            FormattedTotalSize: FormatSize(snapshot.TotalSize),
+            NewFileCount: snapshot.NewFileCount,
+            FormattedTotalSize: FormatSize(snapshot.NewTotalSize),
             Files: snapshot.Files
                 .Select(f => new FileEntryDto(
                     SourceDirectory: f.SourceDirectory,
