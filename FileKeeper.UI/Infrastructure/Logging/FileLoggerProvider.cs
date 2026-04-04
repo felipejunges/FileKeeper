@@ -12,6 +12,8 @@ namespace FileKeeper.UI.Infrastructure.Logging;
 
 public class FileLoggerProvider : ILoggerProvider
 {
+    private const int DaysToKeepLogs = 30;
+    
     private readonly string _logsDirectory;
     private readonly LogLevel _minimumLevel;
     private readonly ConcurrentDictionary<string, FileLoggerInstance> _loggers;
@@ -50,6 +52,9 @@ public class FileLoggerProvider : ILoggerProvider
 
         _currentLogDate = DateTime.Now.Date;
         InitializeWriter();
+
+        // Run startup maintenance once per app launch.
+        CleanupOldLogs();
     }
 
     public ILogger CreateLogger(string categoryName)
@@ -135,11 +140,11 @@ public class FileLoggerProvider : ILoggerProvider
     /// <summary>
     /// Archives old log files into monthly .zip files (keeps only the last 30 days as plain .log).
     /// </summary>
-    public void CleanupOldLogs(int daysToKeep = 30)
+    private void CleanupOldLogs()
     {
         try
         {
-            var cutoffDate = DateTime.Now.AddDays(-daysToKeep);
+            var cutoffDate = DateTime.Now.AddDays(-DaysToKeepLogs);
             var logFiles = Directory.GetFiles(_logsDirectory, "*.log");
 
             lock (_lockObject)
