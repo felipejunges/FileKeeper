@@ -133,3 +133,6 @@ fi
 
 echo "FileKeeper installed to: $APP_DIR"
 echo "Desktop launcher: $APPLICATIONS_DIR/filekeeper.desktop"
+
+rm -rf "$PUBLISH_DIR"
+echo "Cleaned up publish folder: $PUBLISH_DIR"
