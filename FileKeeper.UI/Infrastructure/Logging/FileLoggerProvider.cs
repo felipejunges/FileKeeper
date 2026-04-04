@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Threading;
 
 namespace FileKeeper.UI.Infrastructure.Logging;
@@ -132,7 +133,7 @@ public class FileLoggerProvider : ILoggerProvider
     }
 
     /// <summary>
-    /// Cleans up old log files (keeps only the last 30 days).
+    /// Archives old log files into monthly .zip files (keeps only the last 30 days as plain .log).
     /// </summary>
     public void CleanupOldLogs(int daysToKeep = 30)
     {
@@ -141,12 +142,18 @@ public class FileLoggerProvider : ILoggerProvider
             var cutoffDate = DateTime.Now.AddDays(-daysToKeep);
             var logFiles = Directory.GetFiles(_logsDirectory, "*.log");
 
-            foreach (var file in logFiles)
+            lock (_lockObject)
             {
-                var fileInfo = new FileInfo(file);
-                if (fileInfo.LastWriteTime < cutoffDate)
+                foreach (var file in logFiles)
                 {
-                    File.Delete(file);
+                    if (IsCurrentLogFile(file))
+                        continue;
+
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.LastWriteTime >= cutoffDate)
+                        continue;
+
+                    ArchiveAndDeleteLogFile(file, fileInfo.LastWriteTime);
                 }
             }
         }
@@ -154,6 +161,30 @@ public class FileLoggerProvider : ILoggerProvider
         {
             Console.WriteLine($"Error cleaning up old logs: {ex.Message}");
         }
+    }
+
+    private bool IsCurrentLogFile(string filePath)
+    {
+        var currentLogFileName = $"FileKeeper-{_currentLogDate:yyyy-MM-dd}.log";
+        return string.Equals(Path.GetFileName(filePath), currentLogFileName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ArchiveAndDeleteLogFile(string logFilePath, DateTime logDate)
+    {
+        var archiveFileName = $"FileKeeper-{logDate:yyyy-MM}.zip";
+        var archivePath = Path.Combine(_logsDirectory, archiveFileName);
+        var entryName = Path.GetFileName(logFilePath);
+
+        using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Update))
+        {
+            // Replace the entry if it already exists to avoid duplicate names.
+            var existingEntry = archive.GetEntry(entryName);
+            existingEntry?.Delete();
+
+            archive.CreateEntryFromFile(logFilePath, entryName, CompressionLevel.Optimal);
+        }
+
+        File.Delete(logFilePath);
     }
 
     /// <summary>
