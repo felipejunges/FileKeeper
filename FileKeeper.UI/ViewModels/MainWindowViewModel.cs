@@ -50,6 +50,9 @@ public partial class MainWindowViewModel : ViewModelBase
         var version = ApplicationInfo.GetAppVersion();
         WindowTitle = $"FileKeeper v{version} - Backups Manager";
 
+        if (ApplicationInfo.IsDebug)
+            WindowTitle += " (debug)";
+
         // Constructors can't be async — fire-and-forget is the standard pattern here.
         // The underscore discards the Task intentionally; exceptions are caught inside.
         _ = InitializeAsync();

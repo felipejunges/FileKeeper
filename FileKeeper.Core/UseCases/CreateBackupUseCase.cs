@@ -56,9 +56,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
             var filesOnDisk = _fileWrapper.GetFiles(sourceDirectory, "*.*", SearchOption.AllDirectories);
 
-            var filesToSave = new List<FileToSave>();
-            var filesToMantain = new List<FileToSave>();
-
             // TODO: think about Parallel
 
             var currentFileIndex = 0;
@@ -68,6 +65,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             {
                 if (token.IsCancellationRequested) break;
                 
+                var storeFile = false;
+                
                 currentFileIndex++;
                 
                 progress?.Report(new BackupProgress
@@ -75,8 +74,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     CurrentFileIndex = currentFileIndex,
                     TotalFiles = totalFiles,
                     CurrentFileName = fileOnDisk,
-                    CurrentFolder = sourceDirectory,
-                    Type = BackupProgress.ProcessType.Processing
+                    CurrentFolder = sourceDirectory
                 });
 
                 var fileToSave = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
@@ -87,75 +85,47 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 {
                     // CASO: O arquivo é novo: então precisamos adicionar ao backup
                     fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
-                    filesToSave.Add(fileToSave);
+                    storeFile = true;
                 }
                 else if (existingFile.Hash != fileToSave.Hash)
                 {
                     // CASO: O arquivo já existe, mas o hash é diferente: então precisamos atualizar o arquivo do backup
                     fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
-                    filesToSave.Add(fileToSave);
+                    storeFile = true;
                 }
                 else
                 {
                     // CASO: O arquivo já existe, e o hash é o mesmo: então podemos reaproveitar o arquivo do backup anterior
                     fileToSave.FoundInSnapshot = lastSnapshot!.SnapshotName;
-                    filesToMantain.Add(fileToSave);
                 }
-            }
-
-            currentFileIndex = 0;
-
-            foreach (var fileToSave in filesToSave)
-            {
-                currentFileIndex++;
-                
-                progress?.Report(new BackupProgress
-                {
-                    CurrentFileIndex = currentFileIndex,
-                    TotalFiles = totalFiles,
-                    CurrentFileName = fileToSave.RelativePath,
-                    CurrentFolder = sourceDirectory,
-                    Type = BackupProgress.ProcessType.Compressing
-                });
                 
                 if (token.IsCancellationRequested) break;
 
-                var fullPath = Path.Combine(configuration.StorageDirectory, "data", fileToSave.StoredPath);
-                var dir = Path.GetDirectoryName(fullPath);
-                _fileWrapper.CreateDirectoryIfNotExists(dir!);
-                
-                var compressResult =
-                    await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.FullPath, fullPath, token);
+                var addFileToSnapshot = true;
+                if (storeFile)
+                {
+                    var storeFileResult = await StoreFileAsync(configuration, fileToSave, token);
+                    if (storeFileResult.IsError)
+                        addFileToSnapshot = false;
+                }
 
-                if (compressResult.IsError)
-                    return compressResult.Errors;
-
-                newSnapshot.AddFile(
-                    FileEntry.Create(
-                        sourceDirectory,
-                        fileToSave.RelativePath,
-                        fileToSave.StoredPath,
-                        fileToSave.Hash,
-                        fileToSave.Size,
-                        fileToSave.LastModified,
-                        fileToSave.FoundInSnapshot));
-            }
-
-            foreach (var fileToMantain in filesToMantain)
-            {
-                newSnapshot.AddFile(
-                    FileEntry.Create(
-                        sourceDirectory,
-                        fileToMantain.RelativePath,
-                        fileToMantain.StoredPath,
-                        fileToMantain.Hash,
-                        fileToMantain.Size,
-                        fileToMantain.LastModified,
-                        fileToMantain.FoundInSnapshot));
+                if (addFileToSnapshot)
+                {
+                    newSnapshot.AddFile(
+                        FileEntry.Create(
+                            sourceDirectory,
+                            fileToSave.RelativePath,
+                            fileToSave.StoredPath,
+                            fileToSave.Hash,
+                            fileToSave.Size,
+                            fileToSave.LastModified,
+                            fileToSave.FoundInSnapshot));
+                }
             }
         }
         
-        if (token.IsCancellationRequested) return Error.Unexpected(description: "Operation cancelled");
+        if (token.IsCancellationRequested)
+            return Error.Unexpected(description: "Operation cancelled");
         
         newSnapshot.SortFiles();
 
@@ -164,6 +134,22 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             return addSnapshotResult.Errors;
 
         return newSnapshot;
+    }
+
+    private async Task<ErrorOr<Success>> StoreFileAsync(UserSettingsOptions configuration, FileToSave fileToSave, CancellationToken token)
+    {
+        var fullPath = Path.Combine(configuration.StorageDirectory, "data", fileToSave.StoredPath);
+        var dir = Path.GetDirectoryName(fullPath);
+        
+        _fileWrapper.CreateDirectoryIfNotExists(dir!);
+
+        var compressResult =
+            await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.FullPath, fullPath, token);
+
+        if (compressResult.IsError)
+            return compressResult.Errors;
+        
+        return Result.Success;
     }
 
     private async Task<FileToSave> CreateFileToSaveAsync(string fileOnDisk, string sourceDirectory, CancellationToken token)

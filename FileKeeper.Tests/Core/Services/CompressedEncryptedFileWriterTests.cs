@@ -1,5 +1,6 @@
 using FileKeeper.Core.Services;
 using FileKeeper.Tests.Core.Mocks;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FileKeeper.Tests.Core.Services;
 
@@ -13,7 +14,7 @@ public sealed class CompressedEncryptedFileWriterTests : IAsyncLifetime
     {
         _fileWrapperMock = new FileWrapperMock();
 
-        _sut = new CompressedEncryptedFileWriter(_fileWrapperMock);
+        _sut = new CompressedEncryptedFileWriter(_fileWrapperMock, NullLogger<CompressedEncryptedFileWriter>.Instance);
     }
 
     public Task InitializeAsync()

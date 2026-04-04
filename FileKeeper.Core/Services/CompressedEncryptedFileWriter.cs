@@ -2,6 +2,7 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.Wrappers;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Microsoft.Extensions.Logging;
 using System.IO.Compression;
 using System.Security.Cryptography;
 
@@ -14,12 +15,16 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
     private const int AesIvSizeBytes = 16; // AES block size is 128 bits
     private const int Iterations = 100_000;
     private const int KeySizeBytes = 32; // 256 bits
+    private readonly ILogger<CompressedEncryptedFileWriter> _logger;
     
     private readonly IFileWrapper _fileWrapper;
 
-    public CompressedEncryptedFileWriter(IFileWrapper fileWrapper)
+    public CompressedEncryptedFileWriter(
+        IFileWrapper fileWrapper,
+        ILogger<CompressedEncryptedFileWriter> logger)
     {
         _fileWrapper = fileWrapper;
+        _logger = logger;
     }
 
     public async Task<ErrorOr<Success>> CompressFromStreamToFileAsync(string originFileName, string outputFilePath, CancellationToken token)
@@ -56,6 +61,12 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Error compressing and encrypting file {FileName} to {OutputFilePath}",
+                originFileName,
+                outputFilePath);
+            
             return Error.Failure(description: $"Failed to encrypt and compress file: {ex.Message}");
         }
     }
@@ -102,6 +113,12 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex, 
+                "Error decompressing and decrypting file {EncryptedCompressedFilePath} to {OutputFilePath}",
+                encryptedCompressedFilePath,
+                outputFilePath);
+            
             return Error.Failure(description: $"Failed to decompress and decrypt file: {ex.Message}");
         }
     }
