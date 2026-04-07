@@ -8,6 +8,7 @@ public class UserSettingsOptions
 
     public string[] SourceDirectories { get; set; } = [];
     public string StorageDirectory { get; set; } = SetInitialStorageDirectory();
+    public string[] IgnoredFolders { get; set; } = [];
     public int VersionsToKeep { get; set; }
     public int MaxMbToKeep { get; set; }
 

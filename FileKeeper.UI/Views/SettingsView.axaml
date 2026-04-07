@@ -8,7 +8,7 @@
     <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="16">
         <Grid RowDefinitions="*,Auto" RowSpacing="12">
             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
                     <TextBlock Text="Settings" FontSize="20" FontWeight="SemiBold" />
                     <!-- ...existing code... -->
                     <TextBlock Grid.Row="1"
@@ -56,6 +56,16 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="3" Spacing="6">
+                        <TextBlock Text="Ignored folders" FontWeight="SemiBold" />
+                        <TextBlock Foreground="#6B7280" Text="Comma-separated list of folders to exclude." />
+                        <TextBox Text="{Binding IgnoredFolders, Mode=TwoWay}"
+                                 Watermark="e.g., /home/user/.cache, /tmp"
+                                 AcceptsReturn="True"
+                                 MinHeight="80"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Spacing="6">
                         <TextBlock Text="Storage directory" FontWeight="SemiBold" />
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                             <TextBox Text="{Binding StorageDirectory, Mode=TwoWay}"
