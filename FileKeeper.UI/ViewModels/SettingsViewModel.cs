@@ -19,6 +19,7 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IOptionsMonitor<UserSettingsOptions> _userSettings;
 
     [ObservableProperty] private string _storageDirectory = string.Empty;
+    [ObservableProperty] private string _ignoredFolders = string.Empty;
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isErrorVisible;
 
@@ -45,6 +46,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
 
         StorageDirectory = options.StorageDirectory;
+        IgnoredFolders = string.Join(",", options.IgnoredFolders);
         StatusMessage = string.Empty;
         IsErrorVisible = false;
     }
@@ -119,7 +121,8 @@ public partial class SettingsViewModel : ViewModelBase
         var options = new UserSettingsOptions
         {
             SourceDirectories = sourceDirectories,
-            StorageDirectory = StorageDirectory.Trim()
+            StorageDirectory = StorageDirectory.Trim(),
+            IgnoredFolders = IgnoredFolders.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
         };
 
         var result = await _userSettingsWriter.SaveAsync(options, CancellationToken.None);
