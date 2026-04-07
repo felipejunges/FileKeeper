@@ -7,6 +7,7 @@ using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Models.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FileKeeper.Core.UseCases;
@@ -17,17 +18,20 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     private readonly IFileWrapper _fileWrapper;
     private readonly ICompressedEncryptedFileWriter _compressedEncryptedFileWriter;
     private readonly IOptionsMonitor<UserSettingsOptions> _userSettingsOptions;
+    private readonly ILogger<CreateBackupUseCase> _logger;
 
     public CreateBackupUseCase(
         ISnapshotRepository snapshotRepository,
         IFileWrapper fileWrapper,
         ICompressedEncryptedFileWriter compressedEncryptedFileWriter,
-        IOptionsMonitor<UserSettingsOptions> userSettingsOptions)
+        IOptionsMonitor<UserSettingsOptions> userSettingsOptions,
+        ILogger<CreateBackupUseCase> logger)
     {
         _snapshotRepository = snapshotRepository;
         _fileWrapper = fileWrapper;
         _compressedEncryptedFileWriter = compressedEncryptedFileWriter;
         _userSettingsOptions = userSettingsOptions;
+        _logger = logger;
 
         _userSettingsOptions.OnChange(_ =>
         {
@@ -38,6 +42,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
     public async Task<ErrorOr<Snapshot>> ExecuteAsync(IProgress<BackupProgress>? progress, CancellationToken token)
     {
+        _logger.LogInformation("Starting backup creation process.");
+        
         var configuration = _userSettingsOptions.CurrentValue;
         
         var lastSnapshotResult = await _snapshotRepository.GetLastSnapshotAsync(token);
@@ -49,6 +55,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         var lastSnapshot = lastSnapshotResult.IsError ? null : lastSnapshotResult.Value;
 
         var newSnapshot = Snapshot.Create();
+        
+        _logger.LogInformation("Created new Snapshot {SnapshotName}", newSnapshot.SnapshotName);
 
         foreach (var sourceDirectory in configuration.SourceDirectories)
         {
@@ -64,9 +72,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             foreach (var fileOnDisk in filesOnDisk)
             {
                 if (token.IsCancellationRequested) break;
-                
-                var storeFile = false;
-                
+
                 currentFileIndex++;
                 
                 progress?.Report(new BackupProgress
@@ -76,6 +82,14 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     CurrentFileName = fileOnDisk,
                     CurrentFolder = sourceDirectory
                 });
+                
+                if (CheckShouldIgnoreFolder(configuration.IgnoredFolders, fileOnDisk))
+                {
+                    _logger.LogInformation("Processing '{FilePath}': Skipping because it is in an ignored folder.", fileOnDisk);
+                    continue;
+                }
+
+                var storeFile = false;
 
                 var fileToSave = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
 
@@ -83,20 +97,26 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
                 if (existingFile == null)
                 {
-                    // CASO: O arquivo é novo: então precisamos adicionar ao backup
+                    // Is a new file: we need to add it to the data structure
                     fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
                     storeFile = true;
+                    
+                    _logger.LogDebug("Processing '{FilePath}': new file", fileOnDisk);
                 }
                 else if (existingFile.Hash != fileToSave.Hash)
                 {
-                    // CASO: O arquivo já existe, mas o hash é diferente: então precisamos atualizar o arquivo do backup
+                    // File exists, but hash is different: store its data structure
                     fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
                     storeFile = true;
+                    
+                    _logger.LogDebug("Processing '{FilePath}': file changed", fileOnDisk);
                 }
                 else
                 {
-                    // CASO: O arquivo já existe, e o hash é o mesmo: então podemos reaproveitar o arquivo do backup anterior
+                    // File exists and hash is the same: we can reuse the stored file from the last snapshot
                     fileToSave.FoundInSnapshot = lastSnapshot!.SnapshotName;
+                    
+                    _logger.LogDebug("Processing '{FilePath}': file unchanged", fileOnDisk);
                 }
                 
                 if (token.IsCancellationRequested) break;
@@ -132,6 +152,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         var addSnapshotResult = await _snapshotRepository.AddSnapshotAsync(newSnapshot, token);
         if (addSnapshotResult.IsError)
             return addSnapshotResult.Errors;
+        
+        _logger.LogInformation("Backup process finished");
 
         return newSnapshot;
     }
@@ -170,5 +192,17 @@ public class CreateBackupUseCase : ICreateBackupUseCase
             Size = fileInfo.Size,
             LastModified = fileInfo.LastModified
         };
+    }
+    
+    private bool CheckShouldIgnoreFolder(string[] ignoredFolders, string path)
+    {
+        if (ignoredFolders.Length == 0)
+            return false;
+
+        var pathComponents = path.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+
+        return ignoredFolders.Any(ignoreFolder =>
+            pathComponents.Any(component =>
+                component.Equals(ignoreFolder, StringComparison.OrdinalIgnoreCase)));
     }
 }
