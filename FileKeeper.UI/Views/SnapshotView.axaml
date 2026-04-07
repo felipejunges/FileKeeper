@@ -29,6 +29,27 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
 
+        <Style Selector="ListBox.folder-list">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style Selector="ListBox.folder-list > ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="ListBox.folder-list > ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#EEF2FF" />
+        </Style>
+
+        <Style Selector="ListBox.folder-list > ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F8FAFC" />
+        </Style>
+
         <Style Selector="Button.link-button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -58,7 +79,7 @@
                     <Border Background="#EEF2FF" CornerRadius="999" Padding="10,4" VerticalAlignment="Center">
                         <TextBlock Foreground="#3730A3"
                                    FontWeight="SemiBold"
-                                   Text="{Binding FileEntries.Count, StringFormat='Total files: {0}'}" />
+                                   Text="{Binding FileEntries.Count, StringFormat='Files in folder: {0}'}" />
                     </Border>
 
                     <Button Classes="link-button"
@@ -68,45 +89,102 @@
                 </StackPanel>
             </Grid>
 
-            <ListBox Grid.Row="1" Classes="file-list" ItemsSource="{Binding FileEntries}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="dtos:FileEntryDto">
-                        <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10"
-                                Padding="8">
-                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                <Border Width="32" Height="32" Background="#DBEAFE" CornerRadius="6"
-                                        VerticalAlignment="Center">
-                                    <TextBlock HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               FontWeight="Bold"
-                                               FontSize="11"
-                                               Foreground="#1E3A8A"
-                                               Text="{Binding FileExtension}" />
-                                </Border>
+            <Grid Grid.Row="1" ColumnDefinitions="280,*" ColumnSpacing="16">
+                <Border Background="#F8FAFC" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="12">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Folders" FontWeight="SemiBold" FontSize="14" />
+                            <TextBlock Classes="secondary" FontSize="11" Text="Select a folder to inspect its files" />
+                        </StackPanel>
 
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="{Binding RelativePath}" FontWeight="SemiBold" FontSize="13" />
-                                    <TextBlock Classes="secondary" FontSize="11" Text="{Binding SourceDirectory}" />
-                                </StackPanel>
+                        <ListBox Grid.Row="1"
+                                 Classes="folder-list"
+                                 ItemsSource="{Binding Folders}"
+                                 SelectedItem="{Binding SelectedFolder, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="dtos:SnapshotFolderDto">
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,2">
+                                        <Border Width="{Binding IndentLeft}" Background="Transparent" />
 
-                                <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right">
-                                    <Border Background="#ECFEF3" CornerRadius="999" Padding="8,2"
-                                            HorizontalAlignment="Right">
-                                        <TextBlock Foreground="#166534"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="11"
-                                                   Text="{Binding FormattedSize}" />
+                                        <Border Grid.Column="1" Width="28" Height="28" Background="#DBEAFE" CornerRadius="6"
+                                                VerticalAlignment="Center">
+                                            <TextBlock HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="14"
+                                                       Text="📁" />
+                                        </Border>
+
+                                        <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" />
+                                            <TextBlock Classes="secondary"
+                                                       FontSize="10"
+                                                       Text="{Binding DisplayPath}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+
+                                        <Border Grid.Column="3" Background="#E5E7EB" CornerRadius="999" Padding="8,2"
+                                                VerticalAlignment="Center">
+                                            <TextBlock FontSize="10"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#374151"
+                                                       Text="{Binding FileCount}" />
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="12">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding CurrentFolderDisplayName}" FontWeight="SemiBold" FontSize="14" />
+                            <TextBlock Classes="secondary" FontSize="11" Text="Files directly inside the selected folder" />
+                        </StackPanel>
+
+                        <ListBox Grid.Row="1" Classes="file-list" ItemsSource="{Binding FileEntries}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="dtos:FileEntryDto">
+                                    <Border Background="#FAFAFA" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="10"
+                                            Padding="8">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                            <Border Width="32" Height="32" Background="#DBEAFE" CornerRadius="6"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           FontWeight="Bold"
+                                                           FontSize="11"
+                                                           Foreground="#1E3A8A"
+                                                           Text="{Binding FileExtension}" />
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="13" />
+                                                <TextBlock Classes="secondary" FontSize="11" Text="{Binding SourceDirectory}" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right">
+                                                <Border Background="#ECFEF3" CornerRadius="999" Padding="8,2"
+                                                        HorizontalAlignment="Right">
+                                                    <TextBlock Foreground="#166534"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="11"
+                                                               Text="{Binding FormattedSize}" />
+                                                </Border>
+                                                <TextBlock Classes="secondary"
+                                                           FontSize="10"
+                                                           HorizontalAlignment="Right"
+                                                           Text="{Binding LastModifiedDisplay, StringFormat='Modified: {0}'}" />
+                                            </StackPanel>
+                                        </Grid>
                                     </Border>
-                                    <TextBlock Classes="secondary"
-                                               FontSize="10"
-                                               HorizontalAlignment="Right"
-                                               Text="{Binding LastModifiedDisplay, StringFormat='Modified: {0}'}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Border>
 </UserControl>
