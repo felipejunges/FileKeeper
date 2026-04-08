@@ -42,4 +42,9 @@ public class FileWrapper : IFileWrapper
         if (!Directory.Exists(dir))
             Directory.CreateDirectory(dir);
     }
+
+    public void DeleteFile(string path)
+    {
+        File.Delete(path);
+    }
 }

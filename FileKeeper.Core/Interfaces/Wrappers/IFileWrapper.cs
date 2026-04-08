@@ -8,4 +8,5 @@ public interface IFileWrapper
     string[] GetFiles(string path, string searchPattern, SearchOption searchOption);
     Task<(long Size, DateTime LastModified, string Hash)> GetFileMetadataAsync(string path, CancellationToken token);
     void CreateDirectoryIfNotExists(string dir);
+    void DeleteFile(string path);
 }

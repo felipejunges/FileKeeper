@@ -65,6 +65,11 @@ public class FileWrapperMock : IFileWrapper, IDisposable, IAsyncDisposable
         // nothing to do here!
     }
 
+    public void DeleteFile(string path)
+    {
+        _files.Remove(path);
+    }
+
     public void Dispose()
     {
         _files.Clear();

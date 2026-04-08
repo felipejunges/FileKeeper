@@ -101,7 +101,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
                     storeFile = true;
                     
-                    _logger.LogDebug("Processing '{FilePath}': new file", fileOnDisk);
+                    _logger.LogInformation("Processing '{FilePath}': new file", fileOnDisk);
                 }
                 else if (existingFile.Hash != fileToSave.Hash)
                 {
@@ -109,14 +109,14 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
                     storeFile = true;
                     
-                    _logger.LogDebug("Processing '{FilePath}': file changed", fileOnDisk);
+                    _logger.LogInformation("Processing '{FilePath}': file changed", fileOnDisk);
                 }
                 else
                 {
                     // File exists and hash is the same: we can reuse the stored file from the last snapshot
                     fileToSave.FoundInSnapshot = lastSnapshot!.SnapshotName;
                     
-                    _logger.LogDebug("Processing '{FilePath}': file unchanged", fileOnDisk);
+                    _logger.LogInformation("Processing '{FilePath}': file unchanged", fileOnDisk);
                 }
                 
                 if (token.IsCancellationRequested) break;
@@ -153,7 +153,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         if (addSnapshotResult.IsError)
             return addSnapshotResult.Errors;
         
-        _logger.LogInformation("Backup process finished");
+        _logger.LogInformation("Backup creating process finished");
 
         return newSnapshot;
     }
