@@ -25,7 +25,8 @@ public class UserSettingsWriter : IUserSettingsWriter
                 [UserSettingsOptions.SectionName] = new()
                 {
                     SourceDirectories = options.SourceDirectories,
-                    StorageDirectory = options.StorageDirectory
+                    StorageDirectory = options.StorageDirectory,
+                    IgnoredFolders = options.IgnoredFolders
                 }
             };
             var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
