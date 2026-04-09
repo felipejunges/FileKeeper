@@ -44,9 +44,20 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             // find a file entry in the next snapshot pointing to the current fileEntry
             var fileEntryInNextSnapshot = nextSnapshot?.Files.FirstOrDefault(f => 
                 f.SourceDirectory == fileEntry.SourceDirectory
-                && f.RelativePath == fileEntry.RelativePath
-                && f.Hash == fileEntry.Hash
-                && f.FoundInSnapshot == snapshot.SnapshotName);
+                && f.RelativePath == fileEntry.RelativePath); // TODO: create compare in model
+
+            if (fileEntryInNextSnapshot is null)
+            {
+                // TODO: just delete the file
+            }
+            else if (fileEntryInNextSnapshot.Hash != fileEntry.Hash && fileEntryInNextSnapshot.FoundInSnapshot == snapshot.SnapshotName)
+            {
+                // TODO: just delete the file
+            }
+            else
+            {
+                // TODO: oh... keep the file!!!!
+            }
             
             if (fileEntry.FoundInSnapshot == snapshot.SnapshotName && fileEntryInNextSnapshot is not null)
             {

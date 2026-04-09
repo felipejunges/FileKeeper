@@ -171,7 +171,7 @@ public class SnapshotRepository : ISnapshotRepository
 
         try
         {
-            Directory.CreateDirectory(_userSettingsOptions.Value.StorageDirectory);
+            _fileWrapper.CreateDirectoryIfNotExists(_userSettingsOptions.Value.StorageDirectory);
         }
         catch (Exception ex)
         {
