@@ -2,6 +2,7 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models.Entities;
+using FileKeeper.Core.Models.Errors;
 using FileKeeper.Core.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -131,7 +132,7 @@ public class SnapshotRepository : ISnapshotRepository
         }
 
         Stream stream;
-        
+
         try
         {
             stream = _fileWrapper.OpenRead(snapshotPath);
@@ -163,6 +164,16 @@ public class SnapshotRepository : ISnapshotRepository
         }
     }
 
+    public async Task<ErrorOr<Snapshot>> GetNextSnapshotAsync(Guid id, CancellationToken token)
+    {
+        var guid = GetNextSnapshotId(id, token);
+
+        if (guid.IsError)
+            return guid.Errors;
+
+        return await GetSnapshotAsync(guid.Value, token);
+    }
+
     public Task<ErrorOr<Success>> AddSnapshotAsync(Snapshot snapshot, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -176,7 +187,8 @@ public class SnapshotRepository : ISnapshotRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create snapshots directory '{SnapshotsDirectory}'.", _userSettingsOptions.Value.StorageDirectory);
-            return Task.FromResult<ErrorOr<Success>>(Error.Failure(description: $"Failed to create snapshots directory '{_userSettingsOptions.Value.StorageDirectory}'."));
+            return Task.FromResult<ErrorOr<Success>>(
+                Error.Failure(description: $"Failed to create snapshots directory '{_userSettingsOptions.Value.StorageDirectory}'."));
         }
 
         return SaveSnapshotAsync(snapshot, snapshotPath, token);
@@ -209,5 +221,77 @@ public class SnapshotRepository : ISnapshotRepository
                 await stream.DisposeAsync();
             }
         }
+    }
+
+    private ErrorOr<Guid> GetNextSnapshotId(Guid id, CancellationToken token)
+    {
+        string[] snapshotFiles;
+        
+        try
+        {
+            snapshotFiles = _fileWrapper.GetFiles(
+                _userSettingsOptions.Value.StorageDirectory,
+                "*.json",
+                SearchOption.TopDirectoryOnly);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            _logger.LogWarning(
+                "Snapshots directory '{SnapshotsDirectory}' was not found.",
+                _userSettingsOptions.Value.StorageDirectory);
+
+            return Error.NotFound(description: "No snapshots were found.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to list snapshot files under '{SnapshotsDirectory}'.",
+                _userSettingsOptions.Value.StorageDirectory);
+
+            return Error.Failure(description: "Failed to enumerate snapshot files.");
+        }
+
+        var snapshotIds = new List<Guid>(snapshotFiles.Length);
+
+        foreach (var file in snapshotFiles)
+        {
+            if (token.IsCancellationRequested)
+                return CommonErrors.OperationCanceled;
+            
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            if (Guid.TryParse(fileName, out var parsedId))
+            {
+                snapshotIds.Add(parsedId);
+            }
+        }
+        
+        if (snapshotIds.Count == 0)
+        {
+            return Error.NotFound(description: "No snapshots were found.");
+        }
+
+        // Snapshot IDs are generated as Guid v7 in this project, so ordering by Guid gives
+        // a practical chronological sequence for "next".
+        var orderedIds = snapshotIds
+            .OrderByDescending(x => x)
+            .ToList();
+        
+        if (token.IsCancellationRequested)
+            return CommonErrors.OperationCanceled;
+
+        var currentIndex = orderedIds.FindIndex(x => x == id);
+        if (currentIndex < 0)
+        {
+            return Error.NotFound(description: $"Snapshot id '{id}' was not found.");
+        }
+
+        var nextIndex = currentIndex + 1;
+        if (nextIndex >= orderedIds.Count)
+        {
+            return Error.NotFound(description: $"No next snapshot was found for id '{id}'.");
+        }
+
+        return orderedIds[nextIndex];
     }
 }
