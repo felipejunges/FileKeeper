@@ -196,6 +196,25 @@ public class SnapshotRepository : ISnapshotRepository
 
     public Task<ErrorOr<Success>> DeleteSnapshotAsync(Guid id, CancellationToken token)
     {
+        var snapshotPath = Path.Combine(_userSettingsOptions.Value.StorageDirectory, $"{id}.json");
+
+        if (!_fileWrapper.Exists(snapshotPath))
+        {
+            return Task.FromResult<ErrorOr<Success>>(Error.NotFound(description: $"Snapshot file not found for id '{id}'."));
+        }
+
+        try
+        {
+            _fileWrapper.DeleteFile(snapshotPath);
+            
+            return Task.FromResult<ErrorOr<Success>>(Result.Success);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete snapshot '{SnapshotId}' from '{SnapshotPath}'.", id, snapshotPath);
+
+            return Task.FromResult<ErrorOr<Success>>(Error.Failure(description: $"Failed to delete snapshot '{id}'."));
+        }
     }
 
     private async Task<ErrorOr<Success>> SaveSnapshotAsync(Snapshot snapshot, string snapshotPath, CancellationToken token)
