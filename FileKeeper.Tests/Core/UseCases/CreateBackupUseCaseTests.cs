@@ -5,16 +5,12 @@ using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Models.Options;
 using FileKeeper.Core.UseCases;
 using FileKeeper.Tests.Core.Mocks;
+using FileKeeper.Tests.Core.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 
 namespace FileKeeper.Tests.Core.UseCases;
-
-internal class MockDisposable : IDisposable
-{
-    public void Dispose() { }
-}
 
 public class CreateBackupUseCaseTests : IAsyncLifetime
 {

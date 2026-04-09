@@ -9,5 +9,8 @@ public interface ISnapshotRepository
     Task<IEnumerable<Snapshot>> GetAllSnapshotsAsync(CancellationToken token);
     Task<ErrorOr<Snapshot>> GetLastSnapshotAsync(CancellationToken token);
     Task<ErrorOr<Snapshot>> GetSnapshotAsync(Guid id, CancellationToken token);
+    Task<ErrorOr<Snapshot>> GetNextSnapshotAsync(Guid id, CancellationToken token);
     Task<ErrorOr<Success>> AddSnapshotAsync(Snapshot snapshot, CancellationToken token);
+    Task<ErrorOr<Success>> UpdateSnapshotAsync(Snapshot snapshot, CancellationToken token);
+    Task<ErrorOr<Success>> DeleteSnapshotAsync(Guid id, CancellationToken token);
 }

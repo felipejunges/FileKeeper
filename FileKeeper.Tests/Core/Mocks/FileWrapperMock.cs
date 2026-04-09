@@ -60,9 +60,29 @@ public class FileWrapperMock : IFileWrapper, IDisposable, IAsyncDisposable
         return Task.FromResult<(long Size, DateTime LastModified, string Hash)>((size, lastModified, hash));
     }
 
+    public bool DirectoryIsEmpty(string path)
+    {
+        return !_files.Keys.Any(k => k.StartsWith(path));
+    }
+
     public void CreateDirectoryIfNotExists(string dir)
     {
         // nothing to do here!
+    }
+
+    public void DeleteDirectory(string path)
+    {
+        // nothing to do here!
+    }
+
+    public void DeleteFile(string path)
+    {
+        _files.Remove(path);
+    }
+
+    public bool DirectoryExists(string path)
+    {
+        return _files.Keys.Any(k => k.StartsWith(path));
     }
 
     public void Dispose()

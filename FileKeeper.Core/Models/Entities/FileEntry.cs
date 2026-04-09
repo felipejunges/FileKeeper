@@ -56,4 +56,9 @@ public class FileEntry
             lastModified,
             snapshotId);
     }
+
+    public void SetFoundInSnapshot(string foundInSnapshot)
+    {
+        FoundInSnapshot = foundInSnapshot;
+    }
 }

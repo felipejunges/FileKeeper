@@ -7,5 +7,10 @@ public interface IFileWrapper
     Stream Create(string path);
     string[] GetFiles(string path, string searchPattern, SearchOption searchOption);
     Task<(long Size, DateTime LastModified, string Hash)> GetFileMetadataAsync(string path, CancellationToken token);
+    void DeleteFile(string path);
+    
+    bool DirectoryExists(string path);
+    bool DirectoryIsEmpty(string path);
     void CreateDirectoryIfNotExists(string dir);
+    void DeleteDirectory(string path);
 }

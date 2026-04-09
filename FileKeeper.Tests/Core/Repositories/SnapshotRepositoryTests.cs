@@ -1,6 +1,7 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models.Entities;
+using FileKeeper.Core.Models.Errors;
 using FileKeeper.Core.Models.Options;
 using FileKeeper.Core.Repositories;
 using FileKeeper.Tests.Core.Mocks;
@@ -325,8 +326,14 @@ public class SnapshotRepositoryTests : IDisposable
         var sut = CreateSut(new Mock<IFileWrapper>().Object);
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
+        
+        var result = await sut.AddSnapshotAsync(
+            CreateSnapshot(DateTime.UtcNow, "docs/file.txt"),
+            cts.Token);
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => sut.AddSnapshotAsync(CreateSnapshot(DateTime.UtcNow, "docs/file.txt"), cts.Token));
+        Assert.True(result.IsError);
+        Assert.Equal(ErrorType.Unexpected, result.FirstError.Type);
+        Assert.Equal(CommonErrors.OperationCanceled.Code, result.FirstError.Code);
     }
 
     public void Dispose()
