@@ -174,28 +174,36 @@ public class SnapshotRepository : ISnapshotRepository
         return await GetSnapshotAsync(guid.Value, token);
     }
 
-    public Task<ErrorOr<Success>> AddSnapshotAsync(Snapshot snapshot, CancellationToken token)
+    public async Task<ErrorOr<Success>> AddSnapshotAsync(Snapshot snapshot, CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
+        if (token.IsCancellationRequested)
+            return CommonErrors.OperationCanceled;
 
         var snapshotPath = Path.Combine(_userSettingsOptions.Value.StorageDirectory, $"{snapshot.Id}.json");
 
-        try
-        {
-            _fileWrapper.CreateDirectoryIfNotExists(_userSettingsOptions.Value.StorageDirectory);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create snapshots directory '{SnapshotsDirectory}'.", _userSettingsOptions.Value.StorageDirectory);
-            return Task.FromResult<ErrorOr<Success>>(
-                Error.Failure(description: $"Failed to create snapshots directory '{_userSettingsOptions.Value.StorageDirectory}'."));
-        }
+        return await SaveSnapshotAsync(snapshot, snapshotPath, token);
+    }
 
-        return SaveSnapshotAsync(snapshot, snapshotPath, token);
+    public async Task<ErrorOr<Success>> UpdateSnapshotAsync(Snapshot snapshot, CancellationToken token)
+    {
+        if (token.IsCancellationRequested)
+            return CommonErrors.OperationCanceled;
+
+        var snapshotPath = Path.Combine(_userSettingsOptions.Value.StorageDirectory, $"{snapshot.Id}.json");
+        
+        return await SaveSnapshotAsync(snapshot, snapshotPath, token);
+    }
+
+    public Task<ErrorOr<Success>> DeleteSnapshotAsync(Guid id, CancellationToken token)
+    {
     }
 
     private async Task<ErrorOr<Success>> SaveSnapshotAsync(Snapshot snapshot, string snapshotPath, CancellationToken token)
     {
+        var createFirectoryResult = StorageDirectoryIfNotExists();
+        if (createFirectoryResult.IsError)
+            return createFirectoryResult.Errors;
+        
         Stream? stream = null;
         try
         {
@@ -207,7 +215,7 @@ public class SnapshotRepository : ISnapshotRepository
         }
         catch (OperationCanceledException)
         {
-            throw;
+            return CommonErrors.OperationCanceled;
         }
         catch (Exception ex)
         {
@@ -293,5 +301,24 @@ public class SnapshotRepository : ISnapshotRepository
         }
 
         return orderedIds[nextIndex];
+    }
+    
+    private ErrorOr<Success> StorageDirectoryIfNotExists()
+    {
+        try
+        {
+            _fileWrapper.CreateDirectoryIfNotExists(_userSettingsOptions.Value.StorageDirectory);
+            
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex, 
+                "Failed to create snapshots directory '{SnapshotsDirectory}'.",
+                _userSettingsOptions.Value.StorageDirectory);
+            
+            return Error.Failure(description: $"Failed to create snapshots directory '{_userSettingsOptions.Value.StorageDirectory}'.");
+        }
     }
 }

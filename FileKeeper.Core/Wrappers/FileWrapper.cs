@@ -36,6 +36,21 @@ public class FileWrapper : IFileWrapper
             LastModified: info.LastWriteTimeUtc,
             Hash: hash);
     }
+    
+    public void DeleteFile(string path)
+    {
+        File.Delete(path);
+    }
+
+    public bool DirectoryExists(string path)
+    {
+        return Directory.Exists(path);
+    }
+
+    public bool DirectoryIsEmpty(string path)
+    {
+        return !Directory.EnumerateFileSystemEntries(path).Any();
+    }
 
     public void CreateDirectoryIfNotExists(string dir)
     {
@@ -43,8 +58,8 @@ public class FileWrapper : IFileWrapper
             Directory.CreateDirectory(dir);
     }
 
-    public void DeleteFile(string path)
+    public void DeleteDirectory(string path)
     {
-        File.Delete(path);
+        Directory.Delete(path, true);
     }
 }

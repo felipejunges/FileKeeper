@@ -10,7 +10,10 @@ namespace FileKeeper.Core.Services;
 
 public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
 {
-    private const string DefaultPassPhrase = "phelipe_123";
+    // I KNOW THIS IS NOT OK - we are just encrypting this way FOR NOW!
+    // We'll add a way to the user inform the key before generate / recover the snapshots
+    private const string DefaultPassPhrase = "phelipe_123"; 
+    
     private const int SaltSizeBytes = 32; // 256 bits
     private const int AesIvSizeBytes = 16; // AES block size is 128 bits
     private const int Iterations = 100_000;
