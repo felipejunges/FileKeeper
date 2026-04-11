@@ -6,7 +6,7 @@ namespace FileKeeper.Core.Interfaces.Repositories;
 
 public interface ISnapshotRepository
 {
-    Task<IEnumerable<Snapshot>> GetAllSnapshotsAsync(CancellationToken token);
+    Task<ErrorOr<IEnumerable<Snapshot>>> GetAllSnapshotsAsync(CancellationToken token);
     Task<ErrorOr<Snapshot>> GetLastSnapshotAsync(CancellationToken token);
     Task<ErrorOr<Snapshot>> GetSnapshotAsync(Guid id, CancellationToken token);
     Task<ErrorOr<Snapshot>> GetNextSnapshotAsync(Guid id, CancellationToken token);

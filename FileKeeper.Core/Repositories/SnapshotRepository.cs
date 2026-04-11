@@ -31,10 +31,8 @@ public class SnapshotRepository : ISnapshotRepository
         _logger = logger;
     }
 
-    public Task<IEnumerable<Snapshot>> GetAllSnapshotsAsync(CancellationToken token)
+    public async Task<ErrorOr<IEnumerable<Snapshot>>> GetAllSnapshotsAsync(CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
-
         string[] snapshotFiles;
         try
         {
@@ -43,57 +41,38 @@ public class SnapshotRepository : ISnapshotRepository
         catch (DirectoryNotFoundException)
         {
             _logger.LogWarning("Snapshots directory '{SnapshotsDirectory}' was not found.", _userSettingsOptions.Value.StorageDirectory);
-            return Task.FromResult<IEnumerable<Snapshot>>([]);
+            return Error.Failure(description: "Snapshots directory was not found.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to list snapshot files under '{SnapshotsDirectory}'.", _userSettingsOptions.Value.StorageDirectory);
-            return Task.FromResult<IEnumerable<Snapshot>>([]);
+            return Error.Failure(description: "Failed to enumerate snapshot files.");
         }
 
-        return LoadSnapshotsAsync(snapshotFiles, token);
+        return await LoadSnapshotsAsync(snapshotFiles, token);
     }
 
-    private async Task<IEnumerable<Snapshot>> LoadSnapshotsAsync(string[] snapshotFiles, CancellationToken token)
+    private async Task<ErrorOr<IEnumerable<Snapshot>>> LoadSnapshotsAsync(string[] snapshotFiles, CancellationToken token)
     {
         var snapshots = new List<Snapshot>(snapshotFiles.Length);
 
         foreach (var snapshotFile in snapshotFiles)
         {
-            token.ThrowIfCancellationRequested();
+            if (token.IsCancellationRequested)
+                return CommonErrors.OperationCanceled;
 
-            Stream? stream = null;
-            try
+            var snapshot = await LoadSnapshotFromFile(snapshotFile, token);
+            if (snapshot.IsError)
             {
-                stream = _fileWrapper.OpenRead(snapshotFile);
-                var snapshot = await JsonSerializer.DeserializeAsync<Snapshot>(stream, cancellationToken: token);
-                if (snapshot == null)
-                {
-                    _logger.LogWarning("Snapshot file '{SnapshotPath}' deserialized to null and will be skipped.", snapshotFile);
-                    continue;
-                }
+                _logger.LogWarning(
+                    "Skipping snapshot file '{SnapshotPath}' due to loading error: {Errors}",
+                    snapshotFile,
+                    snapshot.Errors);
 
-                snapshots.Add(snapshot);
+                continue;
             }
-            catch (JsonException ex)
-            {
-                _logger.LogWarning(ex, "Snapshot file '{SnapshotPath}' contains invalid JSON and will be skipped.", snapshotFile);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to read snapshot file '{SnapshotPath}'. File will be skipped.", snapshotFile);
-            }
-            finally
-            {
-                if (stream is not null)
-                {
-                    await stream.DisposeAsync();
-                }
-            }
+
+            snapshots.Add(snapshot.Value);
         }
 
         return snapshots
@@ -101,20 +80,67 @@ public class SnapshotRepository : ISnapshotRepository
             .ToList();
     }
 
-    public Task<ErrorOr<Snapshot>> GetLastSnapshotAsync(CancellationToken token)
+    private async Task<ErrorOr<Snapshot>> LoadSnapshotFromFile(string snapshotFile, CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
-        return GetLastSnapshotInternalAsync(token);
+        if (!_fileWrapper.Exists(snapshotFile))
+        {
+            _logger.LogWarning("Snapshot file '{SnapshotPath}' was not found.", snapshotFile);
+            return Error.NotFound("Snapshot file not found.");
+        }
+        
+        Stream? stream = null;
+        try
+        {
+            stream = _fileWrapper.OpenRead(snapshotFile);
+            var snapshot = await JsonSerializer.DeserializeAsync<Snapshot>(stream, cancellationToken: token);
+            if (snapshot == null)
+            {
+                _logger.LogWarning("Snapshot file '{SnapshotPath}' deserialized to null and will be skipped.", snapshotFile);
+                
+                return Error.Failure(description: $"Snapshot file '{snapshotFile}' deserialized to null.");
+            }
+
+            return snapshot;
+        }
+        catch (OperationCanceledException)
+        {
+            return CommonErrors.OperationCanceled;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Snapshot file '{SnapshotPath}' contains invalid JSON and will be skipped.", snapshotFile);
+            return Error.Failure(description: $"Snapshot file '{snapshotFile}' contains invalid JSON.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read snapshot file '{SnapshotPath}'. File will be skipped.", snapshotFile);
+            return Error.Failure(description: $"Failed to read snapshot file '{snapshotFile}'.");
+        }
+        finally
+        {
+            if (stream is not null)
+            {
+                await stream.DisposeAsync();
+            }
+        }
     }
 
-    private async Task<ErrorOr<Snapshot>> GetLastSnapshotInternalAsync(CancellationToken token)
+    public async Task<ErrorOr<Snapshot>> GetLastSnapshotAsync(CancellationToken token)
     {
-        var snapshots = await GetAllSnapshotsAsync(token);
-        var latestSnapshot = snapshots.FirstOrDefault();
+        var snapshotsIdsResult = GetAllSnapshotsIds(token);
+        if (snapshotsIdsResult.IsError)
+            return snapshotsIdsResult.Errors;
 
-        if (latestSnapshot is null)
+        var snapshotsIds = snapshotsIdsResult.Value;
+        if (snapshotsIds.Count == 0)
         {
-            return Error.NotFound("No snapshots were found.");
+            return Error.NotFound(description: "No snapshots were found.");
+        }
+
+        var latestSnapshot = await GetSnapshotAsync(snapshotsIds.Last(), token);
+        if (latestSnapshot.IsError)
+        {
+            return latestSnapshot.Errors;
         }
 
         return latestSnapshot;
@@ -122,46 +148,16 @@ public class SnapshotRepository : ISnapshotRepository
 
     public async Task<ErrorOr<Snapshot>> GetSnapshotAsync(Guid id, CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
+        if (token.IsCancellationRequested)
+            return CommonErrors.OperationCanceled;
 
         var snapshotPath = Path.Combine(_userSettingsOptions.Value.StorageDirectory, $"{id}.json");
 
-        if (!_fileWrapper.Exists(snapshotPath))
-        {
-            return Error.NotFound($"Snapshot file not found for id '{id}'.");
-        }
+        var snapshotResult = await LoadSnapshotFromFile(snapshotPath, token);
+        if (snapshotResult.IsError)
+            return snapshotResult;
 
-        Stream stream;
-
-        try
-        {
-            stream = _fileWrapper.OpenRead(snapshotPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to open snapshot file '{SnapshotPath}' for reading.", snapshotPath);
-            return Error.Failure(description: $"Failed to open snapshot file for id '{id}'.");
-        }
-
-        try
-        {
-            var snapshot = await JsonSerializer.DeserializeAsync<Snapshot>(stream, cancellationToken: token);
-            if (snapshot == null)
-            {
-                return Error.Failure(description: $"Snapshot file '{snapshotPath}' deserialized to null.");
-            }
-
-            return snapshot;
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "Failed to deserialize snapshot file '{SnapshotPath}' due to invalid JSON.", snapshotPath);
-            return Error.Failure(description: $"Snapshot file '{snapshotPath}' contains invalid JSON.");
-        }
-        finally
-        {
-            await stream.DisposeAsync();
-        }
+        return snapshotResult.Value;
     }
 
     public async Task<ErrorOr<Snapshot>> GetNextSnapshotAsync(Guid id, CancellationToken token)
@@ -219,7 +215,7 @@ public class SnapshotRepository : ISnapshotRepository
 
     private async Task<ErrorOr<Success>> SaveSnapshotAsync(Snapshot snapshot, string snapshotPath, CancellationToken token)
     {
-        var createFirectoryResult = StorageDirectoryIfNotExists();
+        var createFirectoryResult = CreateStorageDirectoryIfNotExists();
         if (createFirectoryResult.IsError)
             return createFirectoryResult.Errors;
         
@@ -251,6 +247,29 @@ public class SnapshotRepository : ISnapshotRepository
     }
 
     private ErrorOr<Guid> GetNextSnapshotId(Guid id, CancellationToken token)
+    {
+        var snapshotsIdsResult = GetAllSnapshotsIds(token);
+        if (snapshotsIdsResult.IsError)
+            return snapshotsIdsResult.Errors;
+        
+        var snapshotsIds = snapshotsIdsResult.Value;
+
+        var currentIndex = snapshotsIds.FindIndex(x => x == id);
+        if (currentIndex < 0)
+        {
+            return Error.NotFound(description: $"Snapshot id '{id}' was not found.");
+        }
+
+        var nextIndex = currentIndex + 1;
+        if (nextIndex >= snapshotsIds.Count)
+        {
+            return Error.NotFound(description: $"No next snapshot was found for id '{id}'.");
+        }
+
+        return snapshotsIds[nextIndex];
+    }
+
+    private ErrorOr<List<Guid>> GetAllSnapshotsIds(CancellationToken token)
     {
         string[] snapshotFiles;
         
@@ -285,7 +304,7 @@ public class SnapshotRepository : ISnapshotRepository
         {
             if (token.IsCancellationRequested)
                 return CommonErrors.OperationCanceled;
-            
+
             var fileName = Path.GetFileNameWithoutExtension(file);
             if (Guid.TryParse(fileName, out var parsedId))
             {
@@ -293,36 +312,14 @@ public class SnapshotRepository : ISnapshotRepository
             }
         }
         
-        if (snapshotIds.Count == 0)
-        {
-            return Error.NotFound(description: "No snapshots were found.");
-        }
-
         // Snapshot IDs are generated as Guid v7 in this project, so ordering by Guid gives
         // a practical chronological sequence for "next".
-        var orderedIds = snapshotIds
+        return snapshotIds
             .OrderByDescending(x => x)
             .ToList();
-        
-        if (token.IsCancellationRequested)
-            return CommonErrors.OperationCanceled;
-
-        var currentIndex = orderedIds.FindIndex(x => x == id);
-        if (currentIndex < 0)
-        {
-            return Error.NotFound(description: $"Snapshot id '{id}' was not found.");
-        }
-
-        var nextIndex = currentIndex + 1;
-        if (nextIndex >= orderedIds.Count)
-        {
-            return Error.NotFound(description: $"No next snapshot was found for id '{id}'.");
-        }
-
-        return orderedIds[nextIndex];
     }
-    
-    private ErrorOr<Success> StorageDirectoryIfNotExists()
+
+    private ErrorOr<Success> CreateStorageDirectoryIfNotExists()
     {
         try
         {

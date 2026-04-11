@@ -69,9 +69,22 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task LoadSnapshotsAsync(CancellationToken cancellationToken)
     {
-        Snapshots.Clear();
+        IsErrorVisible = false;
         
-        var snapshots = await _snapshotRepository.GetAllSnapshotsAsync(cancellationToken);
+        Snapshots.Clear();
+        SelectedSnapshot = null;
+        
+        var snapshotsResult = await _snapshotRepository.GetAllSnapshotsAsync(cancellationToken);
+        if (snapshotsResult.IsError)
+        {
+            ErrorMessage = $"Failed to load snapshots: {snapshotsResult.FirstError.Description}";
+            IsErrorVisible = true;
+
+            return;
+        }
+
+        var snapshots = snapshotsResult.Value;
+        
         foreach (var dto in snapshots.Select(SnapshotDto.FromEntity))
             Snapshots.Add(dto);
 
