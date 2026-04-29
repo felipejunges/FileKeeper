@@ -56,7 +56,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
         var newSnapshot = Snapshot.Create();
         
-        _logger.LogInformation("Created new Snapshot {SnapshotName}", newSnapshot.SnapshotName);
+        LogSnapshotsInfo(newSnapshot, lastSnapshot);
 
         foreach (var sourceDirectory in configuration.SourceDirectories)
         {
@@ -97,7 +97,9 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
                 var fileToSave = fileToSaveResult.Value;
 
-                var existingFile = lastSnapshot?.Files.FirstOrDefault(f => f.RelativePath == fileToSave.RelativePath);
+                var existingFile = lastSnapshot?.Files.FirstOrDefault(f =>
+                    f.SourceDirectory == sourceDirectory
+                    && f.RelativePath == fileToSave.RelativePath);
 
                 if (existingFile == null)
                 {
@@ -106,6 +108,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     storeFile = true;
                     
                     _logger.LogInformation("Processing '{FilePath}': new file", fileOnDisk);
+                    _logger.LogDebug("New file hash: {NewHash}", fileToSave.Hash);
                 }
                 else if (existingFile.Hash != fileToSave.Hash)
                 {
@@ -114,6 +117,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     storeFile = true;
                     
                     _logger.LogInformation("Processing '{FilePath}': file changed", fileOnDisk);
+                    _logger.LogTrace("Existing file hash: {ExistingHash}, New file hash: {NewHash}", existingFile.Hash, fileToSave.Hash);
                 }
                 else
                 {
@@ -160,6 +164,16 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         _logger.LogInformation("Backup creating process finished");
 
         return newSnapshot;
+    }
+
+    private void LogSnapshotsInfo(Snapshot newSnapshot, Snapshot? lastSnapshot)
+    {
+        _logger.LogInformation("Created new Snapshot {SnapshotName}", newSnapshot.SnapshotName);
+
+        if (lastSnapshot != null)
+            _logger.LogInformation("Last snapshot found: {SnapshotName} created on {CreatedOn}", lastSnapshot.SnapshotName, lastSnapshot.CreatedAtUtc);
+        else
+            _logger.LogInformation("No previous snapshot found. This will be the first backup.");
     }
 
     private async Task<ErrorOr<Success>> StoreFileAsync(UserSettingsOptions configuration, FileToSave fileToSave, CancellationToken token)
