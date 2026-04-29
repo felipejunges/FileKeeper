@@ -13,6 +13,7 @@ using FileKeeper.Core.Services;
 using FileKeeper.Core.UseCases;
 using FileKeeper.Core.Wrappers;
 using FileKeeper.Core.Models.Options;
+using FileKeeper.UI.Infrastructure;
 using FileKeeper.UI.Infrastructure.Logging;
 using FileKeeper.UI.Infrastructure.Services;
 using FileKeeper.UI.ViewModels;
@@ -62,6 +63,9 @@ public partial class App : Application
         var logger = Services.GetRequiredService<ILogger<App>>();
         logger.LogInformation("========== Application Starting ==========");
 
+        var exceptionHandler = Services.GetRequiredService<GlobalExceptionHandler>();
+        exceptionHandler.Register();
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
@@ -75,7 +79,11 @@ public partial class App : Application
 
             desktop.MainWindow = mainWindow;
 
-            desktop.ShutdownRequested += (_, _) => { logger.LogInformation("========== Application Closing =========="); };
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                exceptionHandler.Unregister();
+                logger.LogInformation("========== Application Closing ==========");
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -85,6 +93,10 @@ public partial class App : Application
     {
         services.Configure<UserSettingsOptions>(
             context.Configuration.GetSection(UserSettingsOptions.SectionName));
+
+        // Infrastructure
+        services
+            .AddSingleton<GlobalExceptionHandler>();
 
         // UI - ViewModels
         services

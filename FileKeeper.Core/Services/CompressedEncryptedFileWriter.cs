@@ -34,23 +34,23 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
     {
         try
         {
-            await using var sourceStream = _fileWrapper.OpenRead(originFileName);
-            await using var fileStream = _fileWrapper.Create(outputFilePath);
-
             // Generate salt and IV
             var salt = new byte[SaltSizeBytes];
             RandomNumberGenerator.Fill(salt);
 
             using var aes = Aes.Create();
             aes.GenerateIV();
+            
+            // Derive key using the salt
+            var encryptionKey = DeriveKeyFromPassphraseWithSalt(DefaultPassPhrase, salt);
+            aes.Key = encryptionKey;
+            
+            await using var sourceStream = _fileWrapper.OpenRead(originFileName);
+            await using var fileStream = _fileWrapper.Create(outputFilePath);
 
             // Write salt and IV to file (needed for decryption)
             await fileStream.WriteAsync(salt, 0, salt.Length, token);
             await fileStream.WriteAsync(aes.IV, 0, aes.IV.Length, token);
-
-            // Derive key using the salt
-            var encryptionKey = DeriveKeyFromPassphraseWithSalt(DefaultPassPhrase, salt);
-            aes.Key = encryptionKey;
 
             // Encryption -> Compression chain
             await using var cryptoStream = new CryptoStream(fileStream, aes.CreateEncryptor(), CryptoStreamMode.Write);
@@ -59,7 +59,7 @@ public class CompressedEncryptedFileWriter : ICompressedEncryptedFileWriter
             await sourceStream.CopyToAsync(gzipStream, 81920, token);
             await gzipStream.FlushAsync(token);
             await cryptoStream.FlushAsync(token);
-
+            
             return Result.Success;
         }
         catch (Exception ex)
