@@ -91,7 +91,11 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
                 var storeFile = false;
 
-                var fileToSave = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
+                var fileToSaveResult = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
+                if (fileToSaveResult.IsError)
+                    continue;
+
+                var fileToSave = fileToSaveResult.Value;
 
                 var existingFile = lastSnapshot?.Files.FirstOrDefault(f => f.RelativePath == fileToSave.RelativePath);
 
@@ -174,26 +178,34 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         return Result.Success;
     }
 
-    private async Task<FileToSave> CreateFileToSaveAsync(string fileOnDisk, string sourceDirectory, CancellationToken token)
+    private async Task<ErrorOr<FileToSave>> CreateFileToSaveAsync(string fileOnDisk, string sourceDirectory, CancellationToken token)
     {
         var relativePath = Path.GetRelativePath(sourceDirectory, fileOnDisk);
 
         var guid = Guid.CreateVersion7().ToString("N");
         var storedPath = $"{guid[..8]}/{guid}";
 
-        var fileInfo = await _fileWrapper.GetFileMetadataAsync(fileOnDisk, token);
-
-        return new FileToSave()
+        try
         {
-            FullPath = fileOnDisk,
-            StoredPath = storedPath,
-            RelativePath = relativePath,
-            Hash = fileInfo.Hash,
-            Size = fileInfo.Size,
-            LastModified = fileInfo.LastModified
-        };
+            var fileInfo = await _fileWrapper.GetFileMetadataAsync(fileOnDisk, token);
+
+            return new FileToSave()
+            {
+                FullPath = fileOnDisk,
+                StoredPath = storedPath,
+                RelativePath = relativePath,
+                Hash = fileInfo.Hash,
+                Size = fileInfo.Size,
+                LastModified = fileInfo.LastModified
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting file metadata for '{FilePath}'", fileOnDisk);
+            return Error.Failure(description: $"Failed to get file metadata for '{fileOnDisk}'");
+        }
     }
-    
+
     private bool CheckShouldIgnoreFolder(string[] ignoredFolders, string path)
     {
         if (ignoredFolders.Length == 0)

@@ -22,7 +22,7 @@ public class FileWrapper : IFileWrapper
 
     public string[] GetFiles(string path, string searchPattern, SearchOption searchOption) =>
         Directory.GetFiles(path, searchPattern, searchOption);
-
+    
     public async Task<(long Size, DateTime LastModified, string Hash)> GetFileMetadataAsync(string path, CancellationToken token)
     {
         var info = new FileInfo(path);
