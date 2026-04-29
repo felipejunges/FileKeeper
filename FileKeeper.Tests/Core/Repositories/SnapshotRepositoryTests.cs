@@ -112,6 +112,33 @@ public class SnapshotRepositoryTests
         Assert.True(result.IsError);
         Assert.Equal(ErrorType.NotFound, result.FirstError.Type);
     }
+    
+    [Fact]
+    public async Task GetLastSnapshotAsync_WhenLastSnapshotsExist_ReturnsIt()
+    {
+        await using var fileWrapper = new FileWrapperMock();
+        var sut = CreateSut(fileWrapper);
+
+        var first = Guid.Parse("019d493a-6a89-7080-93a1-815dd62ea950");
+        var second = Guid.Parse("019d493a-6a89-7080-93a1-815dd62ea951");
+        var third = Guid.Parse("019dda61-b653-7891-8fbc-f5a4e4c078a0");
+        var fourth = Guid.Parse("019dda61-fd9f-7557-be8f-701818774222");
+
+        var firstSnapshot = new Snapshot(first, DateTime.UtcNow.AddMinutes(-4), []);
+        var secondSnapshot = new Snapshot(second, DateTime.UtcNow.AddMinutes(-3), []);
+        var thirdSnapshot = new Snapshot(third, DateTime.UtcNow.AddMinutes(-2), []);
+        var fourthSnapshot = new Snapshot(fourth, DateTime.UtcNow.AddMinutes(-1), []);
+
+        fileWrapper.AddFile(GetSnapshotPath(first), JsonSerializer.Serialize(firstSnapshot));
+        fileWrapper.AddFile(GetSnapshotPath(second), JsonSerializer.Serialize(secondSnapshot));
+        fileWrapper.AddFile(GetSnapshotPath(third), JsonSerializer.Serialize(thirdSnapshot));
+        fileWrapper.AddFile(GetSnapshotPath(fourth), JsonSerializer.Serialize(fourthSnapshot));
+
+        var result = await sut.GetLastSnapshotAsync(CancellationToken.None);
+
+        Assert.False(result.IsError);
+        Assert.Equal(fourth, result.Value.Id);
+    }
 
     [Fact]
     public async Task GetNextSnapshotAsync_WhenNextSnapshotExists_ReturnsIt()
@@ -121,17 +148,23 @@ public class SnapshotRepositoryTests
 
         var first = Guid.Parse("019d493a-6a89-7080-93a1-815dd62ea950");
         var second = Guid.Parse("019d493a-6a89-7080-93a1-815dd62ea951");
+        var third = Guid.Parse("019dda61-b653-7891-8fbc-f5a4e4c078a0");
+        var fourth = Guid.Parse("019dda61-fd9f-7557-be8f-701818774222");
 
-        var firstSnapshot = new Snapshot(first, DateTime.UtcNow.AddMinutes(-2), []);
-        var secondSnapshot = new Snapshot(second, DateTime.UtcNow.AddMinutes(-1), []);
+        var firstSnapshot = new Snapshot(first, DateTime.UtcNow.AddMinutes(-4), []);
+        var secondSnapshot = new Snapshot(second, DateTime.UtcNow.AddMinutes(-3), []);
+        var thirdSnapshot = new Snapshot(third, DateTime.UtcNow.AddMinutes(-2), []);
+        var fourthSnapshot = new Snapshot(fourth, DateTime.UtcNow.AddMinutes(-1), []);
 
         fileWrapper.AddFile(GetSnapshotPath(first), JsonSerializer.Serialize(firstSnapshot));
         fileWrapper.AddFile(GetSnapshotPath(second), JsonSerializer.Serialize(secondSnapshot));
+        fileWrapper.AddFile(GetSnapshotPath(third), JsonSerializer.Serialize(thirdSnapshot));
+        fileWrapper.AddFile(GetSnapshotPath(fourth), JsonSerializer.Serialize(fourthSnapshot));
 
         var result = await sut.GetNextSnapshotAsync(second, CancellationToken.None);
 
         Assert.False(result.IsError);
-        Assert.Equal(first, result.Value.Id);
+        Assert.Equal(third, result.Value.Id);
     }
 
     [Fact]

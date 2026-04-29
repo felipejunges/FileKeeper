@@ -312,11 +312,9 @@ public class SnapshotRepository : ISnapshotRepository
             }
         }
         
-        // Snapshot IDs are generated as Guid v7 in this project, so ordering by Guid gives
-        // a practical chronological sequence for "next".
-        return snapshotIds
-            .OrderByDescending(x => x)
-            .ToList();
+        snapshotIds.Sort();
+
+        return snapshotIds;
     }
 
     private ErrorOr<Success> CreateStorageDirectoryIfNotExists()
