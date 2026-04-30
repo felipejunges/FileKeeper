@@ -104,7 +104,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 if (existingFile == null)
                 {
                     // Is a new file: we need to add it to the data structure
-                    fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
+                    fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
                     storeFile = true;
                     
                     _logger.LogInformation("Processing '{FilePath}': new file", fileOnDisk);
@@ -113,7 +113,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 else if (existingFile.Hash != fileToSave.Hash)
                 {
                     // File exists, but hash is different: store its data structure
-                    fileToSave.FoundInSnapshot = newSnapshot.SnapshotName;
+                    fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
                     storeFile = true;
                     
                     _logger.LogInformation("Processing '{FilePath}': file changed", fileOnDisk);
@@ -122,7 +122,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 else
                 {
                     // File exists and hash is the same: we can reuse the stored file from the last snapshot
-                    fileToSave.FoundInSnapshot = lastSnapshot!.SnapshotName;
+                    fileToSave.UpdateFoundInAndPath(lastSnapshot!.SnapshotName, existingFile.StoredPath);
                     
                     _logger.LogInformation("Processing '{FilePath}': file unchanged", fileOnDisk);
                 }
@@ -203,15 +203,13 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         {
             var fileInfo = await _fileWrapper.GetFileMetadataAsync(fileOnDisk, token);
 
-            return new FileToSave()
-            {
-                FullPath = fileOnDisk,
-                StoredPath = storedPath,
-                RelativePath = relativePath,
-                Hash = fileInfo.Hash,
-                Size = fileInfo.Size,
-                LastModified = fileInfo.LastModified
-            };
+            return new FileToSave(
+                fullPath: fileOnDisk,
+                storedPath: storedPath,
+                relativePath: relativePath,
+                hash: fileInfo.Hash,
+                size: fileInfo.Size,
+                lastModified: fileInfo.LastModified);
         }
         catch (Exception ex)
         {
