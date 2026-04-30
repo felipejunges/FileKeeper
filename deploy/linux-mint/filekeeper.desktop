@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Version=0.0.12
+Version=0.0.13
 Name=FileKeeper
 Comment=Backup and restore manager
 Exec=env LD_LIBRARY_PATH=/home/USER/.local/opt/filekeeper/publish /home/USER/.local/opt/filekeeper/publish/FileKeeper.UI

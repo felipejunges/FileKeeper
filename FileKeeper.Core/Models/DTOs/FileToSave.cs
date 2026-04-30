@@ -25,10 +25,4 @@ public class FileToSave
     {
         FoundInSnapshot = foundInSnapshot;
     }
-    
-    public void UpdateFoundInAndPath(string foundInSnapshot, string storedPath)
-    {
-        FoundInSnapshot = foundInSnapshot;
-        StoredPath = storedPath;
-    }
 }

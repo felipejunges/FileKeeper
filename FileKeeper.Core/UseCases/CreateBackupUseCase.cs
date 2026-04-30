@@ -122,32 +122,32 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 else
                 {
                     // File exists and hash is the same: we can reuse the stored file from the last snapshot
-                    fileToSave.UpdateFoundInAndPath(lastSnapshot!.SnapshotName, existingFile.StoredPath);
-                    
+
                     _logger.LogInformation("Processing '{FilePath}': file unchanged", fileOnDisk);
                 }
                 
                 if (token.IsCancellationRequested) break;
 
-                var addFileToSnapshot = true;
                 if (storeFile)
                 {
                     var storeFileResult = await StoreFileAsync(configuration, fileToSave, token);
-                    if (storeFileResult.IsError)
-                        addFileToSnapshot = false;
+                    
+                    if (!storeFileResult.IsError)
+                    {
+                        newSnapshot.AddFile(
+                            FileEntry.Create(
+                                sourceDirectory,
+                                fileToSave.RelativePath,
+                                fileToSave.StoredPath,
+                                fileToSave.Hash,
+                                fileToSave.Size,
+                                fileToSave.LastModified,
+                                fileToSave.FoundInSnapshot));
+                    }
                 }
-
-                if (addFileToSnapshot)
+                else if (existingFile != null)
                 {
-                    newSnapshot.AddFile(
-                        FileEntry.Create(
-                            sourceDirectory,
-                            fileToSave.RelativePath,
-                            fileToSave.StoredPath,
-                            fileToSave.Hash,
-                            fileToSave.Size,
-                            fileToSave.LastModified,
-                            fileToSave.FoundInSnapshot));
+                    newSnapshot.AddFile(existingFile);
                 }
             }
         }

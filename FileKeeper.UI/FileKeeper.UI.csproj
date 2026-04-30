@@ -5,8 +5,8 @@
         <Nullable>enable</Nullable>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-        <AssemblyVersion>0.0.12</AssemblyVersion>
-        <FileVersion>0.0.12</FileVersion>
+        <AssemblyVersion>0.0.13</AssemblyVersion>
+        <FileVersion>0.0.13</FileVersion>
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>true</SelfContained>
     </PropertyGroup>
