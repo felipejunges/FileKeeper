@@ -121,7 +121,8 @@ public partial class App : Application
         // UseCases
         services
             .AddSingleton<ICreateBackupUseCase, CreateBackupUseCase>()
-            .AddSingleton<IDeleteBackupUseCase, DeleteBackupUseCase>();
+            .AddSingleton<IDeleteBackupUseCase, DeleteBackupUseCase>()
+            .AddSingleton<IRestoreBackupUseCase, RestoreBackupUseCase>();
     }
 
     private void DisableAvaloniaDataAnnotationValidation()

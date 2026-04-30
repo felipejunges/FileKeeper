@@ -6,6 +6,7 @@ using FileKeeper.Core.Models.Entities;
 namespace FileKeeper.UI.Models;
 
 public record SnapshotDto(
+    Guid Id,
     string Name,
     DateTime CreatedAtUtc,
     int NewFileCount,
@@ -15,6 +16,7 @@ public record SnapshotDto(
 {
     public static SnapshotDto FromEntity(Snapshot snapshot) =>
         new(
+            Id: snapshot.Id,
             Name: snapshot.SnapshotName,
             CreatedAtUtc: snapshot.CreatedAtUtc,
             NewFileCount: snapshot.NewFileCount,

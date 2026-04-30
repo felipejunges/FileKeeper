@@ -299,9 +299,9 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         Assert.Equal(3, result.Value.FileCount);
         
         // kept files
-        Assert.Equal(1, result.Value.Files.Count(f => f.FoundInSnapshot == currentSnapshotName));
+        Assert.Equal(1, result.Value.Files.Count(f => f.FoundInSnapshot == currentSnapshotName && f.StoredPath == "abcd/abcdefghijkl1"));
         // new files
-        Assert.Equal(2, result.Value.Files.Count(f => f.FoundInSnapshot == result.Value.SnapshotName));
+        Assert.Equal(2, result.Value.Files.Count(f => f.FoundInSnapshot == result.Value.SnapshotName && f.StoredPath != "abcd/abcdefghijkl1"));
 
         _snapshotRepository.Verify(s =>
                 s.AddSnapshotAsync(It.IsAny<Snapshot>(), It.IsAny<CancellationToken>()),

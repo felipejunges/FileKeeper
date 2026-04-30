@@ -4,6 +4,7 @@ using FileKeeper.Core.Application;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models;
+using FileKeeper.UI.Infrastructure.Services;
 using FileKeeper.UI.Models;
 using System;
 using System.Collections.ObjectModel;
@@ -17,6 +18,8 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ISnapshotRepository _snapshotRepository;
     private readonly ICreateBackupUseCase _createBackupUseCase;
+    private readonly IRestoreBackupUseCase _restoreBackupUseCase;
+    private readonly IFolderPickerService _folderPickerService;
 
     [ObservableProperty] private double _backupProgress;
     [ObservableProperty] private bool _isBackupInProgress;
@@ -38,11 +41,15 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         ISnapshotRepository snapshotRepository,
         ICreateBackupUseCase createBackupUseCase,
+        IRestoreBackupUseCase restoreBackupUseCase,
+        IFolderPickerService folderPickerService,
         SnapshotViewModel snapshotView,
         SettingsViewModel settingsView)
     {
         _snapshotRepository = snapshotRepository;
         _createBackupUseCase = createBackupUseCase;
+        _restoreBackupUseCase = restoreBackupUseCase;
+        _folderPickerService = folderPickerService;
         SnapshotView = snapshotView;
         SettingsView = settingsView;
         CurrentDetailView = SnapshotView;
@@ -136,5 +143,57 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         await LoadSnapshotsAsync(ct);
+    }
+
+    [RelayCommand]
+    private async Task RestoreSnapshot()
+    {
+        IsErrorVisible = false;
+        
+        if (SelectedSnapshot is null)
+        {
+            ErrorMessage = "Select a snapshot to restore.";
+            IsErrorVisible = true;
+            
+            return;
+        }
+
+        var ct = new CancellationTokenSource().Token;
+        var destinationFolder = await _folderPickerService.PickSingleFolderAsync("Select restore destination folder", ct);
+
+        if (string.IsNullOrWhiteSpace(destinationFolder))
+        {
+            ErrorMessage = "Restore canceled.";
+            IsErrorVisible = true;
+            return;
+        }
+        
+        BackupProgress = 0;
+        IsBackupInProgress = true;
+        StatusMessage = "Initializing restore...";
+
+        var progress = new Progress<BackupProgress>(report =>
+        {
+            BackupProgress = report.Percentage;
+            StatusMessage = report.Message;
+        });
+
+        var result = await _restoreBackupUseCase.ExecuteAsync(
+            SelectedSnapshot.Id,
+            destinationFolder,
+            progress,
+            ct);
+
+        IsBackupInProgress = false;
+
+        if (result.IsError)
+        {
+            ErrorMessage = $"Failed to restore snapshot: {result.FirstError.Description}";
+            IsErrorVisible = true;
+            StatusMessage = "Restore failed.";
+            return;
+        }
+
+        StatusMessage = "Restore completed successfully!";
     }
 }
