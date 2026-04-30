@@ -146,15 +146,16 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task RestoreSnapshot()
+    private async Task RestoreSnapshot(SnapshotDto? snapshot)
     {
         IsErrorVisible = false;
-        
-        if (SelectedSnapshot is null)
+
+        snapshot ??= SelectedSnapshot;
+
+        if (snapshot is null)
         {
             ErrorMessage = "Select a snapshot to restore.";
             IsErrorVisible = true;
-            
             return;
         }
 
@@ -179,7 +180,7 @@ public partial class MainWindowViewModel : ViewModelBase
         });
 
         var result = await _restoreBackupUseCase.ExecuteAsync(
-            SelectedSnapshot.Id,
+            snapshot.Id,
             destinationFolder,
             progress,
             ct);

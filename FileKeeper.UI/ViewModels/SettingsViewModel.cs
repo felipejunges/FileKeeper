@@ -51,21 +51,6 @@ public partial class SettingsViewModel : ViewModelBase
         IsErrorVisible = false;
     }
 
-    public void AddSourceDirectory(string directoryPath)
-    {
-        if (string.IsNullOrWhiteSpace(directoryPath))
-        {
-            return;
-        }
-
-        if (SourceDirectories.Any(path => string.Equals(path, directoryPath, StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        SourceDirectories.Add(directoryPath);
-    }
-
     [RelayCommand]
     private void RemoveSourceDirectory(string? directoryPath)
     {
@@ -88,14 +73,19 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task AddSourceFolderAsync()
     {
-        var selectedFolder = await _folderPickerService.PickSingleFolderAsync("Select source folder", CancellationToken.None);
+        var directoryPath = await _folderPickerService.PickSingleFolderAsync("Select source folder", CancellationToken.None);
 
-        if (string.IsNullOrWhiteSpace(selectedFolder))
+        if (string.IsNullOrWhiteSpace(directoryPath))
         {
             return;
         }
 
-        AddSourceDirectory(selectedFolder);
+        if (SourceDirectories.Any(path => string.Equals(path, directoryPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        SourceDirectories.Add(directoryPath);
     }
 
     [RelayCommand]
@@ -117,6 +107,8 @@ public partial class SettingsViewModel : ViewModelBase
         var sourceDirectories = SourceDirectories
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+        sourceDirectories.Sort();
 
         var options = new UserSettingsOptions
         {
