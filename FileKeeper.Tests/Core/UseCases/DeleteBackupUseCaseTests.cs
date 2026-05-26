@@ -1,5 +1,5 @@
 using ErrorOr;
-using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.UseCases;
@@ -12,16 +12,16 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
 {
     private readonly DeleteBackupUseCase _sut;
 
-    private readonly Mock<ISnapshotRepository> _snapshotRepository;
+    private readonly Mock<ISnapshotService> _snapshotService;
     private readonly Mock<IFileWrapper> _fileWrapper;
 
     public DeleteBackupUseCaseTests()
     {
-        _snapshotRepository = new Mock<ISnapshotRepository>();
+        _snapshotService = new Mock<ISnapshotService>();
         _fileWrapper = new Mock<IFileWrapper>();
 
         _sut = new DeleteBackupUseCase(
-            _snapshotRepository.Object,
+            _snapshotService.Object,
             _fileWrapper.Object,
             new NullLogger<DeleteBackupUseCase>());
     }
@@ -37,21 +37,48 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldFail_IfGetSnapshotFails()
+    public async Task ExecuteAsync_ShouldFail_IfGetIndexFails()
     {
         // Arrange
         var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
 
-        _snapshotRepository
-            .Setup(s => s.GetSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Error.Failure(description: "Error getting snapshot"));
+        _snapshotService
+            .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Error.Failure(description: "Error getting snapshots index"));
 
         // Act
         var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsError);
-        Assert.Equal("Error getting snapshot", result.FirstError.Description);
+        Assert.Equal("Error getting snapshots index", result.FirstError.Description);
+        
+        _snapshotService.Verify(v =>
+            v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+    
+    [Fact]
+    public async Task ExecuteAsync_ShouldFail_IfIndexDoesntContainSnapshot()
+    {
+        // Arrange
+        var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
+
+        var index = new SnapshotIndex(
+            snapshots: new List<Snapshot>());
+
+        _snapshotService
+            .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(index);
+
+        // Act
+        var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsError);
+        Assert.Equal($"Snapshot {snapshotId} doesn't exist.", result.FirstError.Description);
+        
+        _snapshotService.Verify(v =>
+            v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

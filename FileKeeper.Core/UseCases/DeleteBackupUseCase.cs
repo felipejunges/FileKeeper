@@ -109,7 +109,7 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
 
             try
             {
-                _fileWrapper.DeleteFile(fileToDelete);
+                _fileWrapper.DeleteFile(fileToDelete); // TODO: call snapshotService!
             }
             catch (Exception ex)
             {

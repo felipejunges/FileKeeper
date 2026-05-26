@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using FileKeeper.Core.Application;
 using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models;
 using FileKeeper.UI.Infrastructure.Services;
@@ -16,7 +17,7 @@ namespace FileKeeper.UI.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private readonly ISnapshotRepository _snapshotRepository;
+    private readonly ISnapshotService _snapshotService;
     private readonly ICreateBackupUseCase _createBackupUseCase;
     private readonly IRestoreBackupUseCase _restoreBackupUseCase;
     private readonly IFolderPickerService _folderPickerService;
@@ -39,14 +40,14 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<SnapshotDto> Snapshots { get; } = [];
 
     public MainWindowViewModel(
-        ISnapshotRepository snapshotRepository,
+        ISnapshotService snapshotService,
         ICreateBackupUseCase createBackupUseCase,
         IRestoreBackupUseCase restoreBackupUseCase,
         IFolderPickerService folderPickerService,
         SnapshotViewModel snapshotView,
         SettingsViewModel settingsView)
     {
-        _snapshotRepository = snapshotRepository;
+        _snapshotService = snapshotService;
         _createBackupUseCase = createBackupUseCase;
         _restoreBackupUseCase = restoreBackupUseCase;
         _folderPickerService = folderPickerService;
@@ -81,16 +82,15 @@ public partial class MainWindowViewModel : ViewModelBase
         Snapshots.Clear();
         SelectedSnapshot = null;
         
-        var snapshotsResult = await _snapshotRepository.GetAllSnapshotsAsync(cancellationToken);
-        if (snapshotsResult.IsError)
+        var snapshotIndexResult = await _snapshotService.GetIndexAsync(cancellationToken);
+        if (snapshotIndexResult.IsError)
         {
-            ErrorMessage = $"Failed to load snapshots: {snapshotsResult.FirstError.Description}";
+            ErrorMessage = $"Failed to load snapshots: {snapshotIndexResult.FirstError.Description}";
             IsErrorVisible = true;
-
-            return;
         }
 
-        var snapshots = snapshotsResult.Value;
+        var snapshotIndex = snapshotIndexResult.Value;
+        var snapshots = snapshotIndex.Snapshots;
         
         foreach (var dto in snapshots.Select(SnapshotDto.FromEntity))
             Snapshots.Add(dto);

@@ -112,8 +112,7 @@ public partial class App : Application
 
         // Repositories
         services
-            .AddTransient<ITarRepository, TarRepository>()
-            .AddSingleton<ISnapshotRepository, SnapshotRepository>();
+            .AddTransient<ITarRepository, TarRepository>();
 
         // Wrappers
         services
