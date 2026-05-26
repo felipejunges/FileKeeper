@@ -1,5 +1,4 @@
 using ErrorOr;
-using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Interfaces.Wrappers;
@@ -12,24 +11,22 @@ namespace FileKeeper.Core.UseCases;
 
 public class RestoreBackupUseCase : IRestoreBackupUseCase
 {
-    private readonly ISnapshotRepository _snapshotRepository;
+    private readonly ISnapshotService _snapshotService;
     private readonly IFileWrapper _fileWrapper;
-    private readonly ICompressedEncryptedFileWriter _compressedEncryptedFileWriter;
     private readonly IOptionsMonitor<UserSettingsOptions> _userSettingsOptions;
     private readonly ILogger<DeleteBackupUseCase> _logger;
 
     public RestoreBackupUseCase(
-        ISnapshotRepository snapshotRepository,
+        ISnapshotService snapshotService,
         IFileWrapper fileWrapper,
-        ICompressedEncryptedFileWriter compressedEncryptedFileWriter,
         IOptionsMonitor<UserSettingsOptions> userSettingsOptions,
         ILogger<DeleteBackupUseCase> logger)
     {
-        _snapshotRepository = snapshotRepository;
+        _snapshotService = snapshotService;
         _fileWrapper = fileWrapper;
-        _compressedEncryptedFileWriter = compressedEncryptedFileWriter;
         _userSettingsOptions = userSettingsOptions;
         _logger = logger;
+        _snapshotService = snapshotService;
     }
 
     public async Task<ErrorOr<Success>> ExecuteAsync(Guid snapshotId, string destinationFolder, IProgress<BackupProgress>? progress,
@@ -40,11 +37,18 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         var configuration = _userSettingsOptions.CurrentValue;
         var storageDir = Path.Combine(configuration.StorageDirectory, "data");
 
-        var snapshotResult = await _snapshotRepository.GetSnapshotAsync(snapshotId, token);
-        if (snapshotResult.IsError)
-            return snapshotResult.Errors;
+        var snapshotIndexResult = await _snapshotService.GetIndexAsync(token);
+        if (snapshotIndexResult.IsError)
+            return snapshotIndexResult.Errors;
 
-        var snapshot = snapshotResult.Value;
+        var snapshotIndex = snapshotIndexResult.Value;
+        
+        var snapshot = snapshotIndex.Snapshots.FirstOrDefault(s => s.Id == snapshotId);
+        if (snapshot is null)
+        {
+            _logger.LogInformation("Snapshot {SnapshotId} doesn't exist.", snapshotId);
+            return Error.NotFound($"Snapshot {snapshotId} doesn't exist.");
+        }
         
         var currentFileIndex = 0;
         var totalFiles = snapshot.Files.Count;
@@ -79,7 +83,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
 
             _fileWrapper.CreateDirectoryIfNotExists(destinationWithRelativeFolder!);
 
-            await _compressedEncryptedFileWriter.DecompressAndDecryptFileAsync(
+            await _snapshotService.RestoreFileAsync(
                 fullFilePath,
                 outputFilePath,
                 token);

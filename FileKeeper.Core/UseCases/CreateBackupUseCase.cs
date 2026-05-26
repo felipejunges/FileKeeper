@@ -48,11 +48,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisp
 
         var snapshotIndex = snapshotIndexResult.Value;
 
-        var lastSnapshotResult = await GetLastSnapshotAsync(snapshotIndex, token);
-        if (lastSnapshotResult.IsError)
-            return lastSnapshotResult.Errors;
-
-        var lastSnapshot = lastSnapshotResult.Value;
+        var lastSnapshot = snapshotIndex.Snapshots.LastOrDefault();
 
         var newSnapshot = Snapshot.Create();
 
@@ -159,34 +155,13 @@ public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisp
 
         newSnapshot.SortFiles();
 
-        var addSnapshotResult = await _snapshotService.AddSnapshotAsync(newSnapshot, token);
-        if (addSnapshotResult.IsError)
-            return addSnapshotResult.Errors;
-
-        snapshotIndex.AddSnapshot(newSnapshot.Id, newSnapshot.CreatedAtUtc);
+        snapshotIndex.Snapshots.Add(newSnapshot);
 
         await _snapshotService.SaveIndexAsync(snapshotIndex, token);
-
+        
         _logger.LogInformation("Backup creating process finished");
 
         return newSnapshot;
-    }
-
-    private async Task<ErrorOr<Snapshot?>> GetLastSnapshotAsync(SnapshotIndex snapshotIndex, CancellationToken token)
-    {
-        var lastSnapshotId = snapshotIndex.Items.LastOrDefault()?.Id;
-        if (lastSnapshotId is null)
-            return (Snapshot?)null;
-
-        var lastSnapshotResult = await _snapshotService.GetSnapshotAsync(lastSnapshotId.Value, token);
-
-        if (!lastSnapshotResult.IsError)
-            return lastSnapshotResult.Value;
-
-        if (lastSnapshotResult.FirstError.Type == ErrorType.NotFound)
-            return (Snapshot?)null;
-
-        return lastSnapshotResult.Errors;
     }
 
     private void LogSnapshotsInfo(Snapshot newSnapshot, Snapshot? lastSnapshot)

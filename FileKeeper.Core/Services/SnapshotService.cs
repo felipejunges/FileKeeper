@@ -58,11 +58,6 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public Task<ErrorOr<Snapshot>> GetSnapshotAsync(Guid id, CancellationToken token)
-    {
-        throw new NotImplementedException();
-    }
-
     public async Task<ErrorOr<Success>> SaveIndexAsync(SnapshotIndex index, CancellationToken token)
     {
         OpenRepositoryIfClosed();
@@ -89,12 +84,7 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public Task<ErrorOr<Success>> AddSnapshotAsync(Snapshot snapshot, CancellationToken token)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task<ErrorOr<Success>> AddFileAsync(string sourceFilePath, string? entryPath, CancellationToken token)
+    public async Task<ErrorOr<Success>> AddFileAsync(string sourceFilePath, string entryPath, CancellationToken token)
     {
         OpenRepositoryIfClosed();
 
@@ -110,7 +100,27 @@ public class SnapshotService : ISnapshotService
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(AddFileAsync)}",
-                description: $"Error adding file to the snapshot data: {ex.Message}");
+                description: $"Error adding file {sourceFilePath} to the snapshot data: {ex.Message}");
+        }
+    }
+
+    public async Task<ErrorOr<Success>> RestoreFileAsync(string entryPath, string outputFilePath, CancellationToken token)
+    {
+        OpenRepositoryIfClosed();
+        
+        try
+        {
+            await _tarRepository.ExtractFileAsync(entryPath, outputFilePath, token);
+
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restoring file {EntryPath} to the repository", entryPath);
+            
+            return Error.Failure(
+                code: $"{nameof(SnapshotService)}.{nameof(RestoreFileAsync)}",
+                description: $"Error restoring file {entryPath} from the snapshot data: {ex.Message}");
         }
     }
 

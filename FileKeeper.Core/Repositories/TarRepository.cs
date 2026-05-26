@@ -57,7 +57,7 @@ public sealed class TarRepository : ITarRepository
         Open(archivePath, CompressionMode.Decompress);
     }
 
-    public Task AddFileAsync(string sourceFilePath, string? entryPath, CancellationToken token)
+    public Task AddFileAsync(string sourceFilePath, string entryPath, CancellationToken token)
     {
         EnsureOpen();
         EnsureMode(CompressionMode.Compress);
@@ -69,7 +69,7 @@ public sealed class TarRepository : ITarRepository
         if (!File.Exists(sourceFilePath))
             throw new FileNotFoundException("Source file was not found.", sourceFilePath);
 
-        var normalizedEntryPath = NormalizeEntryPath(entryPath ?? Path.GetFileName(sourceFilePath));
+        var normalizedEntryPath = NormalizeEntryPath(entryPath);
         _tarWriter!.WriteEntry(sourceFilePath, normalizedEntryPath);
 
         return Task.CompletedTask;

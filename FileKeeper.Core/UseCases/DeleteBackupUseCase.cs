@@ -1,5 +1,6 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models;
@@ -9,35 +10,41 @@ namespace FileKeeper.Core.UseCases;
 
 public class DeleteBackupUseCase : IDeleteBackupUseCase
 {
-    private readonly ISnapshotRepository _snapshotRepository;
+    private readonly ISnapshotService _snapshotService;
     private readonly IFileWrapper _fileWrapper;
     private readonly ILogger<DeleteBackupUseCase> _logger;
 
     public DeleteBackupUseCase(
-        ISnapshotRepository snapshotRepository,
+        ISnapshotService snapshotService,
         IFileWrapper fileWrapper,
         ILogger<DeleteBackupUseCase> logger)
     {
-        _snapshotRepository = snapshotRepository;
+        _snapshotService = snapshotService;
         _fileWrapper = fileWrapper;
         _logger = logger;
+        _snapshotService = snapshotService;
     }
 
     public async Task<ErrorOr<Success>> ExecuteAsync(Guid snapshotId, IProgress<BackupProgress>? progress, CancellationToken token)
     {
         _logger.LogInformation("Starting backup deletion process.");
         
-        var snapshotResult = await _snapshotRepository.GetSnapshotAsync(snapshotId, token);
-        if (snapshotResult.IsError)
-            return snapshotResult.Errors;
-        
-        var nextSnapshotResult = await _snapshotRepository.GetNextSnapshotAsync(snapshotId, token);
-        if (nextSnapshotResult.IsError && nextSnapshotResult.FirstError.Type != ErrorType.NotFound)
-            return nextSnapshotResult.Errors;
-        
-        var snapshot = snapshotResult.Value;
-        var nextSnapshot = nextSnapshotResult.IsError ? null : nextSnapshotResult.Value;
+        var snapshotIndexResult = await _snapshotService.GetIndexAsync(token);
+        if (snapshotIndexResult.IsError)
+            return snapshotIndexResult.Errors;
 
+        var snapshotIndex = snapshotIndexResult.Value;
+        
+        var snapshot = snapshotIndex.Snapshots.FirstOrDefault(s => s.Id == snapshotId);
+        if (snapshot is null)
+        {
+            _logger.LogInformation("Snapshot {SnapshotId} doesn't exist.", snapshotId);
+            return Error.NotFound($"Snapshot {snapshotId} doesn't exist.");
+        }
+
+        var snapshotIx = snapshotIndex.Snapshots.IndexOf(snapshot) + 1;
+        var nextSnapshot = snapshotIx < snapshotIndex.Snapshots.Count ? snapshotIndex.Snapshots[snapshotIx] : null;
+        
         var filesToDelete = new List<string>();
         
         foreach (var fileEntry in snapshot.Files)
@@ -72,16 +79,10 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             }
         }
 
-        // update the next (if exists)
-        if (nextSnapshot is not null)
-        {
-            var updateNextSnapshot = await _snapshotRepository.UpdateSnapshotAsync(nextSnapshot, token);
-            if (updateNextSnapshot.IsError)
-                return updateNextSnapshot.Errors;
-        }
-
-        // Only delete the current snapshot if we could update the next one
-        await _snapshotRepository.DeleteSnapshotAsync(snapshot.Id, token);
+        // Delete the snaptshot
+        snapshotIndex.Snapshots.Remove(snapshot);
+        
+        await _snapshotService.SaveIndexAsync(snapshotIndex, token);
         
         _logger.LogInformation("Snapshots saved, starting deleting files...");
 
