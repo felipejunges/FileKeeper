@@ -47,7 +47,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         if (snapshot is null)
         {
             _logger.LogInformation("Snapshot {SnapshotId} doesn't exist.", snapshotId);
-            return Error.NotFound($"Snapshot {snapshotId} doesn't exist.");
+            return Error.NotFound(description: $"Snapshot {snapshotId} doesn't exist.");
         }
         
         var currentFileIndex = 0;

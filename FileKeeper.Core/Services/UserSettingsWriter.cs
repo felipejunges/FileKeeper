@@ -49,7 +49,7 @@ public class UserSettingsWriter : IUserSettingsWriter
         }
         catch (Exception ex)
         {
-            return Error.Failure($"Failed to persist user settings: {ex.Message}");
+            return Error.Failure(description: $"Failed to persist user settings: {ex.Message}");
         }
     }
 }
