@@ -75,6 +75,67 @@ public sealed class TarRepository : ITarRepository
         return Task.CompletedTask;
     }
 
+    public async Task AddStreamAsync(Stream sourceStream, string entryPath, CancellationToken token)
+    {
+        EnsureOpen();
+        EnsureMode(CompressionMode.Compress);
+
+        if (sourceStream is null)
+            throw new ArgumentNullException(nameof(sourceStream));
+
+        if (!sourceStream.CanRead)
+            throw new ArgumentException("Source stream must be readable.", nameof(sourceStream));
+
+        if (string.IsNullOrWhiteSpace(entryPath))
+            throw new ArgumentException("Entry path must be provided.", nameof(entryPath));
+
+        token.ThrowIfCancellationRequested();
+
+        var normalizedEntryPath = NormalizeEntryPath(entryPath);
+        await using var buffer = new MemoryStream();
+        await sourceStream.CopyToAsync(buffer, BufferSize, token);
+        buffer.Position = 0;
+
+        var entry = new PaxTarEntry(TarEntryType.RegularFile, normalizedEntryPath)
+        {
+            DataStream = buffer
+        };
+
+        _tarWriter!.WriteEntry(entry);
+    }
+
+    public async Task<Stream> GetFileContentStreamAsync(string entryPath, CancellationToken token)
+    {
+        EnsureOpen();
+        EnsureMode(CompressionMode.Decompress);
+
+        if (string.IsNullOrWhiteSpace(entryPath))
+            throw new ArgumentException("Entry path must be provided.", nameof(entryPath));
+
+        var normalizedEntryPath = NormalizeEntryPath(entryPath);
+
+        TarEntry? entry;
+        while ((entry = await _tarReader!.GetNextEntryAsync(cancellationToken: token)) is not null)
+        {
+            token.ThrowIfCancellationRequested();
+
+            if (!string.Equals(NormalizeEntryPath(entry.Name), normalizedEntryPath, StringComparison.Ordinal))
+                continue;
+
+            if (entry.EntryType is TarEntryType.Directory)
+                throw new InvalidOperationException($"Entry '{entryPath}' is a directory and has no file content.");
+
+            var output = new MemoryStream();
+            if (entry.DataStream is not null)
+                await entry.DataStream.CopyToAsync(output, BufferSize, token);
+
+            output.Position = 0;
+            return output;
+        }
+
+        throw new FileNotFoundException("The requested archive entry was not found.", entryPath);
+    }
+
     public async Task ExtractFileAsync(string entryPath, string destinationFilePath, CancellationToken token)
     {
         EnsureOpen();
@@ -89,7 +150,7 @@ public sealed class TarRepository : ITarRepository
         var normalizedEntryPath = NormalizeEntryPath(entryPath);
 
         TarEntry? entry;
-        while ((entry = _tarReader!.GetNextEntry()) is not null)
+        while ((entry = await _tarReader!.GetNextEntryAsync(cancellationToken: token)) is not null)
         {
             token.ThrowIfCancellationRequested();
 

@@ -21,6 +21,8 @@ public class SnapshotIndex
         Items.Add(new(id, createdAtUtc));
     }
 
+    public static SnapshotIndex Empty() => new SnapshotIndex();
+    
     public class SnapshotIndexItem
     {
         [JsonInclude] public Guid Id { get; private set; }

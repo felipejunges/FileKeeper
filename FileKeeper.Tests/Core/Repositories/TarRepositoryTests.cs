@@ -118,5 +118,50 @@ public sealed class TarRepositoryTests : IAsyncLifetime
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             sut.ExtractAllAsync(outputDir, CancellationToken.None));
     }
-}
 
+    [Fact]
+    public async Task GetFileContentStreamAsync_WhenEntryExists_ReturnsStreamWithContent()
+    {
+        var sourceDir = Path.Combine(_tempRoot, "src-stream");
+        var archivePath = Path.Combine(_tempRoot, "snapshot-stream.tar.gz");
+        Directory.CreateDirectory(sourceDir);
+
+        var sourceA = Path.Combine(sourceDir, "a.txt");
+        var sourceB = Path.Combine(sourceDir, "b.txt");
+
+        await File.WriteAllTextAsync(sourceA, "hello");
+        await File.WriteAllTextAsync(sourceB, "world");
+
+        await using var sut = new TarRepository();
+
+        sut.Open(archivePath, CompressionMode.Compress);
+        await sut.AddFileAsync(sourceA, "a.txt", CancellationToken.None);
+        await sut.AddFileAsync(sourceB, "b.txt", CancellationToken.None);
+        sut.ReopenForRead();
+
+        await using var stream = await sut.GetFileContentStreamAsync("b.txt", CancellationToken.None);
+        using var reader = new StreamReader(stream);
+        var content = await reader.ReadToEndAsync();
+
+        Assert.Equal("world", content);
+    }
+
+    [Fact]
+    public async Task AddStreamAsync_WhenValid_WritesEntryThatCanBeReadBack()
+    {
+        var archivePath = Path.Combine(_tempRoot, "snapshot-stream-write.tar.gz");
+        await using var sut = new TarRepository();
+
+        await using var input = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("stream-content"));
+
+        sut.Open(archivePath, CompressionMode.Compress);
+        await sut.AddStreamAsync(input, "from-stream.txt", CancellationToken.None);
+        sut.ReopenForRead();
+
+        await using var output = await sut.GetFileContentStreamAsync("from-stream.txt", CancellationToken.None);
+        using var reader = new StreamReader(output);
+        var content = await reader.ReadToEndAsync();
+
+        Assert.Equal("stream-content", content);
+    }
+}
