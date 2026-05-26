@@ -1,5 +1,4 @@
 using ErrorOr;
-using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Interfaces.Wrappers;
@@ -12,24 +11,21 @@ using Microsoft.Extensions.Options;
 
 namespace FileKeeper.Core.UseCases;
 
-public class CreateBackupUseCase : ICreateBackupUseCase
+public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisposable
 {
-    private readonly ISnapshotRepository _snapshotRepository;
+    private readonly ISnapshotService _snapshotService;
     private readonly IFileWrapper _fileWrapper;
-    private readonly ICompressedEncryptedFileWriter _compressedEncryptedFileWriter;
     private readonly IOptionsMonitor<UserSettingsOptions> _userSettingsOptions;
     private readonly ILogger<CreateBackupUseCase> _logger;
 
     public CreateBackupUseCase(
-        ISnapshotRepository snapshotRepository,
+        ISnapshotService snapshotService,
         IFileWrapper fileWrapper,
-        ICompressedEncryptedFileWriter compressedEncryptedFileWriter,
         IOptionsMonitor<UserSettingsOptions> userSettingsOptions,
         ILogger<CreateBackupUseCase> logger)
     {
-        _snapshotRepository = snapshotRepository;
+        _snapshotService = snapshotService;
         _fileWrapper = fileWrapper;
-        _compressedEncryptedFileWriter = compressedEncryptedFileWriter;
         _userSettingsOptions = userSettingsOptions;
         _logger = logger;
 
@@ -43,19 +39,23 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     public async Task<ErrorOr<Snapshot>> ExecuteAsync(IProgress<BackupProgress>? progress, CancellationToken token)
     {
         _logger.LogInformation("Starting backup creation process.");
-        
-        var configuration = _userSettingsOptions.CurrentValue;
-        
-        var lastSnapshotResult = await _snapshotRepository.GetLastSnapshotAsync(token);
-        if (lastSnapshotResult.IsError && lastSnapshotResult.FirstError.Type != ErrorType.NotFound)
-        {
-            return lastSnapshotResult.Errors;
-        }
 
-        var lastSnapshot = lastSnapshotResult.IsError ? null : lastSnapshotResult.Value;
+        var configuration = _userSettingsOptions.CurrentValue;
+
+        var snapshotIndexResult = await _snapshotService.GetIndexAsync(token);
+        if (snapshotIndexResult.IsError)
+            return snapshotIndexResult.Errors;
+
+        var snapshotIndex = snapshotIndexResult.Value;
+
+        var lastSnapshotResult = await GetLastSnapshotAsync(snapshotIndex, token);
+        if (lastSnapshotResult.IsError)
+            return lastSnapshotResult.Errors;
+
+        var lastSnapshot = lastSnapshotResult.Value;
 
         var newSnapshot = Snapshot.Create();
-        
+
         LogSnapshotsInfo(newSnapshot, lastSnapshot);
 
         foreach (var sourceDirectory in configuration.SourceDirectories)
@@ -74,7 +74,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 if (token.IsCancellationRequested) break;
 
                 currentFileIndex++;
-                
+
                 progress?.Report(new BackupProgress
                 {
                     CurrentFileIndex = currentFileIndex,
@@ -82,7 +82,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     CurrentFileName = fileOnDisk,
                     CurrentFolder = sourceDirectory
                 });
-                
+
                 if (CheckShouldIgnoreFolder(configuration.IgnoredFolders, fileOnDisk))
                 {
                     _logger.LogInformation("Processing '{FilePath}': Skipping because it is in an ignored folder.", fileOnDisk);
@@ -106,7 +106,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     // Is a new file: we need to add it to the data structure
                     fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
                     storeFile = true;
-                    
+
                     _logger.LogInformation("Processing '{FilePath}': new file", fileOnDisk);
                     _logger.LogDebug("New file hash: {NewHash}", fileToSave.Hash);
                 }
@@ -115,7 +115,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     // File exists, but hash is different: store its data structure
                     fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
                     storeFile = true;
-                    
+
                     _logger.LogInformation("Processing '{FilePath}': file changed", fileOnDisk);
                     _logger.LogTrace("Existing file hash: {ExistingHash}, New file hash: {NewHash}", existingFile.Hash, fileToSave.Hash);
                 }
@@ -125,13 +125,13 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
                     _logger.LogInformation("Processing '{FilePath}': file unchanged", fileOnDisk);
                 }
-                
+
                 if (token.IsCancellationRequested) break;
 
                 if (storeFile)
                 {
                     var storeFileResult = await StoreFileAsync(configuration, fileToSave, token);
-                    
+
                     if (!storeFileResult.IsError)
                     {
                         newSnapshot.AddFile(
@@ -151,19 +151,42 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 }
             }
         }
-        
+
+        await _snapshotService.FlushFilesAsync(token);
+
         if (token.IsCancellationRequested)
             return Error.Unexpected(description: "Operation cancelled");
-        
+
         newSnapshot.SortFiles();
 
-        var addSnapshotResult = await _snapshotRepository.AddSnapshotAsync(newSnapshot, token);
+        var addSnapshotResult = await _snapshotService.AddSnapshotAsync(newSnapshot, token);
         if (addSnapshotResult.IsError)
             return addSnapshotResult.Errors;
-        
+
+        snapshotIndex.AddSnapshot(newSnapshot.Id, newSnapshot.CreatedAtUtc);
+
+        await _snapshotService.SaveIndexAsync(snapshotIndex, token);
+
         _logger.LogInformation("Backup creating process finished");
 
         return newSnapshot;
+    }
+
+    private async Task<ErrorOr<Snapshot?>> GetLastSnapshotAsync(SnapshotIndex snapshotIndex, CancellationToken token)
+    {
+        var lastSnapshotId = snapshotIndex.Items.LastOrDefault()?.Id;
+        if (lastSnapshotId is null)
+            return (Snapshot?)null;
+
+        var lastSnapshotResult = await _snapshotService.GetSnapshotAsync(lastSnapshotId.Value, token);
+
+        if (!lastSnapshotResult.IsError)
+            return lastSnapshotResult.Value;
+
+        if (lastSnapshotResult.FirstError.Type == ErrorType.NotFound)
+            return (Snapshot?)null;
+
+        return lastSnapshotResult.Errors;
     }
 
     private void LogSnapshotsInfo(Snapshot newSnapshot, Snapshot? lastSnapshot)
@@ -171,7 +194,8 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         _logger.LogInformation("Created new Snapshot {SnapshotName}", newSnapshot.SnapshotName);
 
         if (lastSnapshot != null)
-            _logger.LogInformation("Last snapshot found: {SnapshotName} created on {CreatedOn}", lastSnapshot.SnapshotName, lastSnapshot.CreatedAtUtc);
+            _logger.LogInformation("Last snapshot found: {SnapshotName} created on {CreatedOn}", lastSnapshot.SnapshotName,
+                lastSnapshot.CreatedAtUtc);
         else
             _logger.LogInformation("No previous snapshot found. This will be the first backup.");
     }
@@ -180,15 +204,14 @@ public class CreateBackupUseCase : ICreateBackupUseCase
     {
         var fullPath = Path.Combine(configuration.StorageDirectory, "data", fileToSave.StoredPath);
         var dir = Path.GetDirectoryName(fullPath);
-        
+
         _fileWrapper.CreateDirectoryIfNotExists(dir!);
 
-        var compressResult =
-            await _compressedEncryptedFileWriter.CompressFromStreamToFileAsync(fileToSave.FullPath, fullPath, token);
+        var storeFileResult = await _snapshotService.AddFileAsync(fileToSave.FullPath, fullPath, token);
 
-        if (compressResult.IsError)
-            return compressResult.Errors;
-        
+        if (storeFileResult.IsError)
+            return storeFileResult.Errors;
+
         return Result.Success;
     }
 
@@ -228,5 +251,15 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         return ignoredFolders.Any(ignoreFolder =>
             pathComponents.Any(component =>
                 component.Equals(ignoreFolder, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    public void Dispose()
+    {
+        _snapshotService.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _snapshotService.DisposeAsync();
     }
 }

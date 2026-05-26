@@ -106,12 +106,13 @@ public partial class App : Application
 
         // Services
         services
-            .AddSingleton<ICompressedEncryptedFileWriter, CompressedEncryptedFileWriter>()
             .AddSingleton<IFolderPickerService, AvaloniaFolderPickerService>()
+            .AddSingleton<ISnapshotService, SnapshotService>()
             .AddSingleton<IUserSettingsWriter>(_ => new UserSettingsWriter(userSettingsPath));
 
         // Repositories
         services
+            .AddTransient<ITarRepository, TarRepository>()
             .AddSingleton<ISnapshotRepository, SnapshotRepository>();
 
         // Wrappers
