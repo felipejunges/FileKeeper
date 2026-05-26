@@ -18,4 +18,5 @@ public interface ITarRepository : IAsyncDisposable, IDisposable
     Task<Stream> GetFileContentStreamAsync(string entryPath, CancellationToken token);
     Task ExtractFileAsync(string entryPath, string destinationFilePath, CancellationToken token);
     Task ExtractAllAsync(string destinationDirectoryPath, CancellationToken token);
+    Task DeleteFileAsync(string entryPath, CancellationToken token);
 }

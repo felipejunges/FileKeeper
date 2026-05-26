@@ -232,6 +232,80 @@ public sealed class TarRepository : ITarRepository
         }
     }
 
+    public async Task DeleteFileAsync(string entryPath, CancellationToken token)
+    {
+        EnsureOpen();
+        EnsureMode(CompressionMode.Decompress);
+
+        if (string.IsNullOrWhiteSpace(entryPath))
+            throw new ArgumentException("Entry path must be provided.", nameof(entryPath));
+
+        token.ThrowIfCancellationRequested();
+
+        var archivePath = CurrentFilePath
+            ?? throw new InvalidOperationException("No tar.gz archive is open. Call Open first.");
+
+        var normalizedEntryPath = NormalizeEntryPath(entryPath);
+        var archiveDirectory = Path.GetDirectoryName(archivePath) ?? Directory.GetCurrentDirectory();
+        var tempArchivePath = Path.Combine(
+            archiveDirectory,
+            $"{Path.GetFileName(archivePath)}.{Guid.NewGuid():N}.tmp");
+
+        var deleted = false;
+
+        try
+        {
+            ReopenForRead();
+
+            await using var tempFileStream = new FileStream(
+                tempArchivePath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                BufferSize,
+                useAsync: true);
+            await using var tempGzipStream = new GZipStream(tempFileStream, CompressionMode.Compress, leaveOpen: true);
+            using var tempTarWriter = new TarWriter(tempGzipStream, leaveOpen: true);
+
+            TarEntry? entry;
+            while ((entry = await _tarReader!.GetNextEntryAsync(cancellationToken: token)) is not null)
+            {
+                token.ThrowIfCancellationRequested();
+
+                if (string.Equals(NormalizeEntryPath(entry.Name), normalizedEntryPath, StringComparison.Ordinal))
+                {
+                    deleted = true;
+                    continue;
+                }
+
+                await tempTarWriter.WriteEntryAsync(entry, token);
+            }
+
+            if (!deleted)
+                throw new FileNotFoundException("The requested archive entry was not found.", entryPath);
+
+            await tempGzipStream.FlushAsync(token);
+            await tempFileStream.FlushAsync(token);
+
+            Close();
+            File.Move(tempArchivePath, archivePath, overwrite: true);
+            Open(archivePath, CompressionMode.Decompress);
+        }
+        catch
+        {
+            if (IsOpen)
+                Close();
+
+            if (File.Exists(tempArchivePath))
+                File.Delete(tempArchivePath);
+
+            if (!IsOpen && File.Exists(archivePath))
+                Open(archivePath, CompressionMode.Decompress);
+
+            throw;
+        }
+    }
+
     public async Task FlushAsync(CancellationToken token)
     {
         EnsureOpen();

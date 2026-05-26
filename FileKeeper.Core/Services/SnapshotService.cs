@@ -50,7 +50,7 @@ public class SnapshotService : ISnapshotService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting snapshot index");
+            _logger.LogError(ex, "Error getting snapshot index.");
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(GetIndexAsync)}",
@@ -76,7 +76,7 @@ public class SnapshotService : ISnapshotService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error saving snapshot index");
+            _logger.LogError(ex, "Error saving snapshot index.");
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(SaveIndexAsync)}",
@@ -96,11 +96,11 @@ public class SnapshotService : ISnapshotService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding file {SourceFilePath} to the repository", sourceFilePath);
+            _logger.LogError(ex, "Error adding file {SourceFilePath} to the repository.", sourceFilePath);
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(AddFileAsync)}",
-                description: $"Error adding file {sourceFilePath} to the snapshot data: {ex.Message}");
+                description: $"Error adding file {sourceFilePath} to the repository: {ex.Message}");
         }
     }
 
@@ -116,11 +116,31 @@ public class SnapshotService : ISnapshotService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error restoring file {EntryPath} to the repository", entryPath);
+            _logger.LogError(ex, "Error restoring file {EntryPath} from the repository.", entryPath);
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(RestoreFileAsync)}",
-                description: $"Error restoring file {entryPath} from the snapshot data: {ex.Message}");
+                description: $"Error restoring file {entryPath} from the repository: {ex.Message}");
+        }
+    }
+
+    public async Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token)
+    {
+        OpenRepositoryIfClosed();
+        
+        try
+        {
+            await _tarRepository.DeleteFileAsync(entryPath, token);
+
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting file {EntryPath} in the repository.", entryPath);
+            
+            return Error.Failure(
+                code: $"{nameof(SnapshotService)}.{nameof(DeleteFileAsync)}",
+                description: $"Error deleting file {entryPath} from the repository: {ex.Message}");
         }
     }
 

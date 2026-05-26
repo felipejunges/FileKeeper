@@ -1,8 +1,6 @@
 using ErrorOr;
-using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
-using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -11,16 +9,13 @@ namespace FileKeeper.Core.UseCases;
 public class DeleteBackupUseCase : IDeleteBackupUseCase
 {
     private readonly ISnapshotService _snapshotService;
-    private readonly IFileWrapper _fileWrapper;
     private readonly ILogger<DeleteBackupUseCase> _logger;
 
     public DeleteBackupUseCase(
         ISnapshotService snapshotService,
-        IFileWrapper fileWrapper,
         ILogger<DeleteBackupUseCase> logger)
     {
         _snapshotService = snapshotService;
-        _fileWrapper = fileWrapper;
         _logger = logger;
         _snapshotService = snapshotService;
     }
@@ -86,14 +81,14 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
         
         _logger.LogInformation("Snapshots saved, starting deleting files...");
 
-        DeleteFilesAndCleanFolders(filesToDelete);
+        await DeleteFilesAndCleanFoldersAsync(filesToDelete, token);
         
         _logger.LogInformation("Backup deletion process finished");
         
         return Result.Success;
     }
 
-    private void DeleteFilesAndCleanFolders(List<string> filesToDelete)
+    private async Task DeleteFilesAndCleanFoldersAsync(List<string> filesToDelete, CancellationToken token)
     {
         var foldersToCheck =
             filesToDelete
@@ -105,11 +100,13 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
         
         foreach (var fileToDelete in filesToDelete)
         {
+            if (token.IsCancellationRequested) break;
+            
             _logger.LogInformation("Deleting file {FilePath}.", fileToDelete);
 
             try
             {
-                _fileWrapper.DeleteFile(fileToDelete); // TODO: call snapshotService!
+                await _snapshotService.DeleteFileAsync(fileToDelete, token);
             }
             catch (Exception ex)
             {
@@ -119,12 +116,15 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
 
         foreach (var folderToCheck in foldersToCheck)
         {
+            if (token.IsCancellationRequested) break;
+            
             try
             {
-                if (_fileWrapper.DirectoryExists(folderToCheck) && _fileWrapper.DirectoryIsEmpty(folderToCheck))
-                {
-                    _fileWrapper.DeleteDirectory(folderToCheck);
-                }
+                // TODO: fazer isso no TAR:
+                //if (_fileWrapper.DirectoryExists(folderToCheck) && _fileWrapper.DirectoryIsEmpty(folderToCheck))
+                //{
+                //    _fileWrapper.DeleteDirectory(folderToCheck);
+                //}
             }
             catch (Exception ex)
             {

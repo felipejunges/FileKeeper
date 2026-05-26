@@ -13,5 +13,7 @@ public interface ISnapshotService : IAsyncDisposable, IDisposable
 
     Task<ErrorOr<Success>> RestoreFileAsync(string entryPath, string outputFilePath, CancellationToken token);
     
+    Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token);
+    
     Task FlushFilesAsync(CancellationToken token);
 }
