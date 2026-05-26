@@ -35,7 +35,7 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<SnapshotIndex>> GetIndexAsync(CancellationToken token)
     {
-        OpenRepositoryIfClosed();
+        OpenRepositoryIfClosed(CompressionMode.Decompress);
 
         try
         {
@@ -60,7 +60,7 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> SaveIndexAsync(SnapshotIndex index, CancellationToken token)
     {
-        OpenRepositoryIfClosed();
+        OpenRepositoryIfClosed(CompressionMode.Compress);
 
         try
         {
@@ -86,7 +86,7 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> AddFileAsync(string sourceFilePath, string entryPath, CancellationToken token)
     {
-        OpenRepositoryIfClosed();
+        OpenRepositoryIfClosed(CompressionMode.Compress);
 
         try
         {
@@ -106,7 +106,7 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> RestoreFileAsync(string entryPath, string outputFilePath, CancellationToken token)
     {
-        OpenRepositoryIfClosed();
+        OpenRepositoryIfClosed(CompressionMode.Decompress);
         
         try
         {
@@ -126,7 +126,7 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token)
     {
-        OpenRepositoryIfClosed();
+        OpenRepositoryIfClosed(CompressionMode.Compress);
         
         try
         {
@@ -149,14 +149,14 @@ public class SnapshotService : ISnapshotService
         return _tarRepository.FlushAsync(token);
     }
 
-    private void OpenRepositoryIfClosed()
+    private void OpenRepositoryIfClosed(CompressionMode compressionMode)
     {
         if (_tarRepository.IsOpen)
             return;
 
         _tarRepository.Open(
-            _userSettingsOptions.CurrentValue.StorageDirectory,
-            CompressionMode.Compress,
+            Path.Combine(_userSettingsOptions.CurrentValue.StorageDirectory, "store.tar.gz"),
+            compressionMode,
             true);
     }
 

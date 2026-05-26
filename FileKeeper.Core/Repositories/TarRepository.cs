@@ -101,7 +101,7 @@ public sealed class TarRepository : ITarRepository
             DataStream = buffer
         };
 
-        _tarWriter!.WriteEntry(entry);
+        await _tarWriter!.WriteEntryAsync(entry, token);
     }
 
     public async Task<Stream> GetFileContentStreamAsync(string entryPath, CancellationToken token)
