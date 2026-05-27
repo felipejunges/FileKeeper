@@ -12,7 +12,7 @@ namespace FileKeeper.Tests.Core.Services;
 
 public class SnapshotServiceTests
 {
-    private readonly Mock<ITarRepository> _tarRepositoryMock;
+    private readonly Mock<IFileStoreRepository> _tarRepositoryMock;
     private readonly Mock<IOptionsMonitor<UserSettingsOptions>> _optionsMonitorMock;
     private readonly Mock<ILogger<SnapshotService>> _loggerMock;
     private readonly UserSettingsOptions _userSettings;
@@ -20,7 +20,7 @@ public class SnapshotServiceTests
 
     public SnapshotServiceTests()
     {
-        _tarRepositoryMock = new Mock<ITarRepository>();
+        _tarRepositoryMock = new Mock<IFileStoreRepository>();
         _optionsMonitorMock = new Mock<IOptionsMonitor<UserSettingsOptions>>();
         _loggerMock = new Mock<ILogger<SnapshotService>>();
 

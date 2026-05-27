@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 namespace FileKeeper.Core.UseCases;
 
-public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisposable
+public class CreateBackupUseCase : ICreateBackupUseCase
 {
     private readonly ISnapshotService _snapshotService;
     private readonly IFileWrapper _fileWrapper;
@@ -148,8 +148,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisp
             }
         }
 
-        await _snapshotService.FlushFilesAsync(token);
-
         if (token.IsCancellationRequested)
             return Error.Unexpected(description: "Operation cancelled");
 
@@ -158,7 +156,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisp
         snapshotIndex.Snapshots.Add(newSnapshot);
 
         await _snapshotService.SaveIndexAsync(snapshotIndex, token);
-        
+
         _logger.LogInformation("Backup creating process finished");
 
         return newSnapshot;
@@ -177,12 +175,10 @@ public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisp
 
     private async Task<ErrorOr<Success>> StoreFileAsync(UserSettingsOptions configuration, FileToSave fileToSave, CancellationToken token)
     {
-        var fullPath = Path.Combine(configuration.StorageDirectory, "data", fileToSave.StoredPath);
-        var dir = Path.GetDirectoryName(fullPath);
-
-        _fileWrapper.CreateDirectoryIfNotExists(dir!);
-
-        var storeFileResult = await _snapshotService.AddFileAsync(fileToSave.FullPath, fullPath, token);
+        var storeFileResult = await _snapshotService.AddFileAsync(
+            fileToSave.FullPath,
+            fileToSave.StoredPath,
+            token);
 
         if (storeFileResult.IsError)
             return storeFileResult.Errors;
@@ -226,15 +222,5 @@ public class CreateBackupUseCase : ICreateBackupUseCase, IAsyncDisposable, IDisp
         return ignoredFolders.Any(ignoreFolder =>
             pathComponents.Any(component =>
                 component.Equals(ignoreFolder, StringComparison.OrdinalIgnoreCase)));
-    }
-
-    public void Dispose()
-    {
-        _snapshotService.Dispose();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await _snapshotService.DisposeAsync();
     }
 }

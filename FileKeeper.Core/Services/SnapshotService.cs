@@ -2,27 +2,21 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Models.Entities;
-using FileKeeper.Core.Models.Options;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using System.IO.Compression;
 using System.Text.Json;
 
 namespace FileKeeper.Core.Services;
 
 public class SnapshotService : ISnapshotService
 {
-    private readonly ITarRepository _tarRepository;
-    private readonly IOptionsMonitor<UserSettingsOptions> _userSettingsOptions;
+    private readonly IFileStoreRepository _fileStoreRepository;
     private readonly ILogger<SnapshotService> _logger;
 
     public SnapshotService(
-        ITarRepository tarRepository,
-        IOptionsMonitor<UserSettingsOptions> userSettingsOptions,
+        IFileStoreRepository fileStoreRepository,
         ILogger<SnapshotService> logger)
     {
-        _tarRepository = tarRepository;
-        _userSettingsOptions = userSettingsOptions;
+        _fileStoreRepository = fileStoreRepository;
         _logger = logger;
     }
     
@@ -35,11 +29,9 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<SnapshotIndex>> GetIndexAsync(CancellationToken token)
     {
-        OpenRepositoryIfClosed(CompressionMode.Decompress);
-
         try
         {
-            var stream = await _tarRepository.GetFileContentStreamAsync(IndexFileName, token);
+            var stream = await _fileStoreRepository.GetFileContentStreamAsync(IndexFileName, token);
 
             if (stream.CanSeek)
                 stream.Position = 0;
@@ -47,6 +39,13 @@ public class SnapshotService : ISnapshotService
             var model = await JsonSerializer.DeserializeAsync<SnapshotIndex>(stream, JsonOptions, token);
 
             return model ?? SnapshotIndex.Empty();
+        }
+        catch (FileNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Tar file not found");
+
+            //return Error.NotFound();
+            return SnapshotIndex.Empty();
         }
         catch (Exception ex)
         {
@@ -60,8 +59,6 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> SaveIndexAsync(SnapshotIndex index, CancellationToken token)
     {
-        OpenRepositoryIfClosed(CompressionMode.Compress);
-
         try
         {
             await using var stream = new MemoryStream();
@@ -69,8 +66,7 @@ public class SnapshotService : ISnapshotService
             await JsonSerializer.SerializeAsync(stream, index, JsonOptions, token);
             stream.Position = 0;
 
-            await _tarRepository.AddStreamAsync(stream, IndexFileName, token);
-            await FlushFilesAsync(token);
+            await _fileStoreRepository.AddStreamAsync(stream, IndexFileName, token);
 
             return Result.Success;
         }
@@ -86,11 +82,9 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> AddFileAsync(string sourceFilePath, string entryPath, CancellationToken token)
     {
-        OpenRepositoryIfClosed(CompressionMode.Compress);
-
         try
         {
-            await _tarRepository.AddFileAsync(sourceFilePath, entryPath, token);
+            await _fileStoreRepository.AddFileAsync(sourceFilePath, entryPath, token);
 
             return Result.Success;
         }
@@ -106,11 +100,9 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> RestoreFileAsync(string entryPath, string outputFilePath, CancellationToken token)
     {
-        OpenRepositoryIfClosed(CompressionMode.Decompress);
-        
         try
         {
-            await _tarRepository.ExtractFileAsync(entryPath, outputFilePath, token);
+            await _fileStoreRepository.ExtractFileAsync(entryPath, outputFilePath, token);
 
             return Result.Success;
         }
@@ -126,11 +118,9 @@ public class SnapshotService : ISnapshotService
 
     public async Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token)
     {
-        OpenRepositoryIfClosed(CompressionMode.Compress);
-        
         try
         {
-            await _tarRepository.DeleteFileAsync(entryPath, token);
+            await _fileStoreRepository.DeleteFileAsync(entryPath, token);
 
             return Result.Success;
         }
@@ -142,33 +132,5 @@ public class SnapshotService : ISnapshotService
                 code: $"{nameof(SnapshotService)}.{nameof(DeleteFileAsync)}",
                 description: $"Error deleting file {entryPath} from the repository: {ex.Message}");
         }
-    }
-
-    public Task FlushFilesAsync(CancellationToken token)
-    {
-        return _tarRepository.FlushAsync(token);
-    }
-
-    private void OpenRepositoryIfClosed(CompressionMode compressionMode)
-    {
-        if (_tarRepository.IsOpen)
-            return;
-
-        _tarRepository.Open(
-            Path.Combine(_userSettingsOptions.CurrentValue.StorageDirectory, "store.tar.gz"),
-            compressionMode,
-            true);
-    }
-
-    public void Dispose()
-    {
-        _tarRepository.Close();
-        _tarRepository.Dispose();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _tarRepository.Close();
-        await _tarRepository.DisposeAsync();
     }
 }

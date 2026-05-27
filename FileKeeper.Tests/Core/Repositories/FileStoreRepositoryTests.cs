@@ -3,7 +3,7 @@ using System.IO.Compression;
 
 namespace FileKeeper.Tests.Core.Repositories;
 
-public sealed class TarRepositoryTests : IAsyncLifetime
+public sealed class FileStoreRepositoryTests : IAsyncLifetime
 {
     private readonly string _tempRoot = Path.Combine(Path.GetTempPath(), "filekeeper-tests", Guid.NewGuid().ToString("N"));
 
@@ -35,7 +35,7 @@ public sealed class TarRepositoryTests : IAsyncLifetime
         await File.WriteAllTextAsync(sourceA, "alpha");
         await File.WriteAllTextAsync(sourceB, "beta");
 
-        await using var sut = new TarRepository();
+        await using var sut = new FileStoreRepository();
 
         sut.Open(archivePath, CompressionMode.Compress);
         await sut.AddFileAsync(sourceA, "folder/a.txt", CancellationToken.None);
@@ -69,7 +69,7 @@ public sealed class TarRepositoryTests : IAsyncLifetime
         await File.WriteAllTextAsync(sourceA, "first");
         await File.WriteAllTextAsync(sourceB, "second");
 
-        await using var sut = new TarRepository();
+        await using var sut = new FileStoreRepository();
 
         sut.Open(archivePath, CompressionMode.Compress);
         await sut.AddFileAsync(sourceA, "a.txt", CancellationToken.None);
@@ -90,7 +90,7 @@ public sealed class TarRepositoryTests : IAsyncLifetime
     [Fact]
     public async Task AddFileAsync_WhenRepositoryIsNotOpen_ThrowsInvalidOperationException()
     {
-        await using var sut = new TarRepository();
+        await using var sut = new FileStoreRepository();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             sut.AddFileAsync("/tmp/does-not-matter.txt", "a.txt", CancellationToken.None));
@@ -109,7 +109,7 @@ public sealed class TarRepositoryTests : IAsyncLifetime
         var sourceA = Path.Combine(sourceDir, "a.txt");
         await File.WriteAllTextAsync(sourceA, "content");
 
-        await using var sut = new TarRepository();
+        await using var sut = new FileStoreRepository();
 
         sut.Open(archivePath, CompressionMode.Compress);
         await sut.AddFileAsync(sourceA, "../evil.txt", CancellationToken.None);
@@ -132,7 +132,7 @@ public sealed class TarRepositoryTests : IAsyncLifetime
         await File.WriteAllTextAsync(sourceA, "hello");
         await File.WriteAllTextAsync(sourceB, "world");
 
-        await using var sut = new TarRepository();
+        await using var sut = new FileStoreRepository();
 
         sut.Open(archivePath, CompressionMode.Compress);
         await sut.AddFileAsync(sourceA, "a.txt", CancellationToken.None);
@@ -150,7 +150,7 @@ public sealed class TarRepositoryTests : IAsyncLifetime
     public async Task AddStreamAsync_WhenValid_WritesEntryThatCanBeReadBack()
     {
         var archivePath = Path.Combine(_tempRoot, "snapshot-stream-write.tar.gz");
-        await using var sut = new TarRepository();
+        await using var sut = new FileStoreRepository();
 
         await using var input = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("stream-content"));
 

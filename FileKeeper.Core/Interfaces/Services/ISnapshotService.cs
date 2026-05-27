@@ -3,7 +3,7 @@ using FileKeeper.Core.Models.Entities;
 
 namespace FileKeeper.Core.Interfaces.Services;
 
-public interface ISnapshotService : IAsyncDisposable, IDisposable
+public interface ISnapshotService
 {
     Task<ErrorOr<SnapshotIndex>> GetIndexAsync(CancellationToken token);
     
@@ -14,6 +14,4 @@ public interface ISnapshotService : IAsyncDisposable, IDisposable
     Task<ErrorOr<Success>> RestoreFileAsync(string entryPath, string outputFilePath, CancellationToken token);
     
     Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token);
-    
-    Task FlushFilesAsync(CancellationToken token);
 }

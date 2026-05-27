@@ -43,7 +43,7 @@ public partial class App : Application
         var userSettingsPath = GetUserSettingsPath();
 
         _host = Host.CreateDefaultBuilder()
-            .ConfigureAppConfiguration((context, config) =>
+            .ConfigureAppConfiguration((_, config) =>
             {
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
                 config.AddJsonFile(userSettingsPath, optional: true, reloadOnChange: true);
@@ -112,7 +112,7 @@ public partial class App : Application
 
         // Repositories
         services
-            .AddTransient<ITarRepository, TarRepository>();
+            .AddTransient<IFileStoreRepository, ZipFileStoreRepository>();
 
         // Wrappers
         services
