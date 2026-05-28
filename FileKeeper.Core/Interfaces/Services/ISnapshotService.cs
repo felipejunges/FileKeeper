@@ -11,7 +11,7 @@ public interface ISnapshotService
     
     Task<ErrorOr<Success>> SaveIndexAsync(SnapshotIndex index, CancellationToken token);
 
-    //[Obsolete("Use the List version", true)]
+    [Obsolete("Use the List version", true)]
     Task<ErrorOr<Success>> AddFileAsync(FileToSave file, CancellationToken token);
     
     Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token);
