@@ -1,4 +1,5 @@
 using ErrorOr;
+using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 
@@ -12,11 +13,11 @@ public interface ISnapshotService
 
     Task<ErrorOr<Success>> AddFileAsync(FileToSave file, CancellationToken token);
     
-    Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, CancellationToken token);
+    Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token);
 
     Task<ErrorOr<Success>> RestoreFileAsync(FileToRestore file, CancellationToken token);
     
-    Task<ErrorOr<Success>> RestoreFilesAsync(IEnumerable<FileToRestore> files, CancellationToken token);
+    Task<ErrorOr<Success>> RestoreFilesAsync(IEnumerable<FileToRestore> files, IProgress<BackupProgress>? progress, CancellationToken token);
     
     Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token);
 }

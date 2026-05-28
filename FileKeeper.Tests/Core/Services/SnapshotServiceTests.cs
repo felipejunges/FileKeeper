@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -106,26 +107,29 @@ public class SnapshotServiceTests
     public async Task AddFileAsync_WhenSuccessful_ReturnsSuccess()
     {
         // Arrange
-        _repoMock.Setup(r => r.AddFileAsync("/src/file.txt", "entry/file.txt", It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var fileToSave = new FileToSave("/src/file.txt", "file.txt", "file.txt", "hash", 100, DateTime.Now);
+
+        _repoMock.Setup(r => r.AddFileAsync(fileToSave, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
-        var result = await _sut.AddFileAsync("/src/file.txt", "entry/file.txt", CancellationToken.None);
+        var result = await _sut.AddFileAsync(fileToSave, CancellationToken.None);
 
         // Assert
         Assert.False(result.IsError);
-        _repoMock.Verify(r => r.AddFileAsync("/src/file.txt", "entry/file.txt", It.IsAny<CancellationToken>()), Times.Once);
+        _repoMock.Verify(r => r.AddFileAsync(fileToSave, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task AddFileAsync_WhenRepositoryThrows_ReturnsError()
     {
         // Arrange
-        _repoMock.Setup(r => r.AddFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        var missingFile = new FileToSave("/missing", "entry", "entry", "hash", 100, DateTime.Now);
+        
+        _repoMock.Setup(r => r.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new FileNotFoundException("not found"));
 
         // Act
-        var result = await _sut.AddFileAsync("/missing", "entry", CancellationToken.None);
+        var result = await _sut.AddFileAsync(missingFile, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsError);
@@ -140,26 +144,30 @@ public class SnapshotServiceTests
     public async Task RestoreFileAsync_WhenSuccessful_ReturnsSuccess()
     {
         // Arrange
-        _repoMock.Setup(r => r.ExtractFileAsync("entry/file.txt", "/out/file.txt", It.IsAny<CancellationToken>()))
+        var fileToRestore = new FileToRestore("/src/file.txt", "file.txt");
+        
+        _repoMock.Setup(r => r.ExtractFileAsync(fileToRestore, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _sut.RestoreFileAsync("entry/file.txt", "/out/file.txt", CancellationToken.None);
+        var result = await _sut.RestoreFileAsync(fileToRestore, CancellationToken.None);
 
         // Assert
         Assert.False(result.IsError);
-        _repoMock.Verify(r => r.ExtractFileAsync("entry/file.txt", "/out/file.txt", It.IsAny<CancellationToken>()), Times.Once);
+        _repoMock.Verify(r => r.ExtractFileAsync(fileToRestore, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task RestoreFileAsync_WhenRepositoryThrows_ReturnsError()
     {
         // Arrange
-        _repoMock.Setup(r => r.ExtractFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        var missingFile = new FileToRestore("/missing", "entry");
+        
+        _repoMock.Setup(r => r.ExtractFileAsync(It.IsAny<FileToRestore>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new IOException("extract"));
 
         // Act
-        var result = await _sut.RestoreFileAsync("entry", "/out", CancellationToken.None);
+        var result = await _sut.RestoreFileAsync(missingFile, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsError);

@@ -36,7 +36,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         _logger.LogInformation("Starting backup {SnapshotID} restoration process.", snapshotId);
         
         var configuration = _userSettingsOptions.CurrentValue;
-        var storageDir = Path.Combine(configuration.StorageDirectory, "data");
+        //var storageDir = Path.Combine(configuration.StorageDirectory, "data");
 
         var snapshotIndexResult = await _snapshotService.GetIndexAsync(token);
         if (snapshotIndexResult.IsError)
@@ -50,7 +50,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
             _logger.LogInformation("Snapshot {SnapshotId} doesn't exist.", snapshotId);
             return Error.NotFound(description: $"Snapshot {snapshotId} doesn't exist.");
         }
-        
+
         var currentFileIndex = 0;
         var totalFiles = snapshot.Files.Count;
 
@@ -62,12 +62,13 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
 
             currentFileIndex++;
             
-            progress?.Report(new BackupProgress
+            progress?.Report(new PercentageBackupProgress()
             {
                 CurrentFileIndex = currentFileIndex,
                 TotalFiles = totalFiles,
                 CurrentFileName = file.RelativePath,
-                CurrentFolder = file.SourceDirectory
+                CurrentFolder = file.SourceDirectory,
+                Process = "Analysing"
             });
 
             var outputFilePath = Path.Combine(
@@ -87,7 +88,7 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
             filesToRestore.Add(new FileToRestore(outputFilePath, file.StoredPath));
         }
         
-        await _snapshotService.RestoreFilesAsync(filesToRestore, token);
+        await _snapshotService.RestoreFilesAsync(filesToRestore, progress, token);
 
         if (token.IsCancellationRequested)
             return Error.Unexpected(description: "Operation cancelled");

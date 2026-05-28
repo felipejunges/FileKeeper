@@ -1,6 +1,7 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using Microsoft.Extensions.Logging;
@@ -96,11 +97,11 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public async Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, CancellationToken token)
+    public async Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token)
     {
         try
         {
-            await _fileStoreRepository.AddFilesAsync(files, token);
+            await _fileStoreRepository.AddFilesAsync(files, progress, token);
 
             return Result.Success;
         }
@@ -132,11 +133,11 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public async Task<ErrorOr<Success>> RestoreFilesAsync(IEnumerable<FileToRestore> files, CancellationToken token)
+    public async Task<ErrorOr<Success>> RestoreFilesAsync(IEnumerable<FileToRestore> files, IProgress<BackupProgress>? progress, CancellationToken token)
     {
         try
         {
-            await _fileStoreRepository.ExtractFilesAsync(files, token);
+            await _fileStoreRepository.ExtractFilesAsync(files, progress, token);
 
             return Result.Success;
         }

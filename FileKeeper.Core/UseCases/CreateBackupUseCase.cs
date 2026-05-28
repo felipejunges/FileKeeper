@@ -54,32 +54,25 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
         LogSnapshotsInfo(newSnapshot, lastSnapshot);
         
+        var filesToSave = new List<FileToSave>();
+        
         foreach (var sourceDirectory in configuration.SourceDirectories)
         {
             if (token.IsCancellationRequested) break;
 
             var filesOnDisk = _fileWrapper.GetFiles(sourceDirectory, "*.*", SearchOption.AllDirectories);
 
-            // TODO: think about Parallel
-
-            var currentFileIndex = 0;
-            var totalFiles = filesOnDisk.Length;
-
-            var filesToSave = new List<FileToSave>();
-            var filesToKeep = new List<FileEntry>();
-
             foreach (var fileOnDisk in filesOnDisk)
             {
                 if (token.IsCancellationRequested) break;
-
-                currentFileIndex++;
-
-                progress?.Report(new BackupProgress
+                
+                progress?.Report(new PercentageBackupProgress()
                 {
-                    CurrentFileIndex = currentFileIndex,
-                    TotalFiles = totalFiles,
+                    CurrentFileIndex = filesOnDisk.IndexOf(fileOnDisk) + 1,
+                    TotalFiles = filesOnDisk.Count(),
                     CurrentFileName = fileOnDisk,
-                    CurrentFolder = sourceDirectory
+                    CurrentFolder = fileOnDisk,
+                    Process = "Analysing"
                 });
 
                 if (CheckShouldIgnoreFolder(configuration.IgnoredFolders, fileOnDisk))
@@ -102,6 +95,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 {
                     // Is a new file: we need to add it to the data structure
                     fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
+                    newSnapshot.AddFile(CreateFileEntry(sourceDirectory, fileToSave));
                     filesToSave.Add(fileToSave);
 
                     _logger.LogInformation("Processing '{FilePath}': new file", fileOnDisk);
@@ -111,6 +105,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 {
                     // File exists, but hash is different: store its data structure
                     fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
+                    newSnapshot.AddFile(CreateFileEntry(sourceDirectory, fileToSave));
                     filesToSave.Add(fileToSave);
 
                     _logger.LogInformation("Processing '{FilePath}': file changed", fileOnDisk);
@@ -119,36 +114,20 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 else
                 {
                     // File exists and hash is the same: we can reuse the stored file from the last snapshot
-                    filesToKeep.Add(existingFile);
+                    newSnapshot.AddFile(existingFile);
 
                     _logger.LogInformation("Processing '{FilePath}': file unchanged", fileOnDisk);
                 }
             }
-
-            foreach (var fileToSave in filesToSave)
-            {
-                newSnapshot.AddFile(
-                    FileEntry.Create(
-                        sourceDirectory,
-                        fileToSave.RelativePath,
-                        fileToSave.StoredPath,
-                        fileToSave.Hash,
-                        fileToSave.Size,
-                        fileToSave.LastModified,
-                        fileToSave.FoundInSnapshot));
-            }
-
-            foreach (var fileToKeep in filesToKeep)
-            {
-                newSnapshot.AddFile(fileToKeep);
-            }
-
-            await _snapshotService.AddFilesAsync(filesToSave, token); // TODO: what if this fails??
-            // TODO: idea: return de list of success, and add THEM to the snapshot
         }
 
         if (token.IsCancellationRequested)
             return Error.Unexpected(description: "Operation cancelled");
+        
+        // persist all files in once
+        var storeResult = await _snapshotService.AddFilesAsync(filesToSave, progress, token);
+        if (storeResult.IsError)
+            return storeResult.Errors;
 
         newSnapshot.SortFiles();
 
@@ -159,6 +138,18 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         _logger.LogInformation("Backup creating process finished");
 
         return newSnapshot;
+    }
+
+    private static FileEntry CreateFileEntry(string sourceDirectory, FileToSave fileToSave)
+    {
+        return FileEntry.Create(
+            sourceDirectory,
+            fileToSave.RelativePath,
+            fileToSave.StoredPath,
+            fileToSave.Hash,
+            fileToSave.Size,
+            fileToSave.LastModified,
+            fileToSave.FoundInSnapshot);
     }
 
     private void LogSnapshotsInfo(Snapshot newSnapshot, Snapshot? lastSnapshot)

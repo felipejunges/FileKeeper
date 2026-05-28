@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Options;
 using Microsoft.Extensions.Options;
@@ -28,19 +29,35 @@ public class ZipFileStoreRepository : IFileStoreRepository
             token);
     }
 
-    public async Task AddFilesAsync(IEnumerable<FileToSave> files, CancellationToken token)
+    public async Task AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token)
     {
         await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
 
-        foreach (var file in files)
+        var filesList = files.ToList();
+        
+        foreach (var file in filesList)
         {
             token.ThrowIfCancellationRequested();
+            
+            progress?.Report(new PercentageBackupProgress()
+            {
+                CurrentFileIndex = filesList.IndexOf(file) + 1,
+                TotalFiles = filesList.Count,
+                CurrentFileName = file.RelativePath,
+                CurrentFolder = file.FullPath,
+                Process = "Zipping"
+            });
 
             await archive.CreateEntryFromFileAsync(
                 file.FullPath,
                 file.StoredPath,
                 token);
         }
+        
+        progress?.Report(new SimpleBackupProgress()
+        {
+            Process = "Closing file"
+        });
     }
 
     public async Task AddStreamAsync(Stream sourceStream, string entryPath, CancellationToken token)
@@ -85,7 +102,7 @@ public class ZipFileStoreRepository : IFileStoreRepository
 
     public async Task ExtractFileAsync(FileToRestore file, CancellationToken token)
     {
-        await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
+        await using var archive = await ZipFile.OpenReadAsync(BackupZipPath(), token);
 
         var entry = archive.GetEntry(file.StoredPath);
         if (entry == null)
@@ -94,12 +111,25 @@ public class ZipFileStoreRepository : IFileStoreRepository
         await entry.ExtractToFileAsync(file.FullPath, token);
     }
 
-    public async Task ExtractFilesAsync(IEnumerable<FileToRestore> files, CancellationToken token)
+    public async Task ExtractFilesAsync(IEnumerable<FileToRestore> files, IProgress<BackupProgress>? progress, CancellationToken token)
     {
-        await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
+        await using var archive = await ZipFile.OpenReadAsync(BackupZipPath(), token);
 
-        foreach (var file in files)
+        var filesList = files.ToList();
+        
+        foreach (var file in filesList)
         {
+            token.ThrowIfCancellationRequested();
+            
+            progress?.Report(new PercentageBackupProgress()
+            {
+                CurrentFileIndex = filesList.IndexOf(file) + 1,
+                TotalFiles = filesList.Count,
+                CurrentFileName = file.StoredPath,
+                CurrentFolder = file.FullPath,
+                Process = "Extracting"
+            });
+            
             var entry = archive.GetEntry(file.StoredPath);
             if (entry == null)
                 throw new FileNotFoundException("The requested archive entry was not found.", file.StoredPath);
