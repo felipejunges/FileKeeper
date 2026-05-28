@@ -93,6 +93,9 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
 
     private async Task DeleteFilesAsync(List<FileToDelete> filesToDelete, CancellationToken token)
     {
+        if (!filesToDelete.Any())
+            return;
+        
         filesToDelete.ForEach(f => _logger.LogInformation("Batch deleting file {File}", f.StoredPath));
         
         await _snapshotService.DeleteFilesAsync(filesToDelete, token);

@@ -125,22 +125,36 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
         _snapshotService
             .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(index);
+        
+        List<FileToDelete>? capturedDeletedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.DeleteFilesAsync(It.IsAny<IEnumerable<FileToDelete>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToDelete>, CancellationToken>((files, _) =>
+            {
+                capturedDeletedFiles = files?.ToList();
+            });
 
         // Act
         var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
 
         // Assert
+        var filesDeleted = 2;
+        
         Assert.False(result.IsError);
 
         _snapshotService.Verify(v =>
             v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Once);
 
         _snapshotService.Verify(v =>
-            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Once);
+        
+        Assert.NotNull(capturedDeletedFiles);
+        Assert.Equal(filesDeleted, capturedDeletedFiles!.Count);
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldSucceed_WithNextBackup_ShouldDeleteOnlyOneFile()
+    public async Task ExecuteAsync_ShouldSucceed_WithNextBackup_ShouldDeleteTwoFiles()
     {
         // Arrange
         var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
@@ -219,17 +233,31 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
         _snapshotService
             .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(index);
+        
+        List<FileToDelete>? capturedDeletedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.DeleteFilesAsync(It.IsAny<IEnumerable<FileToDelete>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToDelete>, CancellationToken>((files, _) =>
+            {
+                capturedDeletedFiles = files?.ToList();
+            });
 
         // Act
         var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
 
         // Assert
+        var filesDeleted = 2;
+        
         Assert.False(result.IsError);
 
         _snapshotService.Verify(v =>
             v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Once);
 
         _snapshotService.Verify(v =>
-            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Once);
+        
+        Assert.NotNull(capturedDeletedFiles);
+        Assert.Equal(filesDeleted, capturedDeletedFiles!.Count);
     }
 }

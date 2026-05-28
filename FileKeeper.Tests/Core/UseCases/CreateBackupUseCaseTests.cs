@@ -1,5 +1,6 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Models.Options;
@@ -87,15 +88,26 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(index);
 
+        List<FileToSave>? capturedSavedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.AddFilesAsync(It.IsAny<IEnumerable<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToSave>, IProgress<BackupProgress>?, CancellationToken>((files, _, _) =>
+            {
+                capturedSavedFiles = files?.ToList();
+            });
+        
         _fileWrapper.ClearFiles();
         _fileWrapper.AddFile("/home/felipe/file1.txt", "Content of file 1");
         _fileWrapper.AddFile("/home/felipe/file2.txt", "Content of file 2");
         _fileWrapper.AddFile("/home/felipe/file3.txt", "Content of file 3");
-
+        
         // Act
         var result = await _sut.ExecuteAsync(null, CancellationToken.None);
 
         // Assert
+        var filesCompressed = 3;
+        
         Assert.False(result.IsError);
         Assert.Equal(3, result.Value.FileCount);
 
@@ -104,8 +116,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(3));
+                v.AddFilesAsync(It.IsAny<List<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        
+        Assert.NotNull(capturedSavedFiles);
+        Assert.Equal(filesCompressed, capturedSavedFiles!.Count);
     }
 
     [Fact]
@@ -123,6 +138,15 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         _snapshotService
             .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(index);
+        
+        List<FileToSave>? capturedSavedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.AddFilesAsync(It.IsAny<IEnumerable<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToSave>, IProgress<BackupProgress>?, CancellationToken>((files, _, _) =>
+            {
+                capturedSavedFiles = files?.ToList();
+            });
 
         _fileWrapper.ClearFiles();
         _fileWrapper.AddFile("/home/felipe/file1.txt", "Content of file 1");
@@ -143,8 +167,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(filesCompressed));
+                v.AddFilesAsync(It.IsAny<List<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        
+        Assert.NotNull(capturedSavedFiles);
+        Assert.Equal(filesCompressed, capturedSavedFiles!.Count);
     }
 
     [Fact]
@@ -162,6 +189,15 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         _snapshotService
             .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(index);
+        
+        List<FileToSave>? capturedSavedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.AddFilesAsync(It.IsAny<IEnumerable<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToSave>, IProgress<BackupProgress>?, CancellationToken>((files, _, _) =>
+            {
+                capturedSavedFiles = files?.ToList();
+            });
 
         _fileWrapper.ClearFiles();
         _fileWrapper.AddFile("/home/felipe/img/file1.txt", "Content of file 1");
@@ -184,8 +220,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(filesCompressed));
+                v.AddFilesAsync(It.IsAny<List<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        
+        Assert.NotNull(capturedSavedFiles);
+        Assert.Equal(filesCompressed, capturedSavedFiles!.Count);
     }
 
     [Fact]
@@ -231,6 +270,15 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         _snapshotService
             .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(index);
+        
+        List<FileToSave>? capturedSavedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.AddFilesAsync(It.IsAny<IEnumerable<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToSave>, IProgress<BackupProgress>?, CancellationToken>((files, _, _) =>
+            {
+                capturedSavedFiles = files?.ToList();
+            });
 
         _fileWrapper.ClearFiles();
         _fileWrapper.AddFile("/home/felipe/file1.txt", "Content of file 1");
@@ -256,8 +304,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<FileToSave>(),  It.IsAny<CancellationToken>()),
-            Times.Exactly(filesCompressed));
+                v.AddFilesAsync(It.IsAny<List<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        
+        Assert.NotNull(capturedSavedFiles);
+        Assert.Equal(filesCompressed, capturedSavedFiles!.Count);
     }
 
     [Fact]
@@ -303,6 +354,15 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
         _snapshotService
             .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(index);
+        
+        List<FileToSave>? capturedSavedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.AddFilesAsync(It.IsAny<IEnumerable<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToSave>, IProgress<BackupProgress>?, CancellationToken>((files, _, _) =>
+            {
+                capturedSavedFiles = files?.ToList();
+            });
 
         _fileWrapper.ClearFiles();
         _fileWrapper.AddFile("/home/felipe/file1.txt", "Content of file 1");
@@ -334,8 +394,11 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(filesCompressed));
+                v.AddFilesAsync(It.IsAny<List<FileToSave>>(), It.IsAny<IProgress<BackupProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        
+        Assert.NotNull(capturedSavedFiles);
+        Assert.Equal(filesCompressed, capturedSavedFiles!.Count);
     }
 
     [Fact]
