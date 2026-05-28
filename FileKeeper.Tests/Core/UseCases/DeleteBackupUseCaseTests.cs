@@ -1,6 +1,6 @@
 using ErrorOr;
-using FileKeeper.Core.Interfaces.Repositories;
-using FileKeeper.Core.Interfaces.Wrappers;
+using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.UseCases;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,17 +12,14 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
 {
     private readonly DeleteBackupUseCase _sut;
 
-    private readonly Mock<ISnapshotRepository> _snapshotRepository;
-    private readonly Mock<IFileWrapper> _fileWrapper;
+    private readonly Mock<ISnapshotService> _snapshotService;
 
     public DeleteBackupUseCaseTests()
     {
-        _snapshotRepository = new Mock<ISnapshotRepository>();
-        _fileWrapper = new Mock<IFileWrapper>();
+        _snapshotService = new Mock<ISnapshotService>();
 
         _sut = new DeleteBackupUseCase(
-            _snapshotRepository.Object,
-            _fileWrapper.Object,
+            _snapshotService.Object,
             new NullLogger<DeleteBackupUseCase>());
     }
 
@@ -37,118 +34,127 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldFail_IfGetSnapshotFails()
+    public async Task ExecuteAsync_ShouldFail_IfGetIndexFails()
     {
         // Arrange
         var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
 
-        _snapshotRepository
-            .Setup(s => s.GetSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Error.Failure(description: "Error getting snapshot"));
+        _snapshotService
+            .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Error.Failure(description: "Error getting snapshots index"));
 
         // Act
         var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsError);
-        Assert.Equal("Error getting snapshot", result.FirstError.Description);
+        Assert.Equal("Error getting snapshots index", result.FirstError.Description);
+
+        _snapshotService.Verify(v =>
+            v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        _snapshotService.Verify(v =>
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldFail_IfGetNextSnapshotFails()
+    public async Task ExecuteAsync_ShouldFail_IfIndexDoesntContainSnapshot()
     {
         // Arrange
         var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
 
-        var snapShot = new Snapshot(snapshotId, DateTime.UtcNow, []);
+        var index = new SnapshotIndex(
+            snapshots: new List<Snapshot>());
 
-        _snapshotRepository
-            .Setup(s => s.GetSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(snapShot);
-
-        _snapshotRepository
-            .Setup(s => s.GetNextSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Error.Failure(description: "Error getting next snapshot"));
+        _snapshotService
+            .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(index);
 
         // Act
         var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsError);
-        Assert.Equal("Error getting next snapshot", result.FirstError.Description);
+        Assert.Equal($"Snapshot {snapshotId} doesn't exist.", result.FirstError.Description);
+
+        _snapshotService.Verify(v =>
+            v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        _snapshotService.Verify(v =>
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldSucceed_WhenNextBackupNotFound()
+    public async Task ExecuteAsync_ShouldSucceed_WhenNoNextBackup_ShouldDeleteAllFiles()
     {
         // Arrange
         var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
+        var snapshotName = snapshotId.ToString("N")[..12];
 
-        var snapShot = new Snapshot(snapshotId, DateTime.UtcNow, []);
-
-        _snapshotRepository
-            .Setup(s => s.GetSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(snapShot);
-
-        _snapshotRepository
-            .Setup(s => s.GetNextSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Error.NotFound(description: "No next backup found"));
-
-        // Act
-        var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
-
-        // Assert
-        Assert.False(result.IsError);
-
-        _snapshotRepository
-            .Verify(s => s.DeleteSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_ShouldSucceed_WhenNoNextBackup_SnapshotContainOneFile()
-    {
-        // Arrange
-        var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
-
-        var snapShot = new Snapshot(
+        var snapshot = new Snapshot(
             snapshotId,
             DateTime.UtcNow,
-            [
+            new List<FileEntry>()
+            {
                 new FileEntry(
-                    Guid.NewGuid(),
-                    "/home/felipe",
-                    "file1.txt",
-                    "/home/backup/abc",
-                    "abcdefgh",
-                    1000,
-                    DateTime.Now.AddMinutes(-3),
-                    "C2ECB30300D8"
-                )
-            ]);
+                    id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
+                    relativePath: "file1.txt",
+                    storedPath: "abcd/abcdefghijkl1",
+                    "k8vfVcLU9Ts4e9YMT9IEpukdcL877GL+UIiRWC+Qi40=", // same hash as '"Content of file 1"'
+                    size: 100,
+                    lastModified: DateTime.UtcNow,
+                    snapshotName),
+                new FileEntry(
+                    id: Guid.CreateVersion7(),
+                    sourceDirectory: "/home/felipe",
+                    relativePath: "file2.txt",
+                    storedPath: "abcd/abcdefghijkl2",
+                    "UqQm+33HyANVVbmXykthdNWI1PIAFWLuGjt9oHeVsp0=", // same hash as '"Content of file 2"'
+                    size: 100,
+                    lastModified: DateTime.UtcNow,
+                    snapshotName)
+            });
 
-        _snapshotRepository
-            .Setup(s => s.GetSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(snapShot);
+        var index = new SnapshotIndex(
+            snapshots: new List<Snapshot>()
+            {
+                snapshot
+            });
 
-        _snapshotRepository
-            .Setup(s => s.GetNextSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Error.NotFound(description: "No next backup found"));
+        _snapshotService
+            .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(index);
+        
+        List<FileToDelete>? capturedDeletedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.DeleteFilesAsync(It.IsAny<IEnumerable<FileToDelete>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToDelete>, CancellationToken>((files, _) =>
+            {
+                capturedDeletedFiles = files?.ToList();
+            });
 
         // Act
         var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
 
         // Assert
+        var filesDeleted = 2;
+        
         Assert.False(result.IsError);
 
-        _fileWrapper
-            .Verify(f => f.DeleteFile("/home/backup/abc"), Times.Once);
+        _snapshotService.Verify(v =>
+            v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Once);
 
-        _snapshotRepository
-            .Verify(s => s.DeleteSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()), Times.Once);
+        _snapshotService.Verify(v =>
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Once);
+        
+        Assert.NotNull(capturedDeletedFiles);
+        Assert.Equal(filesDeleted, capturedDeletedFiles!.Count);
     }
-    
+
     [Fact]
-    public async Task ExecuteAsync_ShouldSucceed_WithNextBackup_OneFileForEachType()
+    public async Task ExecuteAsync_ShouldSucceed_WithNextBackup_ShouldDeleteTwoFiles()
     {
         // Arrange
         var snapshotId = new Guid("C2ECB303-00D8-4AA4-83C9-ADDCBABBEEE8");
@@ -189,7 +195,7 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
                     "c2ecb30300d8"
                 )
             ]);
-        
+
         var nextSnapshot = new Snapshot(
             nextSnapshotId,
             DateTime.UtcNow,
@@ -217,28 +223,41 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
                 // no third file, will be deleted
             ]);
 
-        _snapshotRepository
-            .Setup(s => s.GetSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(snapshot);
+        var index = new SnapshotIndex(
+            snapshots: new List<Snapshot>()
+            {
+                snapshot,
+                nextSnapshot
+            });
 
-        _snapshotRepository
-            .Setup(s => s.GetNextSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(nextSnapshot);
+        _snapshotService
+            .Setup(s => s.GetIndexAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(index);
+        
+        List<FileToDelete>? capturedDeletedFiles = null;
+
+        _snapshotService
+            .Setup(v => v.DeleteFilesAsync(It.IsAny<IEnumerable<FileToDelete>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FileToDelete>, CancellationToken>((files, _) =>
+            {
+                capturedDeletedFiles = files?.ToList();
+            });
 
         // Act
         var result = await _sut.ExecuteAsync(snapshotId, null, CancellationToken.None);
 
         // Assert
+        var filesDeleted = 2;
+        
         Assert.False(result.IsError);
 
-        _fileWrapper.Verify(f => f.DeleteFile("/home/backup/abc1"), Times.Never);
-        _fileWrapper.Verify(f => f.DeleteFile("/home/backup/abc2"), Times.Once);
-        _fileWrapper.Verify(f => f.DeleteFile("/home/backup/abc3"), Times.Once);
+        _snapshotService.Verify(v =>
+            v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Once);
 
-        _snapshotRepository
-            .Verify(s => s.DeleteSnapshotAsync(snapshotId, It.IsAny<CancellationToken>()), Times.Once);
+        _snapshotService.Verify(v =>
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Once);
         
-        _snapshotRepository
-            .Verify(s => s.UpdateSnapshotAsync(nextSnapshot, It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(capturedDeletedFiles);
+        Assert.Equal(filesDeleted, capturedDeletedFiles!.Count);
     }
 }

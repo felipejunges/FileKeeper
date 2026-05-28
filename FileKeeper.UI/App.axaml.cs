@@ -43,7 +43,7 @@ public partial class App : Application
         var userSettingsPath = GetUserSettingsPath();
 
         _host = Host.CreateDefaultBuilder()
-            .ConfigureAppConfiguration((context, config) =>
+            .ConfigureAppConfiguration((_, config) =>
             {
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
                 config.AddJsonFile(userSettingsPath, optional: true, reloadOnChange: true);
@@ -106,13 +106,13 @@ public partial class App : Application
 
         // Services
         services
-            .AddSingleton<ICompressedEncryptedFileWriter, CompressedEncryptedFileWriter>()
             .AddSingleton<IFolderPickerService, AvaloniaFolderPickerService>()
+            .AddSingleton<ISnapshotService, SnapshotService>()
             .AddSingleton<IUserSettingsWriter>(_ => new UserSettingsWriter(userSettingsPath));
 
         // Repositories
         services
-            .AddSingleton<ISnapshotRepository, SnapshotRepository>();
+            .AddTransient<IFileStoreRepository, ZipFileStoreRepository>();
 
         // Wrappers
         services

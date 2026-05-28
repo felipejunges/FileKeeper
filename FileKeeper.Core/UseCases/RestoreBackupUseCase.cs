@@ -1,9 +1,9 @@
 using ErrorOr;
-using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,24 +12,22 @@ namespace FileKeeper.Core.UseCases;
 
 public class RestoreBackupUseCase : IRestoreBackupUseCase
 {
-    private readonly ISnapshotRepository _snapshotRepository;
+    private readonly ISnapshotService _snapshotService;
     private readonly IFileWrapper _fileWrapper;
-    private readonly ICompressedEncryptedFileWriter _compressedEncryptedFileWriter;
     private readonly IOptionsMonitor<UserSettingsOptions> _userSettingsOptions;
     private readonly ILogger<DeleteBackupUseCase> _logger;
 
     public RestoreBackupUseCase(
-        ISnapshotRepository snapshotRepository,
+        ISnapshotService snapshotService,
         IFileWrapper fileWrapper,
-        ICompressedEncryptedFileWriter compressedEncryptedFileWriter,
         IOptionsMonitor<UserSettingsOptions> userSettingsOptions,
         ILogger<DeleteBackupUseCase> logger)
     {
-        _snapshotRepository = snapshotRepository;
+        _snapshotService = snapshotService;
         _fileWrapper = fileWrapper;
-        _compressedEncryptedFileWriter = compressedEncryptedFileWriter;
         _userSettingsOptions = userSettingsOptions;
         _logger = logger;
+        _snapshotService = snapshotService;
     }
 
     public async Task<ErrorOr<Success>> ExecuteAsync(Guid snapshotId, string destinationFolder, IProgress<BackupProgress>? progress,
@@ -38,16 +36,25 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         _logger.LogInformation("Starting backup {SnapshotID} restoration process.", snapshotId);
         
         var configuration = _userSettingsOptions.CurrentValue;
-        var storageDir = Path.Combine(configuration.StorageDirectory, "data");
+        //var storageDir = Path.Combine(configuration.StorageDirectory, "data");
 
-        var snapshotResult = await _snapshotRepository.GetSnapshotAsync(snapshotId, token);
-        if (snapshotResult.IsError)
-            return snapshotResult.Errors;
+        var snapshotIndexResult = await _snapshotService.GetIndexAsync(token);
+        if (snapshotIndexResult.IsError)
+            return snapshotIndexResult.Errors;
 
-        var snapshot = snapshotResult.Value;
+        var snapshotIndex = snapshotIndexResult.Value;
         
+        var snapshot = snapshotIndex.Snapshots.FirstOrDefault(s => s.Id == snapshotId);
+        if (snapshot is null)
+        {
+            _logger.LogInformation("Snapshot {SnapshotId} doesn't exist.", snapshotId);
+            return Error.NotFound(description: $"Snapshot {snapshotId} doesn't exist.");
+        }
+
         var currentFileIndex = 0;
         var totalFiles = snapshot.Files.Count;
+
+        var filesToRestore = new List<FileToRestore>();
 
         foreach (var file in snapshot.Files)
         {
@@ -55,16 +62,15 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
 
             currentFileIndex++;
             
-            progress?.Report(new BackupProgress
+            progress?.Report(new PercentageBackupProgress()
             {
                 CurrentFileIndex = currentFileIndex,
                 TotalFiles = totalFiles,
                 CurrentFileName = file.RelativePath,
-                CurrentFolder = file.SourceDirectory
+                CurrentFolder = file.SourceDirectory,
+                Process = "Analysing"
             });
 
-            var fullFilePath = Path.Combine(storageDir, file.StoredPath);
-            
             var outputFilePath = Path.Combine(
                 destinationFolder,
                 file.SourceDirectory.TrimStart(Path.DirectorySeparatorChar),
@@ -74,16 +80,15 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
             
             _logger.LogInformation(
                 "Restoring file {FullFilePath} to {OutputFilePath}",
-                fullFilePath,
+                file.StoredPath,
                 outputFilePath);
 
             _fileWrapper.CreateDirectoryIfNotExists(destinationWithRelativeFolder!);
 
-            await _compressedEncryptedFileWriter.DecompressAndDecryptFileAsync(
-                fullFilePath,
-                outputFilePath,
-                token);
+            filesToRestore.Add(new FileToRestore(outputFilePath, file.StoredPath));
         }
+        
+        await _snapshotService.RestoreFilesAsync(filesToRestore, progress, token);
 
         if (token.IsCancellationRequested)
             return Error.Unexpected(description: "Operation cancelled");
