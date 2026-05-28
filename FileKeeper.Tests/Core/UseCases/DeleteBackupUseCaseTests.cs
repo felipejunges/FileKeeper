@@ -1,5 +1,6 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.UseCases;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -53,7 +54,7 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
             v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Never);
 
         _snapshotService.Verify(v =>
-            v.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -80,7 +81,7 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
             v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Never);
 
         _snapshotService.Verify(v =>
-            v.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -135,7 +136,7 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
             v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Once);
 
         _snapshotService.Verify(v =>
-            v.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -229,12 +230,6 @@ public class DeleteBackupUseCaseTests : IAsyncLifetime
             v.SaveIndexAsync(It.IsAny<SnapshotIndex>(), It.IsAny<CancellationToken>()), Times.Once);
 
         _snapshotService.Verify(v =>
-            v.DeleteFileAsync("/home/backup/abc1", It.IsAny<CancellationToken>()), Times.Never);
-
-        _snapshotService.Verify(v =>
-            v.DeleteFileAsync("/home/backup/abc2", It.IsAny<CancellationToken>()), Times.Once);
-
-        _snapshotService.Verify(v =>
-            v.DeleteFileAsync("/home/backup/abc3", It.IsAny<CancellationToken>()), Times.Once);
+            v.DeleteFilesAsync(It.IsAny<List<FileToDelete>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

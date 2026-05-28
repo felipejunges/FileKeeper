@@ -19,5 +19,9 @@ public interface ISnapshotService
     
     Task<ErrorOr<Success>> RestoreFilesAsync(IEnumerable<FileToRestore> files, IProgress<BackupProgress>? progress, CancellationToken token);
     
-    Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token);
+    Task<ErrorOr<Success>> DeleteFileAsync(FileToDelete file, CancellationToken token);
+
+    Task<ErrorOr<Success>> DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token);
+
+    Task<ErrorOr<Success>> RemoveEmptyDirectoriesAsync(CancellationToken token);
 }

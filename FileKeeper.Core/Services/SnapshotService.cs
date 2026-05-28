@@ -151,21 +151,57 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public async Task<ErrorOr<Success>> DeleteFileAsync(string entryPath, CancellationToken token)
+    public async Task<ErrorOr<Success>> DeleteFileAsync(FileToDelete file, CancellationToken token)
     {
         try
         {
-            await _fileStoreRepository.DeleteFileAsync(entryPath, token);
+            await _fileStoreRepository.DeleteFileAsync(file, token);
 
             return Result.Success;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting file {EntryPath} in the repository.", entryPath);
+            _logger.LogError(ex, "Error deleting file {StoredPath} in the repository.", file.StoredPath);
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(DeleteFileAsync)}",
-                description: $"Error deleting file {entryPath} from the repository: {ex.Message}");
+                description: $"Error deleting file {file.StoredPath} from the repository: {ex.Message}");
+        }
+    }
+    
+    public async Task<ErrorOr<Success>> DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token)
+    {
+        try
+        {
+            await _fileStoreRepository.DeleteFilesAsync(files, token);
+
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting files {Files} in the repository.", files);
+            
+            return Error.Failure(
+                code: $"{nameof(SnapshotService)}.{nameof(DeleteFilesAsync)}",
+                description: $"Error deleting files from the repository: {ex.Message}");
+        }
+    }
+    
+    public async Task<ErrorOr<Success>> RemoveEmptyDirectoriesAsync(CancellationToken token)
+    {
+        try
+        {
+            await _fileStoreRepository.RemoveEmptyDirectoriesAsync(token);
+
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cleaning empty folders in the repository.");
+            
+            return Error.Failure(
+                code: $"{nameof(SnapshotService)}.{nameof(DeleteFileAsync)}",
+                description: $"Error cleaning empty folders in the repository: {ex.Message}");
         }
     }
 }

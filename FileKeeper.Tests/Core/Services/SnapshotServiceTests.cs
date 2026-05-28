@@ -182,26 +182,28 @@ public class SnapshotServiceTests
     public async Task DeleteFileAsync_WhenSuccessful_ReturnsSuccess()
     {
         // Arrange
-        _repoMock.Setup(r => r.DeleteFileAsync("entry/file.txt", It.IsAny<CancellationToken>()))
+        var fileToDelete = new FileToDelete("entry/file.txt");
+        
+        _repoMock.Setup(r => r.DeleteFileAsync(fileToDelete, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _sut.DeleteFileAsync("entry/file.txt", CancellationToken.None);
+        var result = await _sut.DeleteFileAsync(fileToDelete, CancellationToken.None);
 
         // Assert
         Assert.False(result.IsError);
-        _repoMock.Verify(r => r.DeleteFileAsync("entry/file.txt", It.IsAny<CancellationToken>()), Times.Once);
+        _repoMock.Verify(r => r.DeleteFileAsync(fileToDelete, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task DeleteFileAsync_WhenRepositoryThrows_ReturnsError()
     {
         // Arrange
-        _repoMock.Setup(r => r.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _repoMock.Setup(r => r.DeleteFileAsync(It.IsAny<FileToDelete>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new IOException("delete"));
 
         // Act
-        var result = await _sut.DeleteFileAsync("entry", CancellationToken.None);
+        var result = await _sut.DeleteFileAsync(new FileToDelete("entry"), CancellationToken.None);
 
         // Assert
         Assert.True(result.IsError);

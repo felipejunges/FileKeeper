@@ -12,5 +12,7 @@ public interface IFileStoreRepository
     Task ExtractFileAsync(FileToRestore file, CancellationToken token);
     Task ExtractFilesAsync(IEnumerable<FileToRestore> file, IProgress<BackupProgress>? progress, CancellationToken token);
     Task ExtractAllAsync(string destinationDirectoryPath, CancellationToken token);
-    Task DeleteFileAsync(string entryPath, CancellationToken token);
+    Task DeleteFileAsync(FileToDelete file, CancellationToken token);
+    Task DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token);
+    Task RemoveEmptyDirectoriesAsync(CancellationToken token);
 }

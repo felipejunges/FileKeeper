@@ -2,6 +2,7 @@ using ErrorOr;
 using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Models;
+using FileKeeper.Core.Models.DTOs;
 using Microsoft.Extensions.Logging;
 
 namespace FileKeeper.Core.UseCases;
@@ -23,13 +24,13 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
     public async Task<ErrorOr<Success>> ExecuteAsync(Guid snapshotId, IProgress<BackupProgress>? progress, CancellationToken token)
     {
         _logger.LogInformation("Starting backup deletion process.");
-        
+
         var snapshotIndexResult = await _snapshotService.GetIndexAsync(token);
         if (snapshotIndexResult.IsError)
             return snapshotIndexResult.Errors;
 
         var snapshotIndex = snapshotIndexResult.Value;
-        
+
         var snapshot = snapshotIndex.Snapshots.FirstOrDefault(s => s.Id == snapshotId);
         if (snapshot is null)
         {
@@ -39,15 +40,15 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
 
         var snapshotIx = snapshotIndex.Snapshots.IndexOf(snapshot) + 1;
         var nextSnapshot = snapshotIx < snapshotIndex.Snapshots.Count ? snapshotIndex.Snapshots[snapshotIx] : null;
-        
-        var filesToDelete = new List<string>();
-        
+
+        var filesToDelete = new List<FileToDelete>();
+
         foreach (var fileEntry in snapshot.Files)
         {
             var fullPath = Path.Combine(fileEntry.SourceDirectory, fileEntry.RelativePath);
-            
+
             // find a file entry in the next snapshot pointing to the current fileEntry
-            var fileEntryInNextSnapshot = nextSnapshot?.Files.FirstOrDefault(f => 
+            var fileEntryInNextSnapshot = nextSnapshot?.Files.FirstOrDefault(f =>
                 f.SourceDirectory == fileEntry.SourceDirectory
                 && f.RelativePath == fileEntry.RelativePath); // TODO: create compare in model
 
@@ -55,81 +56,45 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             {
                 // file does not exists in the next snapshot, so delete it
                 _logger.LogInformation("File {FilePath}: deleting, does not exists in next snapshot", fullPath);
-                
-                filesToDelete.Add(fileEntry.StoredPath);
+
+                filesToDelete.Add(new FileToDelete(fileEntry.StoredPath));
             }
             else if (fileEntryInNextSnapshot.Hash != fileEntry.Hash || fileEntryInNextSnapshot.FoundInSnapshot != snapshot.SnapshotName)
             {
                 // file exists in the next snapshot, but has a different hash or do not point to current FileEntry: delete it
                 _logger.LogInformation("File {FilePath}: deleting, exists in next snapshot but different", fullPath);
-                
-                filesToDelete.Add(fileEntry.StoredPath);
+
+                filesToDelete.Add(new FileToDelete(fileEntry.StoredPath));
             }
             else
             {
                 // file exists in the next snapshot, has the same hash and point to the current Snapshot: keep it!
                 _logger.LogInformation("File {FilePath}: skipping deletion, exists in next snapshot", fullPath);
-                
+
                 fileEntryInNextSnapshot.SetFoundInSnapshot(nextSnapshot!.SnapshotName);
             }
         }
 
-        // Delete the snaptshot
+        // Delete the snapshot
         snapshotIndex.Snapshots.Remove(snapshot);
-        
+
         await _snapshotService.SaveIndexAsync(snapshotIndex, token);
-        
+
         _logger.LogInformation("Snapshots saved, starting deleting files...");
 
-        await DeleteFilesAndCleanFoldersAsync(filesToDelete, token);
-        
+        await DeleteFilesAsync(filesToDelete, token);
+
+        await _snapshotService.RemoveEmptyDirectoriesAsync(token);
+
         _logger.LogInformation("Backup deletion process finished");
-        
+
         return Result.Success;
     }
 
-    private async Task DeleteFilesAndCleanFoldersAsync(List<string> filesToDelete, CancellationToken token)
+    private async Task DeleteFilesAsync(List<FileToDelete> filesToDelete, CancellationToken token)
     {
-        var foldersToCheck =
-            filesToDelete
-                .Select(Path.GetDirectoryName)
-                .Where(f => f != null)
-                .Distinct()
-                .Select(f => f!)
-                .ToList();
+        filesToDelete.ForEach(f => _logger.LogInformation("Batch deleting file {File}", f.StoredPath));
         
-        foreach (var fileToDelete in filesToDelete)
-        {
-            if (token.IsCancellationRequested) break;
-            
-            _logger.LogInformation("Deleting file {FilePath}.", fileToDelete);
-
-            try
-            {
-                await _snapshotService.DeleteFileAsync(fileToDelete, token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to delete file {FilePath}.", fileToDelete);
-            }
-        }
-
-        foreach (var folderToCheck in foldersToCheck)
-        {
-            if (token.IsCancellationRequested) break;
-            
-            try
-            {
-                // TODO: fazer isso no TAR:
-                //if (_fileWrapper.DirectoryExists(folderToCheck) && _fileWrapper.DirectoryIsEmpty(folderToCheck))
-                //{
-                //    _fileWrapper.DeleteDirectory(folderToCheck);
-                //}
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to delete folder {FolderPath}.", folderToCheck);
-            }
-        }
+        await _snapshotService.DeleteFilesAsync(filesToDelete, token);
     }
 }
