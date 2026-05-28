@@ -1,4 +1,5 @@
 using FileKeeper.Core.Interfaces.Repositories;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Options;
 using Microsoft.Extensions.Options;
 using System.IO.Compression;
@@ -17,25 +18,27 @@ public class ZipFileStoreRepository : IFileStoreRepository
         _userSettingsOptions = userSettingsOptions;
     }
 
-    public async Task AddFileAsync(string sourceFilePath, string entryPath, CancellationToken token)
+    public async Task AddFileAsync(FileToSave file, CancellationToken token)
     {
         await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
 
         await archive.CreateEntryFromFileAsync(
-            sourceFilePath,
-            entryPath,
+            file.FullPath,
+            file.StoredPath,
             token);
     }
 
-    public async Task AddFileAsync(IEnumerable<string> sourceFilePaths, string entryPath, CancellationToken token)
+    public async Task AddFilesAsync(IEnumerable<FileToSave> files, CancellationToken token)
     {
         await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
 
-        foreach (var sourceFilePath in sourceFilePaths)
+        foreach (var file in files)
         {
+            token.ThrowIfCancellationRequested();
+
             await archive.CreateEntryFromFileAsync(
-                sourceFilePath,
-                entryPath,
+                file.FullPath,
+                file.StoredPath,
                 token);
         }
     }
@@ -50,6 +53,9 @@ public class ZipFileStoreRepository : IFileStoreRepository
 
         await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
 
+        var existing = archive.GetEntry(entryPath);
+        existing?.Delete();
+        
         var entry = archive.CreateEntry(entryPath, CompressionLevel.Optimal);
 
         await using var destination = await entry.OpenAsync(token);
@@ -77,20 +83,36 @@ public class ZipFileStoreRepository : IFileStoreRepository
         return output;
     }
 
-    public async Task ExtractFileAsync(string entryPath, string destinationFilePath, CancellationToken token)
+    public async Task ExtractFileAsync(FileToRestore file, CancellationToken token)
     {
         await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
 
-        var entry = archive.GetEntry(entryPath);
+        var entry = archive.GetEntry(file.StoredPath);
         if (entry == null)
-            throw new FileNotFoundException("The requested archive entry was not found.", entryPath);
+            throw new FileNotFoundException("The requested archive entry was not found.", file.StoredPath);
 
-        await entry.ExtractToFileAsync(destinationFilePath, token);
+        await entry.ExtractToFileAsync(file.FullPath, token);
     }
 
-    public Task ExtractAllAsync(string destinationDirectoryPath, CancellationToken token)
+    public async Task ExtractFilesAsync(IEnumerable<FileToRestore> files, CancellationToken token)
     {
-        throw new NotImplementedException();
+        await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
+
+        foreach (var file in files)
+        {
+            var entry = archive.GetEntry(file.StoredPath);
+            if (entry == null)
+                throw new FileNotFoundException("The requested archive entry was not found.", file.StoredPath);
+
+            await entry.ExtractToFileAsync(file.FullPath, token);
+        }
+    }
+
+    public async Task ExtractAllAsync(string destinationDirectoryPath, CancellationToken token)
+    {
+        await using var archive = await ZipFile.OpenReadAsync(BackupZipPath(), token);
+
+        await archive.ExtractToDirectoryAsync(destinationDirectoryPath, true, cancellationToken: token);
     }
 
     public async Task DeleteFileAsync(string entryPath, CancellationToken token)

@@ -1,5 +1,6 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using FileKeeper.Core.Models.Options;
 using FileKeeper.Core.UseCases;
@@ -103,7 +104,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
             Times.Exactly(3));
     }
 
@@ -142,7 +143,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
             Times.Exactly(filesCompressed));
     }
 
@@ -183,7 +184,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
             Times.Exactly(filesCompressed));
     }
 
@@ -255,7 +256,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                v.AddFileAsync(It.IsAny<FileToSave>(),  It.IsAny<CancellationToken>()),
             Times.Exactly(filesCompressed));
     }
 
@@ -333,7 +334,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                v.AddFileAsync(It.IsAny<FileToSave>(), It.IsAny<CancellationToken>()),
             Times.Exactly(filesCompressed));
     }
 
@@ -414,7 +415,7 @@ public class CreateBackupUseCaseTests : IAsyncLifetime
             Times.Once());
 
         _snapshotService.Verify(v =>
-                v.AddFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                v.AddFileAsync(It.IsAny<FileToSave>(),  It.IsAny<CancellationToken>()),
             Times.Exactly(filesCompressed));
     }
 }

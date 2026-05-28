@@ -3,6 +3,7 @@ using FileKeeper.Core.Interfaces.Services;
 using FileKeeper.Core.Interfaces.UseCases;
 using FileKeeper.Core.Interfaces.Wrappers;
 using FileKeeper.Core.Models;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -53,6 +54,8 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
         var currentFileIndex = 0;
         var totalFiles = snapshot.Files.Count;
 
+        var filesToRestore = new List<FileToRestore>();
+
         foreach (var file in snapshot.Files)
         {
             if (token.IsCancellationRequested) break;
@@ -67,8 +70,6 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
                 CurrentFolder = file.SourceDirectory
             });
 
-            var fullFilePath = Path.Combine(storageDir, file.StoredPath);
-            
             var outputFilePath = Path.Combine(
                 destinationFolder,
                 file.SourceDirectory.TrimStart(Path.DirectorySeparatorChar),
@@ -78,16 +79,15 @@ public class RestoreBackupUseCase : IRestoreBackupUseCase
             
             _logger.LogInformation(
                 "Restoring file {FullFilePath} to {OutputFilePath}",
-                fullFilePath,
+                file.StoredPath,
                 outputFilePath);
 
             _fileWrapper.CreateDirectoryIfNotExists(destinationWithRelativeFolder!);
 
-            await _snapshotService.RestoreFileAsync(
-                fullFilePath,
-                outputFilePath,
-                token);
+            filesToRestore.Add(new FileToRestore(outputFilePath, file.StoredPath));
         }
+        
+        await _snapshotService.RestoreFilesAsync(filesToRestore, token);
 
         if (token.IsCancellationRequested)
             return Error.Unexpected(description: "Operation cancelled");

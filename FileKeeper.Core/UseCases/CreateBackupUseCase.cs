@@ -53,7 +53,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
         var newSnapshot = Snapshot.Create();
 
         LogSnapshotsInfo(newSnapshot, lastSnapshot);
-
+        
         foreach (var sourceDirectory in configuration.SourceDirectories)
         {
             if (token.IsCancellationRequested) break;
@@ -64,6 +64,9 @@ public class CreateBackupUseCase : ICreateBackupUseCase
 
             var currentFileIndex = 0;
             var totalFiles = filesOnDisk.Length;
+
+            var filesToSave = new List<FileToSave>();
+            var filesToKeep = new List<FileEntry>();
 
             foreach (var fileOnDisk in filesOnDisk)
             {
@@ -85,8 +88,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                     continue;
                 }
 
-                var storeFile = false;
-
                 var fileToSaveResult = await CreateFileToSaveAsync(fileOnDisk, sourceDirectory, token);
                 if (fileToSaveResult.IsError)
                     continue;
@@ -101,7 +102,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 {
                     // Is a new file: we need to add it to the data structure
                     fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
-                    storeFile = true;
+                    filesToSave.Add(fileToSave);
 
                     _logger.LogInformation("Processing '{FilePath}': new file", fileOnDisk);
                     _logger.LogDebug("New file hash: {NewHash}", fileToSave.Hash);
@@ -110,7 +111,7 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 {
                     // File exists, but hash is different: store its data structure
                     fileToSave.UpdateFoundIn(newSnapshot.SnapshotName);
-                    storeFile = true;
+                    filesToSave.Add(fileToSave);
 
                     _logger.LogInformation("Processing '{FilePath}': file changed", fileOnDisk);
                     _logger.LogTrace("Existing file hash: {ExistingHash}, New file hash: {NewHash}", existingFile.Hash, fileToSave.Hash);
@@ -118,34 +119,32 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 else
                 {
                     // File exists and hash is the same: we can reuse the stored file from the last snapshot
+                    filesToKeep.Add(existingFile);
 
                     _logger.LogInformation("Processing '{FilePath}': file unchanged", fileOnDisk);
                 }
-
-                if (token.IsCancellationRequested) break;
-
-                if (storeFile)
-                {
-                    var storeFileResult = await StoreFileAsync(configuration, fileToSave, token);
-
-                    if (!storeFileResult.IsError)
-                    {
-                        newSnapshot.AddFile(
-                            FileEntry.Create(
-                                sourceDirectory,
-                                fileToSave.RelativePath,
-                                fileToSave.StoredPath,
-                                fileToSave.Hash,
-                                fileToSave.Size,
-                                fileToSave.LastModified,
-                                fileToSave.FoundInSnapshot));
-                    }
-                }
-                else if (existingFile != null)
-                {
-                    newSnapshot.AddFile(existingFile);
-                }
             }
+
+            foreach (var fileToSave in filesToSave)
+            {
+                newSnapshot.AddFile(
+                    FileEntry.Create(
+                        sourceDirectory,
+                        fileToSave.RelativePath,
+                        fileToSave.StoredPath,
+                        fileToSave.Hash,
+                        fileToSave.Size,
+                        fileToSave.LastModified,
+                        fileToSave.FoundInSnapshot));
+            }
+
+            foreach (var fileToKeep in filesToKeep)
+            {
+                newSnapshot.AddFile(fileToKeep);
+            }
+
+            await _snapshotService.AddFilesAsync(filesToSave, token); // TODO: what if this fails??
+            // TODO: idea: return de list of success, and add THEM to the snapshot
         }
 
         if (token.IsCancellationRequested)
@@ -171,19 +170,6 @@ public class CreateBackupUseCase : ICreateBackupUseCase
                 lastSnapshot.CreatedAtUtc);
         else
             _logger.LogInformation("No previous snapshot found. This will be the first backup.");
-    }
-
-    private async Task<ErrorOr<Success>> StoreFileAsync(UserSettingsOptions configuration, FileToSave fileToSave, CancellationToken token)
-    {
-        var storeFileResult = await _snapshotService.AddFileAsync(
-            fileToSave.FullPath,
-            fileToSave.StoredPath,
-            token);
-
-        if (storeFileResult.IsError)
-            return storeFileResult.Errors;
-
-        return Result.Success;
     }
 
     private async Task<ErrorOr<FileToSave>> CreateFileToSaveAsync(string fileOnDisk, string sourceDirectory, CancellationToken token)

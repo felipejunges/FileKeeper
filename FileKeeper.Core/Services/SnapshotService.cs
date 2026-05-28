@@ -1,6 +1,7 @@
 using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Interfaces.Services;
+using FileKeeper.Core.Models.DTOs;
 using FileKeeper.Core.Models.Entities;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -40,11 +41,8 @@ public class SnapshotService : ISnapshotService
 
             return model ?? SnapshotIndex.Empty();
         }
-        catch (FileNotFoundException ex)
+        catch (FileNotFoundException)
         {
-            _logger.LogWarning(ex, "Tar file not found");
-
-            //return Error.NotFound();
             return SnapshotIndex.Empty();
         }
         catch (Exception ex)
@@ -80,39 +78,75 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public async Task<ErrorOr<Success>> AddFileAsync(string sourceFilePath, string entryPath, CancellationToken token)
+    public async Task<ErrorOr<Success>> AddFileAsync(FileToSave file, CancellationToken token)
     {
         try
         {
-            await _fileStoreRepository.AddFileAsync(sourceFilePath, entryPath, token);
+            await _fileStoreRepository.AddFileAsync(file, token);
 
             return Result.Success;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding file {SourceFilePath} to the repository.", sourceFilePath);
+            _logger.LogError(ex, "Error adding file {SourceFilePath} to the repository.", file.FullPath);
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(AddFileAsync)}",
-                description: $"Error adding file {sourceFilePath} to the repository: {ex.Message}");
+                description: $"Error adding file {file.FullPath} to the repository: {ex.Message}");
         }
     }
 
-    public async Task<ErrorOr<Success>> RestoreFileAsync(string entryPath, string outputFilePath, CancellationToken token)
+    public async Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, CancellationToken token)
     {
         try
         {
-            await _fileStoreRepository.ExtractFileAsync(entryPath, outputFilePath, token);
+            await _fileStoreRepository.AddFilesAsync(files, token);
 
             return Result.Success;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error restoring file {EntryPath} from the repository.", entryPath);
+            _logger.LogError(ex, "Error adding file list {Files} to the repository.", files);
+            
+            return Error.Failure(
+                code: $"{nameof(SnapshotService)}.{nameof(AddFilesAsync)}",
+                description: $"Error adding file list to the repository: {ex.Message}");
+        }
+    }
+
+    public async Task<ErrorOr<Success>> RestoreFileAsync(FileToRestore file, CancellationToken token)
+    {
+        try
+        {
+            await _fileStoreRepository.ExtractFileAsync(file, token);
+
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restoring file {FullPath} from the repository.", file.FullPath);
             
             return Error.Failure(
                 code: $"{nameof(SnapshotService)}.{nameof(RestoreFileAsync)}",
-                description: $"Error restoring file {entryPath} from the repository: {ex.Message}");
+                description: $"Error restoring file {file.FullPath} from the repository: {ex.Message}");
+        }
+    }
+
+    public async Task<ErrorOr<Success>> RestoreFilesAsync(IEnumerable<FileToRestore> files, CancellationToken token)
+    {
+        try
+        {
+            await _fileStoreRepository.ExtractFilesAsync(files, token);
+
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restoring file list {Files} from the repository.", files);
+            
+            return Error.Failure(
+                code: $"{nameof(SnapshotService)}.{nameof(RestoreFileAsync)}",
+                description: $"Error restoring file list from the repository: {ex.Message}");
         }
     }
 
