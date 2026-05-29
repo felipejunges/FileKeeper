@@ -79,40 +79,14 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public async Task<ErrorOr<Success>> AddFileAsync(FileToSave file, CancellationToken token)
+    public Task<ErrorOr<Success>> AddFileAsync(FileToSave file, CancellationToken token)
     {
-        try
-        {
-            await _fileStoreRepository.AddFileAsync(file, token);
-
-            return Result.Success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error adding file {SourceFilePath} to the repository.", file.FullPath);
-            
-            return Error.Failure(
-                code: $"{nameof(SnapshotService)}.{nameof(AddFileAsync)}",
-                description: $"Error adding file {file.FullPath} to the repository: {ex.Message}");
-        }
+        return _fileStoreRepository.AddFileAsync(file, token);
     }
 
-    public async Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token)
+    public Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token)
     {
-        try
-        {
-            await _fileStoreRepository.AddFilesAsync(files, progress, token);
-
-            return Result.Success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error adding file list {Files} to the repository.", files);
-            
-            return Error.Failure(
-                code: $"{nameof(SnapshotService)}.{nameof(AddFilesAsync)}",
-                description: $"Error adding file list to the repository: {ex.Message}");
-        }
+        return _fileStoreRepository.AddFilesAsync(files, progress, token);
     }
 
     public async Task<ErrorOr<Success>> RestoreFileAsync(FileToRestore file, CancellationToken token)
@@ -151,42 +125,16 @@ public class SnapshotService : ISnapshotService
         }
     }
 
-    public async Task<ErrorOr<Success>> DeleteFileAsync(FileToDelete file, CancellationToken token)
+    public Task<ErrorOr<Deleted>> DeleteFileAsync(FileToDelete file, CancellationToken token)
     {
-        try
-        {
-            await _fileStoreRepository.DeleteFileAsync(file, token);
-
-            return Result.Success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting file {StoredPath} in the repository.", file.StoredPath);
-            
-            return Error.Failure(
-                code: $"{nameof(SnapshotService)}.{nameof(DeleteFileAsync)}",
-                description: $"Error deleting file {file.StoredPath} from the repository: {ex.Message}");
-        }
+        return _fileStoreRepository.DeleteFileAsync(file, token);
     }
-    
-    public async Task<ErrorOr<Success>> DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token)
+
+    public Task<ErrorOr<Deleted>> DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token)
     {
-        try
-        {
-            await _fileStoreRepository.DeleteFilesAsync(files, token);
-
-            return Result.Success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting files {Files} in the repository.", files);
-            
-            return Error.Failure(
-                code: $"{nameof(SnapshotService)}.{nameof(DeleteFilesAsync)}",
-                description: $"Error deleting files from the repository: {ex.Message}");
-        }
+        return _fileStoreRepository.DeleteFilesAsync(files, token);
     }
-    
+
     public async Task<ErrorOr<Success>> RemoveEmptyDirectoriesAsync(CancellationToken token)
     {
         try

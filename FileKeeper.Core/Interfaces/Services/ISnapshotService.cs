@@ -22,9 +22,9 @@ public interface ISnapshotService
     Task<ErrorOr<Success>> RestoreFilesAsync(IEnumerable<FileToRestore> files, IProgress<BackupProgress>? progress, CancellationToken token);
     
     [Obsolete("Use the List version", true)]
-    Task<ErrorOr<Success>> DeleteFileAsync(FileToDelete file, CancellationToken token);
+    Task<ErrorOr<Deleted>> DeleteFileAsync(FileToDelete file, CancellationToken token);
 
-    Task<ErrorOr<Success>> DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token);
+    Task<ErrorOr<Deleted>> DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token);
 
     Task<ErrorOr<Success>> RemoveEmptyDirectoriesAsync(CancellationToken token);
 }

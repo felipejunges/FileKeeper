@@ -57,14 +57,14 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
                 // file does not exists in the next snapshot, so delete it
                 _logger.LogInformation("File {FilePath}: deleting, does not exists in next snapshot", fullPath);
 
-                filesToDelete.Add(new FileToDelete(fileEntry.StoredPath));
+                filesToDelete.Add(new FileToDelete(fileEntry.RelativePath, fileEntry.StoredPath));
             }
             else if (fileEntryInNextSnapshot.Hash != fileEntry.Hash || fileEntryInNextSnapshot.FoundInSnapshot != snapshot.SnapshotName)
             {
                 // file exists in the next snapshot, but has a different hash or do not point to current FileEntry: delete it
                 _logger.LogInformation("File {FilePath}: deleting, exists in next snapshot but different", fullPath);
 
-                filesToDelete.Add(new FileToDelete(fileEntry.StoredPath));
+                filesToDelete.Add(new FileToDelete(fileEntry.RelativePath, fileEntry.StoredPath));
             }
             else
             {

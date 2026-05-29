@@ -1,3 +1,4 @@
+using ErrorOr;
 using FileKeeper.Core.Interfaces.Repositories;
 using FileKeeper.Core.Models;
 using FileKeeper.Core.Models.DTOs;
@@ -24,45 +25,73 @@ public class ZipFileStoreRepository : IFileStoreRepository
         _logger = logger;
     }
 
-    public async Task AddFileAsync(FileToSave file, CancellationToken token)
+    public async Task<ErrorOr<Success>> AddFileAsync(FileToSave file, CancellationToken token)
     {
-        await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
-
-        await archive.CreateEntryFromFileAsync(
-            file.FullPath,
-            file.StoredPath,
-            token);
-    }
-
-    public async Task AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token)
-    {
-        await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
-
-        var filesList = files.ToList();
-
-        foreach (var file in filesList)
+        try
         {
-            token.ThrowIfCancellationRequested();
-
-            progress?.Report(new PercentageBackupProgress()
-            {
-                CurrentFileIndex = filesList.IndexOf(file) + 1,
-                TotalFiles = filesList.Count,
-                CurrentFileName = file.RelativePath,
-                CurrentFolder = file.FullPath,
-                Process = "Zipping"
-            });
+            _logger.LogInformation("Adding file {File} to the  repository.", file.FullPath);
+            
+            await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
 
             await archive.CreateEntryFromFileAsync(
                 file.FullPath,
                 file.StoredPath,
                 token);
+            
+            return Result.Success;
         }
-
-        progress?.Report(new SimpleBackupProgress()
+        catch (Exception ex)
         {
-            Process = "Closing file"
-        });
+            _logger.LogError(ex, "Error adding file {SourceFilePath} to the repository.", file.FullPath);
+            
+            return Error.Failure(
+                code: $"{nameof(ZipFileStoreRepository)}.{nameof(AddFileAsync)}",
+                description: $"Error adding file {file.FullPath} to the repository: {ex.Message}");
+        }
+    }
+
+    public async Task<ErrorOr<Success>> AddFilesAsync(IEnumerable<FileToSave> files, IProgress<BackupProgress>? progress, CancellationToken token)
+    {
+        var currentFileName = string.Empty;
+        
+        try
+        {
+            var filesList = files.ToList();
+            
+            _logger.LogInformation("Adding batch of {Count} files to the  repository.", filesList.Count);
+            
+            await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
+
+            foreach (var file in filesList)
+            {
+                token.ThrowIfCancellationRequested();
+                
+                _logger.LogInformation("Adding file {File} to the  repository.", file.FullPath);
+                currentFileName = file.FullPath;
+
+                progress?.Report(CreatePercentageBackupProgress(filesList, file));
+
+                await archive.CreateEntryFromFileAsync(
+                    file.FullPath,
+                    file.StoredPath,
+                    token);
+            }
+
+            progress?.Report(new SimpleBackupProgress()
+            {
+                Process = "Closing file"
+            });
+            
+            return Result.Success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding file {File} from the batch list to the repository.", currentFileName);
+            
+            return Error.Failure(
+                code: $"{nameof(ZipFileStoreRepository)}.{nameof(AddFilesAsync)}",
+                description: $"Error adding file {currentFileName} to the repository: {ex.Message}");
+        }
     }
 
     public async Task AddStreamAsync(Stream sourceStream, string entryPath, CancellationToken token)
@@ -150,30 +179,64 @@ public class ZipFileStoreRepository : IFileStoreRepository
         await archive.ExtractToDirectoryAsync(destinationDirectoryPath, true, cancellationToken: token);
     }
 
-    public async Task DeleteFileAsync(FileToDelete file, CancellationToken token)
+    public async Task<ErrorOr<Deleted>> DeleteFileAsync(FileToDelete file, CancellationToken token)
     {
-        await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
-
-        var entry = archive.GetEntry(file.StoredPath);
-        if (entry == null)
-            throw new FileNotFoundException("The requested archive entry was not found.", file.StoredPath);
-
-        entry.Delete();
-    }
-
-    public async Task DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token)
-    {
-        await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
-
-        var filesList = files.ToList();
-
-        foreach (var file in filesList)
+        try
         {
+            _logger.LogInformation("Deleteing file {File} to the  repository.", file.StoredPath);
+            
+            await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
+
             var entry = archive.GetEntry(file.StoredPath);
             if (entry == null)
                 throw new FileNotFoundException("The requested archive entry was not found.", file.StoredPath);
 
             entry.Delete();
+
+            return Result.Deleted;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting file {StoredPath} in the repository.", file.StoredPath);
+            
+            return Error.Failure(
+                code: $"{nameof(ZipFileStoreRepository)}.{nameof(DeleteFileAsync)}",
+                description: $"Error deleting file {file.StoredPath} from the repository: {ex.Message}");
+        }
+    }
+
+    public async Task<ErrorOr<Deleted>> DeleteFilesAsync(IEnumerable<FileToDelete> files, CancellationToken token)
+    {
+        var currentFileName = string.Empty;
+        
+        try
+        {
+            var filesList = files.ToList();
+            
+            _logger.LogInformation("Deleting batch of {Count} files to the  repository.", filesList.Count);
+            
+            await using var archive = await ZipFile.OpenAsync(BackupZipPath(), ZipArchiveMode.Update, token);
+
+            foreach (var file in filesList)
+            {
+                currentFileName = file.StoredPath;
+                
+                var entry = archive.GetEntry(file.StoredPath);
+                if (entry == null)
+                    throw new FileNotFoundException("The requested archive entry was not found.", file.StoredPath);
+
+                entry.Delete();
+            }
+
+            return Result.Deleted;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting file {File} from the batch list to the repository.", currentFileName);
+            
+            return Error.Failure(
+                code: $"{nameof(ZipFileStoreRepository)}.{nameof(DeleteFilesAsync)}",
+                description: $"Error deleting files from the repository: {ex.Message}");
         }
     }
 
@@ -194,5 +257,17 @@ public class ZipFileStoreRepository : IFileStoreRepository
             
             directory.Delete();
         }
+    }
+    
+    private static PercentageBackupProgress CreatePercentageBackupProgress(List<FileToSave> filesList, FileToSave file)
+    {
+        return new PercentageBackupProgress()
+        {
+            CurrentFileIndex = filesList.IndexOf(file) + 1,
+            TotalFiles = filesList.Count,
+            CurrentFileName = file.RelativePath,
+            CurrentFolder = file.FullPath,
+            Process = "Zipping"
+        };
     }
 }
