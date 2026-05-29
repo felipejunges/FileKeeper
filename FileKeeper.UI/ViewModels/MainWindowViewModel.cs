@@ -20,6 +20,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ISnapshotService _snapshotService;
     private readonly ICreateBackupUseCase _createBackupUseCase;
     private readonly IRestoreBackupUseCase _restoreBackupUseCase;
+    private readonly IDeleteBackupUseCase _deleteBackupUseCase;
     private readonly IFolderPickerService _folderPickerService;
 
     [ObservableProperty] private double _backupProgress;
@@ -43,6 +44,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ISnapshotService snapshotService,
         ICreateBackupUseCase createBackupUseCase,
         IRestoreBackupUseCase restoreBackupUseCase,
+        IDeleteBackupUseCase deleteBackupUseCase,
         IFolderPickerService folderPickerService,
         SnapshotViewModel snapshotView,
         SettingsViewModel settingsView)
@@ -50,6 +52,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _snapshotService = snapshotService;
         _createBackupUseCase = createBackupUseCase;
         _restoreBackupUseCase = restoreBackupUseCase;
+        _deleteBackupUseCase = deleteBackupUseCase;
         _folderPickerService = folderPickerService;
         SnapshotView = snapshotView;
         SettingsView = settingsView;
@@ -145,6 +148,52 @@ public partial class MainWindowViewModel : ViewModelBase
         await LoadSnapshotsAsync(ct);
     }
 
+    [RelayCommand]
+    private async Task DeleteSnapshot(SnapshotDto? snapshot)
+    {
+        IsErrorVisible = false;
+
+        snapshot ??= SelectedSnapshot;
+
+        if (snapshot is null)
+        {
+            ErrorMessage = "Select a snapshot to delete.";
+            IsErrorVisible = true;
+            return;
+        }
+
+        var ct = new CancellationTokenSource().Token;
+
+        BackupProgress = 0;
+        IsBackupInProgress = true;
+        StatusMessage = "Initializing deletion...";
+
+        var progress = new Progress<BackupProgress>(report =>
+        {
+            BackupProgress = report.Percentage;
+            StatusMessage = report.Message;
+        });
+
+        var result = await _deleteBackupUseCase.ExecuteAsync(
+            snapshot.Id,
+            progress,
+            ct);
+
+        IsBackupInProgress = false;
+
+        if (result.IsError)
+        {
+            ErrorMessage = $"Failed to delete snapshot: {result.FirstError.Description}";
+            IsErrorVisible = true;
+            StatusMessage = "Delete failed.";
+            return;
+        }
+
+        StatusMessage = "Deletion completed successfully!";
+
+        await LoadSnapshotsAsync(ct);
+    }
+    
     [RelayCommand]
     private async Task RestoreSnapshot(SnapshotDto? snapshot)
     {

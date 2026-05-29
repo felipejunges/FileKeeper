@@ -42,8 +42,9 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
         var nextSnapshot = snapshotIx < snapshotIndex.Snapshots.Count ? snapshotIndex.Snapshots[snapshotIx] : null;
 
         var filesToDelete = new List<FileToDelete>();
+        var filesToCheck = snapshot.Files.Where(f => f.FoundInSnapshot == snapshot.SnapshotName).ToList();
 
-        foreach (var fileEntry in snapshot.Files)
+        foreach (var fileEntry in filesToCheck)
         {
             var fullPath = Path.Combine(fileEntry.SourceDirectory, fileEntry.RelativePath);
 
@@ -75,29 +76,31 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
             }
         }
 
-        // Delete the snapshot
+        _logger.LogInformation("Starting deleting files...");
+
+        // delete the files from the zip
+        var deleteResult = await DeleteFilesAsync(filesToDelete, token);
+        if (deleteResult.IsError)
+            return deleteResult.Errors;
+
+        await _snapshotService.RemoveEmptyDirectoriesAsync(token);
+        
         snapshotIndex.Snapshots.Remove(snapshot);
 
         await _snapshotService.SaveIndexAsync(snapshotIndex, token);
-
-        _logger.LogInformation("Snapshots saved, starting deleting files...");
-
-        await DeleteFilesAsync(filesToDelete, token);
-
-        await _snapshotService.RemoveEmptyDirectoriesAsync(token);
 
         _logger.LogInformation("Backup deletion process finished");
 
         return Result.Success;
     }
 
-    private async Task DeleteFilesAsync(List<FileToDelete> filesToDelete, CancellationToken token)
+    private async Task<ErrorOr<Success>> DeleteFilesAsync(List<FileToDelete> filesToDelete, CancellationToken token)
     {
         if (!filesToDelete.Any())
-            return;
+            return Result.Success;
         
         filesToDelete.ForEach(f => _logger.LogInformation("Batch deleting file {File}", f.StoredPath));
         
-        await _snapshotService.DeleteFilesAsync(filesToDelete, token);
+        return await _snapshotService.DeleteFilesAsync(filesToDelete, token);
     }
 }
