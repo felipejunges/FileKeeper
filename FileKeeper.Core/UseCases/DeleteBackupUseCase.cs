@@ -72,7 +72,21 @@ public class DeleteBackupUseCase : IDeleteBackupUseCase
                 // file exists in the next snapshot, has the same hash and point to the current Snapshot: keep it!
                 _logger.LogInformation("File {FilePath}: skipping deletion, exists in next snapshot", fullPath);
 
-                fileEntryInNextSnapshot.SetFoundInSnapshot(nextSnapshot!.SnapshotName);
+                // Unchanged files are carried forward without ever being "re-stamped", so more
+                // than just the immediate next snapshot may still say FoundInSnapshot == snapshot.SnapshotName.
+                // Promote all of them to the new owner, not just the immediate next one.
+                for (var laterIx = snapshotIx; laterIx < snapshotIndex.Snapshots.Count; laterIx++)
+                {
+                    var laterSnapshot = snapshotIndex.Snapshots[laterIx];
+
+                    var matchingEntries = laterSnapshot.Files.Where(f =>
+                        f.SourceDirectory == fileEntry.SourceDirectory
+                        && f.RelativePath == fileEntry.RelativePath
+                        && f.FoundInSnapshot == snapshot.SnapshotName);
+
+                    foreach (var matchingEntry in matchingEntries)
+                        matchingEntry.SetFoundInSnapshot(nextSnapshot!.SnapshotName);
+                }
             }
         }
 
