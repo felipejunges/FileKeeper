@@ -1,0 +1,135 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileKeeper.App.ViewModels"
+             x:Class="FileKeeper.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Opacity" Value="0.65"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel>
+        <!-- Save bar -->
+        <Border DockPanel.Dock="Bottom" Padding="16,10" BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <TextBlock Text="You have unsaved changes" VerticalAlignment="Center" Opacity="0.75"
+                           IsVisible="{Binding HasUnsavedChanges}" Margin="0,0,8,0"/>
+                <Button Content="Revert" Command="{Binding RevertCommand}" IsEnabled="{Binding HasUnsavedChanges}"/>
+                <Button Classes="accent" Content="Save settings" Command="{Binding SaveCommand}"
+                        IsEnabled="{Binding !Main.IsBusy}"/>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer>
+            <StackPanel Margin="16" Spacing="16" MaxWidth="900" HorizontalAlignment="Stretch">
+
+                <!-- Sources -->
+                <Border Classes="card">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel>
+                                <TextBlock Classes="section" Text="Source folders"/>
+                                <TextBlock Classes="hint" Text="Every file inside these folders is included in the snapshots."/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="Add folder…" Command="{Binding AddSourceCommand}"
+                                    VerticalAlignment="Top"/>
+                        </Grid>
+                        <TextBlock Classes="hint" Text="No source folder yet."
+                                   IsVisible="{Binding !SourceFolders.Count}"/>
+                        <ItemsControl ItemsSource="{Binding SourceFolders}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="1" Content="Remove"
+                                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveSourceCommand}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Destination -->
+                <Border Classes="card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="section" Text="Destination file"/>
+                        <TextBlock Classes="hint"
+                                   Text="A single .zip file holding every snapshot. Each snapshot only stores files that are new or changed since the previous one."/>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox Text="{Binding DestinationFile}" Watermark="/path/to/backup.zip"/>
+                            <Button Grid.Column="1" Content="Browse…" Command="{Binding BrowseDestinationCommand}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Ignored -->
+                <Border Classes="card">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel>
+                                <TextBlock Classes="section" Text="Ignored folders"/>
+                                <TextBlock Classes="hint"
+                                           Text="A full path ignores that folder. A plain name (e.g. node_modules, .git, bin) ignores every folder with that name."/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="Add folder…" Command="{Binding AddIgnoredFolderCommand}"
+                                    VerticalAlignment="Top"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox Text="{Binding NewIgnoredName}" Watermark="Folder name, e.g. node_modules">
+                                <TextBox.KeyBindings>
+                                    <KeyBinding Gesture="Enter" Command="{Binding AddIgnoredNameCommand}"/>
+                                </TextBox.KeyBindings>
+                            </TextBox>
+                            <Button Grid.Column="1" Content="Add name" Command="{Binding AddIgnoredNameCommand}"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding IgnoredFolders}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="1" Content="Remove"
+                                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveIgnoredCommand}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Max size -->
+                <Border Classes="card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="section" Text="Maximum backup size"/>
+                        <TextBlock Classes="hint"
+                                   Text="When the backup file grows beyond this size, the oldest snapshot is pruned automatically. Files it holds that are still needed are merged into the next snapshot. The latest snapshot is always kept."/>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <CheckBox Content="Limit the backup size to" IsChecked="{Binding LimitEnabled}"/>
+                            <NumericUpDown Value="{Binding MaxSizeMb}" Minimum="1" Increment="100" FormatString="0"
+                                           Width="160" IsEnabled="{Binding LimitEnabled}"/>
+                            <TextBlock Text="MB" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

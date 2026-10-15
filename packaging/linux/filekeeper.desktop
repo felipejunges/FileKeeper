@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=FileKeeper
+Comment=Incremental backups of your folders into a single zip file
+Exec=filekeeper
+Icon=filekeeper
+Terminal=false
+StartupWMClass=FileKeeper.App
+Categories=Utility;Archiving;
+Keywords=backup;restore;snapshot;zip;

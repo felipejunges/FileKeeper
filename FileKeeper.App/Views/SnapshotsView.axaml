@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileKeeper.App.ViewModels"
+             x:Class="FileKeeper.App.Views.SnapshotsView"
+             x:DataType="vm:SnapshotsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.added">
+            <Setter Property="Foreground" Value="#2E9E4F"/>
+        </Style>
+        <Style Selector="TextBlock.modified">
+            <Setter Property="Foreground" Value="#C98A12"/>
+        </Style>
+        <Style Selector="TextBlock.removed">
+            <Setter Property="Foreground" Value="#D64545"/>
+        </Style>
+        <Style Selector="Border.badge">
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,1"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="340,6,*" Margin="0,8,0,0">
+        <!-- Snapshot list -->
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+                <Button Content="Delete latest" Command="{Binding DeleteLatestCommand}"
+                        IsEnabled="{Binding !Main.IsBusy}"
+                        ToolTip.Tip="Delete the most recent snapshot"/>
+                <Button Content="Restore…" Command="{Binding RestoreSelectedCommand}"
+                        IsEnabled="{Binding !Main.IsBusy}"
+                        ToolTip.Tip="Restore every file of the selected snapshot into a folder"/>
+                <Button Content="Refresh" Command="{Binding Main.ReloadCommand}"/>
+            </StackPanel>
+
+            <Panel>
+                <TextBlock Text="No snapshots yet. Configure the settings and click “Back up now”."
+                           TextWrapping="Wrap" Opacity="0.65" Margin="8"
+                           IsVisible="{Binding !HasSnapshots}"/>
+                <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SnapshotItemViewModel">
+                            <StackPanel Spacing="3" Margin="0,4">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                    <Border Classes="badge" IsVisible="{Binding IsLatest}">
+                                        <TextBlock Text="latest" FontSize="11" Foreground="White"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding CreatedText}" Opacity="0.7" FontSize="12"/>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Classes="added" Text="{Binding AddedCount, StringFormat='+{0}'}"/>
+                                    <TextBlock Classes="modified" Text="{Binding ModifiedCount, StringFormat='~{0}'}"/>
+                                    <TextBlock Classes="removed" Text="{Binding RemovedCount, StringFormat='−{0}'}"/>
+                                    <TextBlock Opacity="0.7"
+                                               Text="{Binding FileCount, StringFormat='· {0} files'}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding MergedText}" IsVisible="{Binding HasMerged}"
+                                           FontSize="12" FontStyle="Italic" Opacity="0.7" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Panel>
+        </DockPanel>
+
+        <GridSplitter Grid.Column="1" ResizeDirection="Columns" Background="Transparent"/>
+
+        <!-- Selected snapshot -->
+        <DockPanel Grid.Column="2" IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="8,0,0,8">
+                <TextBlock Text="{Binding Selected.Title}" FontSize="18" FontWeight="SemiBold"/>
+                <WrapPanel>
+                    <TextBlock Text="{Binding Selected.CreatedText}" Margin="0,0,16,0"/>
+                    <TextBlock Margin="0,0,16,0">
+                        <Run Text="{Binding Selected.FileCount}"/>
+                        <Run Text=" files ·"/>
+                        <Run Text="{Binding Selected.TotalSizeText}"/>
+                    </TextBlock>
+                    <TextBlock Opacity="0.75">
+                        <Run Text="Stored in this snapshot:"/>
+                        <Run Text="{Binding Selected.StoredCount}"/>
+                        <Run Text=" files ·"/>
+                        <Run Text="{Binding Selected.StoredSizeText}"/>
+                    </TextBlock>
+                </WrapPanel>
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <CheckBox IsChecked="{Binding ShowAdded}">
+                        <TextBlock Classes="added" Text="{Binding Selected.AddedCount, StringFormat='Added ({0})'}"/>
+                    </CheckBox>
+                    <CheckBox IsChecked="{Binding ShowModified}">
+                        <TextBlock Classes="modified"
+                                   Text="{Binding Selected.ModifiedCount, StringFormat='Modified ({0})'}"/>
+                    </CheckBox>
+                    <CheckBox IsChecked="{Binding ShowRemoved}">
+                        <TextBlock Classes="removed"
+                                   Text="{Binding Selected.RemovedCount, StringFormat='Removed ({0})'}"/>
+                    </CheckBox>
+                </StackPanel>
+            </StackPanel>
+
+            <Panel Margin="8,0,0,8">
+                <TextBlock Text="No file was added, modified or removed in this snapshot (or all kinds are hidden)."
+                           Opacity="0.65" Margin="8" IsVisible="{Binding !Changes.Count}"/>
+                <DataGrid ItemsSource="{Binding Changes}" IsReadOnly="True" CanUserSortColumns="True"
+                          GridLinesVisibility="Horizontal" IsVisible="{Binding Changes.Count}">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="" Width="36" SortMemberPath="KindText">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:ChangeRowViewModel">
+                                    <TextBlock Text="{Binding Symbol}" Foreground="{Binding KindBrush}"
+                                               FontWeight="Bold" HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" ToolTip.Tip="{Binding KindText}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Path" Width="*" SortMemberPath="DisplayPath">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:ChangeRowViewModel">
+                                    <TextBlock Text="{Binding DisplayPath}" ToolTip.Tip="{Binding Path}"
+                                               VerticalAlignment="Center" Margin="12,0"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="Auto"
+                                            x:DataType="vm:ChangeRowViewModel"/>
+                        <DataGridTextColumn Header="Last modified" Binding="{Binding ModifiedText}" Width="Auto"
+                                            x:DataType="vm:ChangeRowViewModel"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Panel>
+        </DockPanel>
+    </Grid>
+</UserControl>

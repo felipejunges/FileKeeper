@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FileKeeper.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+        x:Class="FileKeeper.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/appicon/filekeeper.ico"
+        Width="1150" Height="720" MinWidth="760" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        Title="FileKeeper">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Padding="20,14"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="FileKeeper" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding ArchiveSummary}" Opacity="0.7"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}"/>
+                    <Button Classes="accent" Content="Back up now" Command="{Binding BackupNowCommand}"
+                            Padding="18,8"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Status bar -->
+        <Border DockPanel.Dock="Bottom" Padding="12,6"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+            <Grid ColumnDefinitions="Auto,*">
+                <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Width="120"
+                             Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <TabControl Margin="8,4,8,0">
+            <TabItem Header="Snapshots">
+                <ContentControl Content="{Binding Snapshots}"/>
+            </TabItem>
+            <TabItem Header="Files">
+                <ContentControl Content="{Binding Files}"/>
+            </TabItem>
+            <TabItem Header="Settings">
+                <ContentControl Content="{Binding Settings}"/>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

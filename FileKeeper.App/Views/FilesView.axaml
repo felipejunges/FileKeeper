@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileKeeper.App.ViewModels"
+             x:Class="FileKeeper.App.Views.FilesView"
+             x:DataType="vm:FilesViewModel">
+
+    <UserControl.Resources>
+        <StreamGeometry x:Key="FolderIcon">M2,5 C2,3.9 2.9,3 4,3 L9,3 L11,5 L20,5 C21.1,5 22,5.9 22,7 L22,18 C22,19.1 21.1,20 20,20 L4,20 C2.9,20 2,19.1 2,18 Z</StreamGeometry>
+        <StreamGeometry x:Key="FileIcon">M6,2 L14,2 L20,8 L20,20 C20,21.1 19.1,22 18,22 L6,22 C4.9,22 4,21.1 4,20 L4,4 C4,2.9 4.9,2 6,2 Z M13,3.5 L13,9 L18.5,9 Z</StreamGeometry>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="PathIcon.folder">
+            <Setter Property="Foreground" Value="#E0A526"/>
+            <Setter Property="Data" Value="{StaticResource FolderIcon}"/>
+        </Style>
+        <Style Selector="PathIcon.file">
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+            <Setter Property="Data" Value="{StaticResource FileIcon}"/>
+        </Style>
+        <Style Selector="TreeViewItem" x:DataType="vm:FolderNode">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,6,Auto,220" Margin="0,8,0,8">
+        <!-- Navigation bar -->
+        <Grid ColumnDefinitions="Auto,*,260,Auto,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+            <Button Command="{Binding GoUpCommand}" ToolTip.Tip="Up one folder" Padding="10,6">
+                <TextBlock Text="↑ Up"/>
+            </Button>
+
+            <Border Grid.Column="1" BorderThickness="1" CornerRadius="4" Padding="4,0"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Breadcrumbs}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:FolderNode">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="›" VerticalAlignment="Center" Opacity="0.5" Margin="2,0"
+                                               IsVisible="{Binding Parent, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                    <Button Content="{Binding Name}" Background="Transparent" Padding="6,4"
+                                            Command="{Binding $parent[UserControl].((vm:FilesViewModel)DataContext).NavigateToCommand}"
+                                            CommandParameter="{Binding}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <TextBox Grid.Column="2" Text="{Binding Filter}" Watermark="Search in this folder…"/>
+            <CheckBox Grid.Column="3" Content="Show deleted files" IsChecked="{Binding ShowDeleted}"/>
+            <Button Grid.Column="4" Content="Restore folder…" Padding="10,6"
+                    Command="{Binding RestoreFolderCommand}"
+                    ToolTip.Tip="Restore the latest version of every file in this folder into another folder"/>
+        </Grid>
+
+        <!-- Folder tree + folder content -->
+        <Grid Grid.Row="1" ColumnDefinitions="260,6,*">
+            <TreeView ItemsSource="{Binding RootFolders}" SelectedItem="{Binding CurrentFolder}">
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate x:DataType="vm:FolderNode" ItemsSource="{Binding Folders}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding FileCountText}"
+                                    Background="Transparent">
+                            <StackPanel.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Restore folder…" Click="OnRestoreFolderClick"/>
+                                </ContextMenu>
+                            </StackPanel.ContextMenu>
+                            <PathIcon Classes="folder" Width="14" Height="14"/>
+                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" Background="Transparent"/>
+
+            <DockPanel Grid.Column="2">
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding Summary}" Opacity="0.65" Margin="4,4,0,0"/>
+                <Panel>
+                    <TextBlock Text="Nothing here." Opacity="0.65" Margin="12"
+                               IsVisible="{Binding !Entries.Count}"/>
+                    <DataGrid x:Name="EntriesGrid" ItemsSource="{Binding Entries}"
+                              SelectedItem="{Binding SelectedEntry}" IsReadOnly="True"
+                              CanUserSortColumns="False" GridLinesVisibility="Horizontal"
+                              DoubleTapped="OnEntriesDoubleTapped" KeyDown="OnEntriesKeyDown">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu Opening="OnEntriesContextMenuOpening">
+                                <MenuItem Header="Open" Click="OnOpenEntryClick"/>
+                                <MenuItem Header="Restore folder…" Click="OnRestoreFolderClick"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Name" Width="3*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:BrowserEntryViewModel">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="10,0"
+                                                    Opacity="{Binding Opacity}" ToolTip.Tip="{Binding ToolTip}">
+                                            <Panel Width="16" Height="16" VerticalAlignment="Center">
+                                                <PathIcon Classes="folder" IsVisible="{Binding IsFolder}"/>
+                                                <PathIcon Classes="file" IsVisible="{Binding IsFile}"/>
+                                            </Panel>
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Versions" Binding="{Binding VersionsText}" Width="Auto"
+                                                x:DataType="vm:BrowserEntryViewModel"/>
+                            <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="Auto"
+                                                x:DataType="vm:BrowserEntryViewModel"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="Auto"
+                                                x:DataType="vm:BrowserEntryViewModel"/>
+                            <DataGridTextColumn Header="In snapshots" Binding="{Binding SnapshotsText}" Width="*"
+                                                x:DataType="vm:BrowserEntryViewModel"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Panel>
+            </DockPanel>
+        </Grid>
+
+        <GridSplitter Grid.Row="2" ResizeDirection="Rows" Background="Transparent"/>
+
+        <!-- Versions of the selected file -->
+        <StackPanel Grid.Row="3" Spacing="2" Margin="0,4,0,6">
+            <TextBlock Text="Versions" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Selected.DisplayPath, FallbackValue='Select a file to see all of its versions.'}"
+                       ToolTip.Tip="{Binding Selected.Path}" Opacity="0.7" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+
+        <DataGrid Grid.Row="4" ItemsSource="{Binding Selected.Versions}" IsReadOnly="True"
+                  GridLinesVisibility="Horizontal">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Version" Binding="{Binding NumberText}" Width="Auto"
+                                    x:DataType="vm:VersionRowViewModel"/>
+                <DataGridTextColumn Header="Stored in" Binding="{Binding StoredInText}" Width="Auto"
+                                    x:DataType="vm:VersionRowViewModel"/>
+                <DataGridTextColumn Header="Contained in snapshots" Binding="{Binding SnapshotsText}" Width="*"
+                                    x:DataType="vm:VersionRowViewModel"/>
+                <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="Auto"
+                                    x:DataType="vm:VersionRowViewModel"/>
+                <DataGridTextColumn Header="Last modified" Binding="{Binding ModifiedText}" Width="Auto"
+                                    x:DataType="vm:VersionRowViewModel"/>
+                <DataGridTextColumn Header="SHA-256" Binding="{Binding HashText}" Width="Auto"
+                                    FontFamily="monospace" x:DataType="vm:VersionRowViewModel"/>
+                <DataGridTemplateColumn Header="" Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:VersionRowViewModel">
+                            <Button Content="Save as…" Margin="4,2" Padding="10,2"
+                                    Command="{Binding $parent[UserControl].((vm:FilesViewModel)DataContext).ExtractVersionCommand}"
+                                    CommandParameter="{Binding}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>
