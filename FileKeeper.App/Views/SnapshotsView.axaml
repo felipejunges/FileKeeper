@@ -24,15 +24,18 @@
     <Grid ColumnDefinitions="340,6,*" Margin="0,8,0,0">
         <!-- Snapshot list -->
         <DockPanel>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <WrapPanel DockPanel.Dock="Top" ItemSpacing="8" LineSpacing="8" Margin="0,0,0,8">
                 <Button Content="Delete latest" Command="{Binding DeleteLatestCommand}"
                         IsEnabled="{Binding !Main.IsBusy}"
                         ToolTip.Tip="Delete the most recent snapshot"/>
                 <Button Content="Restore…" Command="{Binding RestoreSelectedCommand}"
                         IsEnabled="{Binding !Main.IsBusy}"
                         ToolTip.Tip="Restore every file of the selected snapshot into a folder"/>
+                <Button Content="Check integrity" Command="{Binding VerifyCommand}"
+                        IsEnabled="{Binding !Main.IsBusy}"
+                        ToolTip.Tip="Read every stored file and check it against its recorded checksum"/>
                 <Button Content="Refresh" Command="{Binding Main.ReloadCommand}"/>
-            </StackPanel>
+            </WrapPanel>
 
             <Panel>
                 <TextBlock Text="No snapshots yet. Configure the settings and click “Back up now”."

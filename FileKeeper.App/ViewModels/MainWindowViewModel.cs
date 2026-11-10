@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -53,6 +54,18 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     public IDialogService? Dialogs { get; set; }
+
+    /// <summary>Version from the project's &lt;Version&gt;, without the "+commit" build metadata.</summary>
+    private static readonly string Version =
+        typeof(MainWindowViewModel).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            .Split('+')[0]
+        ?? typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3)
+        ?? string.Empty;
+
+    public string AppVersion => Version;
+
+    public string Title => string.IsNullOrEmpty(Version) ? "FileKeeper" : $"FileKeeper {Version}";
 
     public bool IsIdle => !IsBusy;
 

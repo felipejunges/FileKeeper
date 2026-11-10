@@ -9,7 +9,7 @@
         Icon="/Assets/appicon/filekeeper.ico"
         Width="1150" Height="720" MinWidth="760" MinHeight="480"
         WindowStartupLocation="CenterScreen"
-        Title="FileKeeper">
+        Title="{Binding Title}">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
@@ -21,7 +21,11 @@
                 Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="FileKeeper" FontSize="22" FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="FileKeeper" FontSize="22" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}" Opacity="0.6"
+                                   VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding ArchiveSummary}" Opacity="0.7"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

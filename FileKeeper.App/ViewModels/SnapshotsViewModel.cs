@@ -60,6 +60,7 @@ public partial class SnapshotsViewModel : ViewModelBase
         Selected = Items.FirstOrDefault(i => i.Id == selectedId) ?? Items.FirstOrDefault();
         OnPropertyChanged(nameof(HasSnapshots));
         DeleteLatestCommand.NotifyCanExecuteChanged();
+        VerifyCommand.NotifyCanExecuteChanged();
     }
 
     public void SelectById(int id) => Selected = Items.FirstOrDefault(i => i.Id == id) ?? Selected;
@@ -126,6 +127,43 @@ public partial class SnapshotsViewModel : ViewModelBase
     }
 
     private bool CanRestore() => Selected is not null;
+
+    [RelayCommand(CanExecute = nameof(HasSnapshots))]
+    private async Task VerifyAsync()
+    {
+        await Main.RunAsync("Integrity check", async (progress, ct) =>
+        {
+            var engine = Main.CreateEngine();
+            var result = await Task.Run(() => engine.VerifyArchive(progress, ct), ct);
+
+            var summary = $"Checked {result.SnapshotCount} snapshot(s), {result.CheckedBlobCount} stored file(s) " +
+                          $"({Formatting.Bytes(result.CheckedBytes)}).";
+            if (result.Issues.Count == 0)
+            {
+                Main.StatusMessage = $"Integrity check passed. {summary}";
+                if (Main.Dialogs is not null)
+                    await Main.Dialogs.ShowMessageAsync("Integrity check passed", $"{summary}\n\nNo problem found.");
+                return;
+            }
+
+            Main.StatusMessage = $"Integrity check: {result.ErrorCount} error(s), {result.WarningCount} warning(s).";
+            if (Main.Dialogs is null)
+                return;
+
+            const int maxShown = 15;
+            var lines = result.Issues
+                .OrderBy(i => i.Severity)
+                .Take(maxShown)
+                .Select(i => (i.Severity == IssueSeverity.Error ? "✖ " : "⚠ ") + i.Message);
+            var verdict = result.IsHealthy
+                ? "No data is lost, but the archive contains unexpected data."
+                : "Some files cannot be restored correctly.";
+            await Main.Dialogs.ShowMessageAsync(
+                result.IsHealthy ? "Integrity check: warnings" : "Integrity check: problems found",
+                $"{summary}\n{verdict}\n\n{string.Join("\n", lines)}" +
+                (result.Issues.Count > maxShown ? $"\n... and {result.Issues.Count - maxShown} more." : string.Empty));
+        });
+    }
 }
 
 public sealed class SnapshotItemViewModel(SnapshotManifest manifest, SnapshotDiff diff) : ViewModelBase

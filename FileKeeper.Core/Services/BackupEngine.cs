@@ -249,6 +249,154 @@ public sealed class BackupEngine
         return pruned;
     }
 
+    /// <summary>
+    /// Checks that the archive is consistent: every manifest can be read, every file referenced by a
+    /// snapshot has its content in the archive with the recorded size and SHA-256, and no stored
+    /// content is left unreferenced. Read only; problems are reported, never repaired.
+    /// </summary>
+    public VerificationResult VerifyArchive(IProgress<string>? progress = null, CancellationToken ct = default)
+    {
+        if (!File.Exists(Destination))
+            throw new FileNotFoundException($"The backup file does not exist: {Destination}", Destination);
+
+        var issues = new List<VerificationIssue>();
+        void Error(string message) => issues.Add(new VerificationIssue(IssueSeverity.Error, message));
+        void Warning(string message) => issues.Add(new VerificationIssue(IssueSeverity.Warning, message));
+
+        progress?.Report("Reading manifests...");
+        using var archive = ZipFile.OpenRead(Destination);
+
+        // Read each manifest separately so one broken manifest does not hide the others.
+        var manifests = new List<SnapshotManifest>();
+        var manifestFolders = new HashSet<int>();
+        var snapshotFolders = new SortedSet<int>();
+        var blobs = new Dictionary<string, ZipArchiveEntry>(StringComparer.Ordinal);
+        foreach (var entry in archive.Entries)
+        {
+            switch (ArchiveLayout.Classify(entry.FullName, out var folderId))
+            {
+                case ArchiveLayout.EntryKind.Manifest:
+                    snapshotFolders.Add(folderId);
+                    manifestFolders.Add(folderId);
+                    try
+                    {
+                        var manifest = ArchiveLayout.ReadManifest(entry)
+                                       ?? throw new InvalidDataException("the manifest is empty");
+                        if (manifest.Id != folderId)
+                            Error($"Manifest of snapshot folder {folderId} declares id {manifest.Id}.");
+                        else
+                            manifests.Add(manifest);
+                    }
+                    catch (Exception ex) when (ex is InvalidDataException or System.Text.Json.JsonException)
+                    {
+                        Error($"Manifest of snapshot {folderId} cannot be read: {ex.Message}");
+                    }
+
+                    break;
+                case ArchiveLayout.EntryKind.Blob:
+                    snapshotFolders.Add(folderId);
+                    blobs[entry.FullName] = entry;
+                    break;
+                case ArchiveLayout.EntryKind.Other:
+                    Warning($"Unexpected entry in the archive: {entry.FullName}");
+                    break;
+            }
+        }
+
+        foreach (var id in snapshotFolders.Where(id => !manifestFolders.Contains(id)))
+            Warning($"Snapshot folder {id} has content but no manifest (leftover of an interrupted operation?).");
+
+        manifests.Sort((a, b) => a.Id.CompareTo(b.Id));
+
+        // Collect the distinct stored contents every snapshot relies on.
+        var expected = new Dictionary<string, (FileRecord Record, int FirstSnapshot)>(StringComparer.Ordinal);
+        foreach (var manifest in manifests)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var file in manifest.Files)
+            {
+                if (!seen.Add(file.Path))
+                {
+                    Error($"Snapshot {manifest.Id} lists {file.Path} more than once.");
+                    continue;
+                }
+
+                if (file.StoredIn > manifest.Id)
+                {
+                    Error($"Snapshot {manifest.Id} refers to {file.Path} in the newer snapshot {file.StoredIn}.");
+                    continue;
+                }
+
+                var blobPath = ArchiveLayout.BlobPath(file.StoredIn, file.Path);
+                if (!expected.TryGetValue(blobPath, out var known))
+                    expected[blobPath] = (file, manifest.Id);
+                else if (known.Record.Sha256 != file.Sha256 || known.Record.Size != file.Size)
+                    Error($"Snapshots {known.FirstSnapshot} and {manifest.Id} disagree on the content of " +
+                          $"{file.Path} stored in snapshot {file.StoredIn}.");
+            }
+        }
+
+        // Read and hash every stored content.
+        var checkedCount = 0;
+        long checkedBytes = 0;
+        var buffer = new byte[81920];
+        foreach (var (blobPath, (record, firstSnapshot)) in expected)
+        {
+            ct.ThrowIfCancellationRequested();
+            checkedCount++;
+            progress?.Report($"Verifying {checkedCount}/{expected.Count}: {record.Path}");
+
+            if (!blobs.Remove(blobPath, out var entry))
+            {
+                Error($"Missing content of {record.Path} (stored in snapshot {record.StoredIn}, " +
+                      $"used by snapshot {firstSnapshot}).");
+                continue;
+            }
+
+            try
+            {
+                using var stream = entry.Open();
+                using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                long size = 0;
+                int read;
+                while ((read = stream.Read(buffer)) > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    hasher.AppendData(buffer, 0, read);
+                    size += read;
+                }
+
+                checkedBytes += size;
+                var hash = Convert.ToHexStringLower(hasher.GetHashAndReset());
+                if (size != record.Size)
+                    Error($"Size mismatch for {record.Path} in snapshot {record.StoredIn}: " +
+                          $"expected {record.Size} bytes, found {size}.");
+                else if (hash != record.Sha256)
+                    Error($"Checksum mismatch for {record.Path} in snapshot {record.StoredIn}: the content is corrupted.");
+            }
+            catch (InvalidDataException ex)
+            {
+                Error($"Content of {record.Path} in snapshot {record.StoredIn} cannot be read: {ex.Message}");
+            }
+        }
+
+        // Whatever is left is not referenced by any snapshot (folders without manifest were reported above).
+        foreach (var (orphan, entry) in blobs.OrderBy(b => b.Key, StringComparer.Ordinal))
+        {
+            ArchiveLayout.Classify(orphan, out var folderId);
+            if (manifestFolders.Contains(folderId))
+                Warning($"Unreferenced content (wasted space): {entry.FullName}");
+        }
+
+        return new VerificationResult
+        {
+            SnapshotCount = manifests.Count,
+            CheckedBlobCount = checkedCount,
+            CheckedBytes = checkedBytes,
+            Issues = issues,
+        };
+    }
+
     /// <summary>Restores every file of a snapshot under <paramref name="targetFolder"/>.</summary>
     public int RestoreSnapshot(int snapshotId, string targetFolder, IProgress<string>? progress = null,
         CancellationToken ct = default)

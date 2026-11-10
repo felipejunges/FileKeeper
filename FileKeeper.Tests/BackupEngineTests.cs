@@ -402,6 +402,99 @@ public sealed class BackupEngineTests : IDisposable
             engine.RestoreFiles([new RestoreItem(_ws.Key("a.txt"), 7, "a.txt")], Path.Combine(_ws.Root, "restore")));
     }
 
+    private BackupEngine EngineWithTwoSnapshots()
+    {
+        _ws.Write("a.txt", "A");
+        _ws.Write("b.txt", "B");
+        var engine = Engine();
+        engine.CreateSnapshot();
+        _ws.Write("b.txt", "B2");
+        engine.CreateSnapshot();
+        return engine;
+    }
+
+    private void ReplaceEntry(string path, string? content)
+    {
+        using var zip = ZipFile.Open(_ws.Destination, ZipArchiveMode.Update);
+        zip.GetEntry(path)?.Delete();
+        if (content is null)
+            return;
+        using var writer = new StreamWriter(zip.CreateEntry(path).Open());
+        writer.Write(content);
+    }
+
+    [Fact]
+    public void Verify_HealthyArchive_HasNoIssues()
+    {
+        var engine = EngineWithTwoSnapshots();
+        engine.PruneOldestSnapshot();
+
+        var result = engine.VerifyArchive();
+
+        Assert.True(result.IsHealthy);
+        Assert.Empty(result.Issues);
+        Assert.Equal(1, result.SnapshotCount);
+        Assert.Equal(2, result.CheckedBlobCount);
+    }
+
+    [Fact]
+    public void Verify_CorruptedContent_IsReported()
+    {
+        var engine = EngineWithTwoSnapshots();
+        ReplaceEntry(ArchiveLayout.BlobPath(1, _ws.Key("a.txt")), "X");
+
+        var issue = Assert.Single(engine.VerifyArchive().Issues);
+
+        Assert.Equal(IssueSeverity.Error, issue.Severity);
+        Assert.Contains("Checksum mismatch", issue.Message);
+    }
+
+    [Fact]
+    public void Verify_MissingContent_IsReported()
+    {
+        var engine = EngineWithTwoSnapshots();
+        ReplaceEntry(ArchiveLayout.BlobPath(2, _ws.Key("b.txt")), null);
+
+        var issue = Assert.Single(engine.VerifyArchive().Issues);
+
+        Assert.Equal(IssueSeverity.Error, issue.Severity);
+        Assert.Contains("Missing content", issue.Message);
+    }
+
+    [Fact]
+    public void Verify_BrokenManifest_IsReportedAndOthersStillChecked()
+    {
+        var engine = EngineWithTwoSnapshots();
+        ReplaceEntry(ArchiveLayout.ManifestPath(2), "{ not json");
+
+        var result = engine.VerifyArchive();
+
+        Assert.False(result.IsHealthy);
+        Assert.Contains(result.Issues, i => i.Severity == IssueSeverity.Error && i.Message.Contains("cannot be read"));
+        Assert.Equal(1, result.SnapshotCount);
+        Assert.Equal(2, result.CheckedBlobCount);
+    }
+
+    [Fact]
+    public void Verify_UnreferencedContent_IsAWarning()
+    {
+        var engine = EngineWithTwoSnapshots();
+        ReplaceEntry(ArchiveLayout.BlobPath(1, _ws.Key("ghost.txt")), "boo");
+
+        var result = engine.VerifyArchive();
+
+        Assert.True(result.IsHealthy);
+        var issue = Assert.Single(result.Issues);
+        Assert.Equal(IssueSeverity.Warning, issue.Severity);
+        Assert.Contains("Unreferenced", issue.Message);
+    }
+
+    [Fact]
+    public void Verify_WithoutArchive_Throws()
+    {
+        Assert.Throws<FileNotFoundException>(() => Engine().VerifyArchive());
+    }
+
     private sealed class SyncProgress(Action<string> handler) : IProgress<string>
     {
         public void Report(string value) => handler(value);

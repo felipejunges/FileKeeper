@@ -41,19 +41,57 @@ internal static class ArchiveLayout
         var manifests = new List<SnapshotManifest>();
         foreach (var entry in archive.Entries)
         {
-            if (!entry.FullName.StartsWith(Root, StringComparison.Ordinal) ||
-                !entry.FullName.EndsWith("/" + ManifestName, StringComparison.Ordinal) ||
-                entry.FullName.Count(c => c == '/') != 2)
+            if (!IsManifestEntry(entry.FullName))
                 continue;
 
-            using var stream = entry.Open();
-            var manifest = JsonSerializer.Deserialize<SnapshotManifest>(stream, JsonOptions);
+            var manifest = ReadManifest(entry);
             if (manifest is not null)
                 manifests.Add(manifest);
         }
 
         manifests.Sort((a, b) => a.Id.CompareTo(b.Id));
         return manifests;
+    }
+
+    public static SnapshotManifest? ReadManifest(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+        return JsonSerializer.Deserialize<SnapshotManifest>(stream, JsonOptions);
+    }
+
+    private static bool IsManifestEntry(string fullName) =>
+        fullName.StartsWith(Root, StringComparison.Ordinal) &&
+        fullName.EndsWith("/" + ManifestName, StringComparison.Ordinal) &&
+        fullName.Count(c => c == '/') == 2;
+
+    public enum EntryKind
+    {
+        /// <summary>Not part of the snapshot layout.</summary>
+        Other,
+        Manifest,
+        Blob,
+        /// <summary>Explicit directory entry (name ending with '/').</summary>
+        Directory,
+    }
+
+    /// <summary>Classifies an archive entry and extracts the id of the snapshot it belongs to.</summary>
+    public static EntryKind Classify(string fullName, out int snapshotId)
+    {
+        snapshotId = 0;
+        if (!fullName.StartsWith(Root, StringComparison.Ordinal))
+            return fullName.EndsWith('/') ? EntryKind.Directory : EntryKind.Other;
+
+        var rest = fullName.AsSpan(Root.Length);
+        var slash = rest.IndexOf('/');
+        if (slash <= 0 || !int.TryParse(rest[..slash], System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out snapshotId))
+            return fullName.EndsWith('/') ? EntryKind.Directory : EntryKind.Other;
+
+        if (fullName.EndsWith('/'))
+            return EntryKind.Directory;
+        if (IsManifestEntry(fullName))
+            return EntryKind.Manifest;
+        return rest[(slash + 1)..].StartsWith("files/", StringComparison.Ordinal) ? EntryKind.Blob : EntryKind.Other;
     }
 
     public static void WriteManifest(ZipArchive archive, SnapshotManifest manifest)
