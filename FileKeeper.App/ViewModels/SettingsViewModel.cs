@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -146,16 +147,22 @@ public partial class SettingsViewModel : ViewModelBase
             DestinationFile = full;
         }
 
+        settings.SourceFolders = SortFolders(settings.SourceFolders);
+        settings.IgnoredFolders = SortFolders(settings.IgnoredFolders);
+
         try
         {
             Main.SaveSettings(settings);
-            HasUnsavedChanges = false;
+            LoadFrom(Main.CurrentSettings);
         }
         catch (Exception ex)
         {
             await ShowError($"Could not save settings: {ex.Message}");
         }
     }
+
+    private static List<string> SortFolders(IEnumerable<string> folders) =>
+        [.. folders.Order(StringComparer.OrdinalIgnoreCase).ThenBy(f => f, StringComparer.Ordinal)];
 
     [RelayCommand]
     private void Revert() => LoadFrom(Main.CurrentSettings);
